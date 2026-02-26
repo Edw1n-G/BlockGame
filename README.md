@@ -17,11 +17,11 @@ High Prio Todos:
 - Physics
 
 Low Prio Todos:
--shading
--better terrain
--Client->Server<-Client Structure
+- shading
+- better terrain
+- Client->Server<-Client Structure
 
 Future Todos:
--Placing Trees and bushes
--dynamic grass
--ui menu
+- Placing Trees and bushes
+- dynamic grass
+- ui menu

@@ -42,3 +42,4 @@ C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\System.Private.W
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\System.Private.Windows.GdiPlus.dll
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\runtimes\win\lib\net10.0\Microsoft.Win32.SystemEvents.dll
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\obj\Debug\net10.0\Terrain_Generator.sourcelink.json
+C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\Configurations\TextureConfig.json

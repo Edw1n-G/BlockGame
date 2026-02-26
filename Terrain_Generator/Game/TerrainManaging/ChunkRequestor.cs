@@ -2,7 +2,9 @@
 using Basics.Graphics;
 using Basics.Utilities;
 using Silk.NET.OpenGL;
-
+//=============================================
+// THIS CODE IS AI GENERATED - USE WITH CAUTION
+//=============================================
 namespace Basics.Game;
 
 /// <summary>
@@ -13,7 +15,7 @@ public class ChunkRequestor
 {
     private readonly ChunkProvidor _chunkProvidor;
     private readonly Camera _camera;
-    private int _renderDistance = 4; // Render-Distanz in Chunks
+    private int _renderDistance = 6; // Render-Distanz in Chunks
     private HashSet<ChunkCoord> _activeChunks = new();
 
     public int RenderDistance

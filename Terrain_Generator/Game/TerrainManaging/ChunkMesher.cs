@@ -2,6 +2,7 @@
 using Basics.Graphics;
 using Silk.NET.OpenGL;
 using System.Collections.Generic;
+using Basics.Configurations;
 using Basics.Utilities; //Liste
 
 namespace Basics.Game;
@@ -25,8 +26,7 @@ public class ChunkMesher : IDisposable
     private uint _indicesCount;
     private Matrix4x4 model; // Model Matrix für diesen Chunk
     private int[,,] _blockData; // 3D Array für die Blocktypen im Chunk (z.B. 0 = Luft, 1 = Erde, etc.)
-    private float texturestep = 1.0f / 4.0f; // Top, Bottom, Sides
-
+    
     public ChunkMesher(GL gl, ChunkCoord position, int[,,] blockData)
     {
         _gl = gl;
@@ -47,86 +47,41 @@ public class ChunkMesher : IDisposable
             {
                 for (int z = 0; z < 32; z++)
                 {
-                    if (_blockData[x, y, z] != 0) // Nur Blöcke rendern, die nicht Luft sind
+                    if (_blockData[x, y, z] == 0) continue; // Nur Blöcke rendern, die nicht Luft sind
+                    // Top Face
+                    if (y == 31 || _blockData[x, y + 1, z] == 0) // Nur rendern, wenn oben Luft ist
                     {
-                        // Top Face
-                        if (y == 31 || _blockData[x, y + 1, z] == 0) // Nur rendern, wenn oben Luft ist
-                        {
-                            vertices.AddRange(new float[]
-                            {
-                                x, y + 1, z + 1, 0.0f, 0.0f,        // Bottom-Left
-                                x + 1, y + 1, z + 1, texturestep, 0.0f, // Bottom-Right
-                                x + 1, y + 1, z, texturestep, 1.0f, // Top-Right
-                                x, y + 1, z, 0.0f, 1.0f           // Top-Left
-                            });
-                            AddIndices((uint)vertices.Count / 5 - 4);
-                        }
+                        CreateCubeFace(x, y, z, 0);
+                    }
                         
-                        // Bottom Face
-                        if (y == 0 || _blockData[x, y - 1, z] == 0) // Nur rendern, wenn unten Luft ist
-                        {
-                            vertices.AddRange(new float[]
-                            {
-                                x + 1, y, z + 1, texturestep*2, 0.0f, // Bottom-Right
-                                x, y, z + 1, texturestep, 0.0f,       // Bottom-Left 
-                                x, y, z, texturestep, 1.0f,          // Top-Left
-                                x + 1, y, z, texturestep*2, 1.0f       // Top-Right
-                            });
-
-                            AddIndices((uint)vertices.Count / 5 - 4);
-                        }
+                    // Bottom Face
+                    if (y == 0 || _blockData[x, y - 1, z] == 0) // Nur rendern, wenn unten Luft ist
+                    {
+                        CreateCubeFace(x, y, z, 1);
+                    }
                         
-                        // Left Face (-X)
-                        if (x == 0 || _blockData[x - 1, y, z] == 0)
-                        {
-                            vertices.AddRange(new float[]
-                            {
-                                x, y, z, texturestep*2, 1.0f,       // Bottom-Left
-                                x, y, z + 1, texturestep*3, 1.0f,            // Bottom-Right
-                                x, y + 1, z + 1, texturestep*3, 0.0f,             // Top-Right
-                                x, y + 1, z, texturestep*2, 0.0f        // Top-Left
-                            });
-                            AddIndices((uint)vertices.Count / 5 - 4);
-                        }
+                    // Front Face (+Z)
+                    if (z == 31 || _blockData[x, y, z + 1] == 0)
+                    {
+                        CreateCubeFace(x, y, z, 2);
+                    }
 
-                        // Right Face (+X)
-                        if (x == 31 || _blockData[x + 1, y, z] == 0)
-                        {
-                            vertices.AddRange(new float[]
-                            {
-                                x + 1, y, z + 1, texturestep*2, 1.0f,        // Bottom-Left
-                                x + 1, y, z, texturestep*3, 1.0f,               // Bottom-Right
-                                x + 1, y + 1, z, texturestep*3, 0.0f,           // Top-Right
-                                x + 1, y + 1, z + 1, texturestep*2, 0.0f         // Top-Left
-                            });
-                            AddIndices((uint)vertices.Count / 5 - 4);
-                        }
+                    // Back Face (-Z)
+                    if (z == 0 || _blockData[x, y, z - 1] == 0)
+                    {
+                        CreateCubeFace(x, y, z, 3);
+                    }
+                        
+                    // Left Face (-X)
+                    if (x == 0 || _blockData[x - 1, y, z] == 0)
+                    {
+                        CreateCubeFace(x, y, z, 4);
+                    }
 
-                        // Front Face (+Z)
-                        if (z == 31 || _blockData[x, y, z + 1] == 0)
-                        {
-                             vertices.AddRange(new float[]
-                             {
-                                 x, y, z + 1, texturestep*2, 1.0f,            // Bottom-Left
-                                 x + 1, y, z + 1, texturestep*3, 1.0f,             // Bottom-Right
-                                 x + 1, y + 1, z + 1, texturestep*3, 0.0f,               // Top-Right
-                                 x, y + 1, z + 1, texturestep*2, 0.0f          // Top-Left
-                             });
-                             AddIndices((uint)vertices.Count / 5 - 4);
-                        }
-
-                        // Back Face (-Z)
-                        if (z == 0 || _blockData[x, y, z - 1] == 0)
-                        {
-                            vertices.AddRange(new float[]
-                            {
-                                x + 1, y, z,texturestep*2, 1.0f,         // Bottom-Left
-                                x, y, z, 0.0f + texturestep*3, 1.0f,            // Bottom-Right
-                                x, y + 1, z, 0.0f + texturestep*3, 0.0f,              // Top-Right
-                                x + 1, y + 1, z, texturestep*2, 0.0f          // Top-Left
-                            });
-                            AddIndices((uint)vertices.Count / 5 - 4);
-                        }
+                    // Right Face (+X)
+                    if (x == 31 || _blockData[x + 1, y, z] == 0)
+                    {
+                        CreateCubeFace(x, y, z, 5);
                     }
                 }
             }
@@ -147,6 +102,79 @@ public class ChunkMesher : IDisposable
         
         // Model Matrix initialisieren (basierend auf Chunk Position)
         model = Matrix4x4.CreateTranslation(new Vector3(ChunkPosition.X, ChunkPosition.Y, ChunkPosition.Z));
+    }
+
+    
+    
+    private void CreateCubeFace(int x, int y,int z, int face)
+    {
+        int id = _blockData[x, y, z];
+        FaceUV uv = BlockTextures.Get(id, face);
+        
+        switch (face)
+        {
+            // Top Face (+Y)
+            case BlockTextures.Top:
+                vertices.AddRange(new float[]
+                {
+                    x,     y + 1, z + 1, uv.UMin, uv.VMin, // Bottom-Left
+                    x + 1, y + 1, z + 1, uv.UMax, uv.VMin, // Bottom-Right
+                    x + 1, y + 1, z,     uv.UMax, uv.VMax, // Top-Right
+                    x,     y + 1, z,     uv.UMin, uv.VMax  // Top-Left
+                });
+                break;
+            // Bottom Face (-Y)
+            case BlockTextures.Bottom:
+                vertices.AddRange(new float[]
+                {
+                    x,     y, z,     uv.UMin, uv.VMin, // Bottom-Left
+                    x + 1, y, z,     uv.UMax, uv.VMin, // Bottom-Right
+                    x + 1, y, z + 1, uv.UMax, uv.VMax, // Top-Right
+                    x,     y, z + 1, uv.UMin, uv.VMax  // Top-Left
+                });
+                break;
+            // Front Face (+Z)
+            case BlockTextures.Front:
+                vertices.AddRange(new float[]
+                {
+                    x,     y,     z + 1, uv.UMin, uv.VMax, // Bottom-Left
+                    x + 1, y,     z + 1, uv.UMax, uv.VMax, // Bottom-Right
+                    x + 1, y + 1, z + 1, uv.UMax, uv.VMin, // Top-Right
+                    x,     y + 1, z + 1, uv.UMin, uv.VMin  // Top-Left
+                });
+                break;
+            // Back Face (-Z)
+            case BlockTextures.Back:
+                vertices.AddRange(new float[]
+                {
+                    x + 1, y,     z, uv.UMin, uv.VMax, // Bottom-Left
+                    x,     y,     z, uv.UMax, uv.VMax, // Bottom-Right
+                    x,     y + 1, z, uv.UMax, uv.VMin, // Top-Right
+                    x + 1, y + 1, z, uv.UMin, uv.VMin  // Top-Left
+                });
+                break;
+            // Left Face (-X)
+            case BlockTextures.Left:
+                vertices.AddRange(new float[]
+                {
+                    x, y,     z,     uv.UMin, uv.VMax, // Bottom-Left
+                    x, y,     z + 1, uv.UMax, uv.VMax, // Bottom-Right
+                    x, y + 1, z + 1, uv.UMax, uv.VMin, // Top-Right
+                    x, y + 1, z,     uv.UMin, uv.VMin  // Top-Left
+                });
+                break;
+            // Right Face (+X)
+            case BlockTextures.Right:
+                vertices.AddRange(new float[]
+                {
+                    x + 1, y,     z + 1, uv.UMin, uv.VMax, // Bottom-Left
+                    x + 1, y,     z,     uv.UMax, uv.VMax, // Bottom-Right
+                    x + 1, y + 1, z,     uv.UMax, uv.VMin, // Top-Right
+                    x + 1, y + 1, z + 1, uv.UMin, uv.VMin  // Top-Left
+                });
+                break;
+        }
+        AddIndices((uint)vertices.Count / 5 - 4);
     }
 
     // Helper für saubereren Code

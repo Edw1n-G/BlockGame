@@ -1,6 +1,10 @@
 ﻿using Basics.Utilities;
 using Basics.Graphics;
 
+
+//=============================================
+// THIS CODE IS AI GENERATED - USE WITH CAUTION
+//=============================================
 namespace Basics.Game;
 
 /// <summary>

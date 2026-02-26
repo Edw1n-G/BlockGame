@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Basics.Configurations;
 using Basics.Game;
 using Silk.NET.Input; //Für die Tastatureingabe
 using Silk.NET.Maths; //Für die Vector2D Klasse
@@ -56,6 +57,9 @@ public class MainClass
         InputManager.SetActionBindings(Actions.Close, () => WindowSetup.window.Close());
         InputManager.SetActionBindings(Actions.Fullscreen, ToggleFullscreen);
         InputManager.SetActionBindings(Actions.Borderless, ToggleBorderless);
+        
+        // Texture Mapping lesen und in den speicher legen
+        BlockTextures.Initialize("Configurations/TextureConfig.json");
         
         // Terrain-Pipeline aufbauen:
         // TerrainGenerator erzeugt Chunk-Daten

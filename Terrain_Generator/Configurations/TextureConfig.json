@@ -1,0 +1,37 @@
+{
+  "Blocks": [
+    {
+      "BlockId": 1,
+      "Faces": {
+        "Top":    { "UMin": 0.0,  "VMin": 0.0, "UMax": 0.25, "VMax": 0.5 },
+        "Bottom": { "UMin": 0.25, "VMin": 0.0, "UMax": 0.5,  "VMax": 0.5 },
+        "Front":  { "UMin": 0.5,  "VMin": 0.0, "UMax": 0.75, "VMax": 0.5 },
+        "Back":   { "UMin": 0.5,  "VMin": 0.0, "UMax": 0.75, "VMax": 0.5 },
+        "Left":   { "UMin": 0.5,  "VMin": 0.0, "UMax": 0.75, "VMax": 0.5 },
+        "Right":  { "UMin": 0.5,  "VMin": 0.0, "UMax": 0.75, "VMax": 0.5 }
+      }
+    },
+    {
+      "BlockId": 2,
+      "Faces": {
+        "Top":    { "UMin": 0.75, "VMin": 0.0, "UMax": 1.0, "VMax": 0.5 },
+        "Bottom": { "UMin": 0.75, "VMin": 0.0, "UMax": 1.0, "VMax": 0.5 },
+        "Front":  { "UMin": 0.75, "VMin": 0.0, "UMax": 1.0, "VMax": 0.5 },
+        "Back":   { "UMin": 0.75, "VMin": 0.0, "UMax": 1.0, "VMax": 0.5 },
+        "Left":   { "UMin": 0.75, "VMin": 0.0, "UMax": 1.0, "VMax": 0.5 },
+        "Right":  { "UMin": 0.75, "VMin": 0.0, "UMax": 1.0, "VMax": 0.5 }
+      }
+    },
+    {
+      "BlockId": 3,
+      "Faces": {
+        "Top":    { "UMin": 0.0,  "VMin": 0.5, "UMax": 0.25, "VMax": 1.0 },
+        "Bottom": { "UMin": 0.0,  "VMin": 0.5, "UMax": 0.25, "VMax": 1.0 },
+        "Front":  { "UMin": 0.0, "VMin": 0.5, "UMax": 0.25,  "VMax": 1.0 },
+        "Back":   { "UMin": 0.0, "VMin": 0.5, "UMax": 0.25,  "VMax": 1.0 },
+        "Left":   { "UMin": 0.0, "VMin": 0.5, "UMax": 0.25,  "VMax": 1.0 },
+        "Right":  { "UMin": 0.0, "VMin": 0.5, "UMax": 0.25,  "VMax": 1.0 }
+      }
+    }
+  ]
+}

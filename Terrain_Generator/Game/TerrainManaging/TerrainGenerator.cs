@@ -3,23 +3,24 @@ using System.Drawing.Imaging;
 using System.Numerics;
 using Basics.Utilities;
 using Basics.Graphics;
+
 namespace Basics.Game;
 
 public class TerrainGenerator
 {
     private long seed = 1223456789;
-    private float step = 3f; // Schrittweite für die Noise-Abtastung, je kleiner desto detaillierter aber auch rechenintensiver
-    private float scale = 12.0f;
-    private int maxMapSize = 1; // Maximale Anzahl von Chunks in x und z Richtung.
+    private float step = 5f; // Schrittweite für die Noise-Abtastung, je kleiner desto detaillierter aber auch rechenintensiver
+    private float scale = 25.0f;
+    private int maxMapSize = 1; // Maximale Anzahl von Chunks in x und z Richtung. Dummy wert
     private int mapLimit;
     private int radius; //Um 0/0 als Mittelpunkt zu haben
     
-    /**
-     * Setzt die Max Größe der Karte
-     * @param mapSize absolute Chunkmenge in x und z
-     * @param Menge der Chunks jeweils in die positive und negative Richtung
-     * @param mapLimit die Grenze der Karte in Blöcken
-     */
+    /// <summary>
+    /// Setzt die Max Größe der Karte
+    /// @param mapSize absolute Chunkmenge in x und z
+    /// @param Menge der Chunks jeweils in die positive und negative Richtung
+    /// @param mapLimit die Grenze der Karte in Blöcken
+    /// </summary>
     public void setMapSize(int size)
     {
         maxMapSize = size;
@@ -44,7 +45,7 @@ public class TerrainGenerator
             Console.ResetColor(); 
         }
         int ChunkstartX = coord.X * 32;
-        int ChunkstartY = coord.Y * 32;
+        int ChunkstartY = coord.Y * 62;
         int ChunkstartZ = coord.Z * 32;
         
         int[,,] ChunkBlocks = new int[32, 32, 32];
@@ -76,13 +77,17 @@ public class TerrainGenerator
                 {
                     if (y <= height)
                     {
-                        if (y <= (height - 2))
+                        if (y > 28) 
                         {
-                            ChunkBlocks[Blockx, y, Blockz] = 2; // Unterste Blöcke als Stein
+                            ChunkBlocks[Blockx, y, Blockz] = 3; // Schnee auf den höchsten Blöcken
+                        }
+                        else if (y <= (height - 2) || y > (20)) 
+                        {
+                            ChunkBlocks[Blockx, y, Blockz] = 2; // unter Erde ist und mittlere Blöcke als Stein
                         }
                         else
                         {
-                            ChunkBlocks[Blockx, y, Blockz] = 1; // Oberste Blöcke als Erde
+                            ChunkBlocks[Blockx, y, Blockz] = 1; // Mitlere Blöcke als Erde
                         }
                     }
                     else

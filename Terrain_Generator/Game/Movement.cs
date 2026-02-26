@@ -10,7 +10,6 @@ namespace Basics.Input;
  */
 public class Movement
 {
-    private static Vector3 _moveDirection;
     private static Vector2 LastMousePosition;
     
     private const float Speed = 12f;

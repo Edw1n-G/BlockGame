@@ -33,7 +33,6 @@ C:\Dev\Silk_learn\Rendering\Terrain_Generator\obj\Debug\net10.0\Terrain_Generato
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\obj\Debug\net10.0\Terrain_Generator.genruntimeconfig.cache
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\obj\Debug\net10.0\ref\Terrain_Generator.dll
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\StbImageSharp.dll
-C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\texture\example.png
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\Graphics\Shader\shader.frag
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\Graphics\Shader\shader.vert
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\Microsoft.Win32.SystemEvents.dll
@@ -43,3 +42,4 @@ C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\System.Private.W
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\runtimes\win\lib\net10.0\Microsoft.Win32.SystemEvents.dll
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\obj\Debug\net10.0\Terrain_Generator.sourcelink.json
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\Configurations\TextureConfig.json
+C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\texture\example.png

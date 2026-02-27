@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Basics.Configurations;
 using Basics.Game;
+using Basics.Game.TerrainManaging;
 using Silk.NET.Input; //Für die Tastatureingabe
 using Silk.NET.Maths; //Für die Vector2D Klasse
 using Basics.Graphics;
@@ -73,7 +74,7 @@ public class MainClass
         // Terrain-Pipeline aufbauen:
         // TerrainGenerator erzeugt Chunk-Daten
         _terrainGenerator = new TerrainGenerator();
-        _terrainGenerator.setMapSize(32);
+        _terrainGenerator.SetMapSize(32);
         
         // ChunkProvidor verwaltet den Chunk-Lebenszyklus (Laden/Generieren/Speichern)
         _chunkProvidor = new ChunkProvidor(_terrainGenerator);

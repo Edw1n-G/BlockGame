@@ -17,19 +17,19 @@ public class Renderer
     
     public static ShaderManager terrainshader;
     public static Texture terrainTexture;
-    public static Camera PlayerCamera;
+    private static Camera Camera;
     public static ChunkProvidor ChunkProvidor; // Referenz auf den Chunk-Verwalter
     
     /**
      * Setup Methode, alles was man fürs Rendern braucht.
      * Window, Camera, Shader und testchunks
      */
-    public static unsafe void Setup()
+    public unsafe void Setup(Camera camera)
     {
         gl = WindowSetup.window.CreateOpenGL();
         gl.ClearColor(Color.CornflowerBlue);
         
-        PlayerCamera = new Camera(new Vector3(0.0f, 33.0f, 0.0f));
+        Camera = camera;
         
         terrainshader = new ShaderManager(gl, "shader.vert", "shader.frag");
         terrainTexture = new Texture(gl, "texture/example.png");
@@ -39,9 +39,9 @@ public class Renderer
      * Abstraktion für Rendern
      * Jeder Chunk in und der Welt wird gerendert.
      */
-    public static unsafe void Render()
+    public unsafe void Render()
     {
-        terrainshader.Use(gl, PlayerCamera);
+        terrainshader.Use(gl, Camera);
         terrainshader.BindTexture(terrainTexture);
 
         foreach (var chunk in ChunkProvidor.GetLoadedChunks())
@@ -53,7 +53,7 @@ public class Renderer
     /**
      * Color und Depth Buffer löschen, damit der vorherige Frame nicht mehr sichtbar ist.
      */
-    public static void Clear()
+    public void Clear()
     {
         gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
     }
@@ -61,7 +61,7 @@ public class Renderer
     /**
      * Jeden Shader und Chunk gefolgt vom GL Kontext entfernen
      */
-    public static void Dispose()
+    public void Dispose()
     {
         terrainshader.Dispose();
         terrainTexture.Dispose();
@@ -72,7 +72,7 @@ public class Renderer
     /**
      * Fenstergröße weitergeben damit die Viewportgröße angepasst werden kann.
      */
-    public static void FramebufferResize(Vector2D<int> size)
+    public void FramebufferResize(Vector2D<int> size)
     {
         gl.Viewport(size);
     }

@@ -7,6 +7,7 @@
         <Nullable>enable</Nullable>
         <RootNamespace>Basics</RootNamespace>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     </PropertyGroup>
 
     <ItemGroup>
@@ -18,9 +19,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="texture\example.png">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
       <None Update="Graphics\Shader\shader.frag">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
@@ -30,6 +28,13 @@
       <None Update="Configurations\TextureConfig.json">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="texture\example.png" />
+      <Content Include="texture\example.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>

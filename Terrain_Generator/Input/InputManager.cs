@@ -143,7 +143,7 @@ public class InputManager
     private static void OnMouseMove(IMouse mouse, Vector2 position)
     {
         // Updating instantly. Nicht ideal sollte per Frame passieren.
-        Movement.LookUpdate(position, Basics.Graphics.Renderer.PlayerCamera);
+        Movement.LookUpdate(position);
     }
 
     private static unsafe void OnMouseWheel(IMouse mouse, ScrollWheel scrollWheel)

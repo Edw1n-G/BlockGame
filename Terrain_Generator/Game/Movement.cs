@@ -10,12 +10,18 @@ namespace Basics.Input;
  */
 public class Movement
 {
-    private static Vector2 LastMousePosition;
+    private static Vector2 _lastMousePosition;
+    private static Camera camera;
     
     private const float Speed = 12f;
-    private const float sensitivity = 0.1f; // Empfindlichkeit der Mausbewegung
+    private const float Sensitivity = 0.1f; // Empfindlichkeit der Mausbewegung
+    
+    public static void SetPlayerCamera(Camera playerCamera)
+    {
+        camera = playerCamera;
+    }
 
-    public static void MovementUpdate(double deltaTime, Camera camera)
+    public static void MovementUpdate(double deltaTime)
     {
         if (camera == null) return;
         
@@ -50,18 +56,18 @@ public class Movement
         }
     }
     
-    public static void LookUpdate(Vector2 Mouseposition, Camera camera)
+    public static void LookUpdate(Vector2 Mouseposition)
     {
         if (camera == null) return;
-        if (LastMousePosition == default) { LastMousePosition = Mouseposition; }
+        if (_lastMousePosition == default) { _lastMousePosition = Mouseposition; }
         
-        float deltaX = Mouseposition.X - LastMousePosition.X;
-        float deltaY = Mouseposition.Y - LastMousePosition.Y;
+        float deltaX = Mouseposition.X - _lastMousePosition.X;
+        float deltaY = Mouseposition.Y - _lastMousePosition.Y;
         
-        LastMousePosition = Mouseposition;
+        _lastMousePosition = Mouseposition;
         
-        float yaw = deltaX * sensitivity;
-        float pitch = deltaY * sensitivity;
+        float yaw = deltaX * Sensitivity;
+        float pitch = deltaY * Sensitivity;
 
         camera.Rotate(yaw, pitch);
     }

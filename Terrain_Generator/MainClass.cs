@@ -17,9 +17,13 @@ namespace Basics;
  */
 public class MainClass
 {
+    private static Renderer PlayerRenderer;
     private static TerrainGenerator _terrainGenerator;
     private static ChunkProvidor _chunkProvidor;
     private static ChunkRequestor _chunkRequestor;
+
+    public static Camera PlayerCamera;
+    private static Vector3 PlayerStartPosition = new Vector3(0, 40, 0);
     
     /**
      * Startpunkt des Programms
@@ -46,8 +50,13 @@ public class MainClass
      */
     private unsafe void OnLoad()
     {   
-        //Alles Was Opengl initialisiert
-        Renderer.Setup();
+        //Main Camera und Renderer erstellen
+        PlayerRenderer = new Renderer();
+        PlayerCamera = new Camera(PlayerStartPosition);
+        PlayerRenderer.Setup(PlayerCamera);
+        
+        //Main Camera an die Movement Klasse geben
+        Movement.SetPlayerCamera(PlayerCamera);
         
         //Die Inputs vom Fenster an den InputManager weitergeben
         IInputContext input = WindowSetup.window.CreateInput();
@@ -71,31 +80,31 @@ public class MainClass
         Renderer.ChunkProvidor = _chunkProvidor;
         
         // ChunkRequestor abonniert das Camera-Event und berechnet welche Chunks geladen werden
-        _chunkRequestor = new ChunkRequestor(Renderer.PlayerCamera, _chunkProvidor);
+        _chunkRequestor = new ChunkRequestor(PlayerCamera, _chunkProvidor);
         
         // Initiales Laden der Chunks um die Startposition
-        Renderer.PlayerCamera.ForceChunkUpdate();
+        PlayerCamera.ForceChunkUpdate();
         
-        _terrainGenerator.DebugExportNoiseMap();
+        //_terrainGenerator.DebugExportNoiseMap();
     }
 
 //Wird jeden Frame aufgerufen, hier wird alles gerendert.
     private static unsafe void OnRender(double deltaTime)
     {
-        Renderer.Clear();//Vorherigen Frame löschen
-        Renderer.Render();
+        PlayerRenderer.Clear();//Vorherigen Frame löschen
+        PlayerRenderer.Render();
     }
     
     //Wird jeden Frame aufgerufen, hier wird alles außer dem Rendering gemacht.
     private static void OnUpdate(double deltaTime)
     {
-        Movement.MovementUpdate(deltaTime, Renderer.PlayerCamera);
+        Movement.MovementUpdate(deltaTime);
     }
     
     //Wird aufgerufen, wenn die Fenstergröße geändert wird.
     private static void OnFramebufferResize(Vector2D<int> newSize)
     {
-        Renderer.FramebufferResize(newSize);
+        PlayerRenderer.FramebufferResize(newSize);
     }
     
     //========================================================================

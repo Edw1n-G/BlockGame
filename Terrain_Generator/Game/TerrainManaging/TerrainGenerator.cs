@@ -1,5 +1,5 @@
-﻿using System.Drawing;
-using System.Drawing.Imaging;
+﻿using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Basics.Graphics;
 using Basics.Utilities;
 
@@ -103,7 +103,7 @@ public class TerrainGenerator
     {
         int totalwidth = _mapLimit * 2;
         // Bitmap erstellen
-        using (Bitmap bmp = new Bitmap(totalwidth, totalwidth))
+        using (Image<Rgba32> image = new Image<Rgba32>(totalwidth, totalwidth))
         {
             for (int x = 0; x < totalwidth; x++)
             {
@@ -124,23 +124,23 @@ public class TerrainGenerator
                     int height = (int)(noiseValue * _scale + 16);
 
                     // Clamp Visualisierung (Rot = Fehler unter 0, Blau = Fehler über 31)
-                    Color pixelColor;
+                    Rgba32 pixelColor;
                     if (height < 0) 
-                        pixelColor = Color.Red; 
+                        pixelColor = new Rgba32(255, 0, 0);
                     else if (height > 31) 
-                        pixelColor = Color.Blue;
+                        pixelColor = new Rgba32(0, 0, 255);
                     else
                     {
                         // Graustufen basierend auf Höhe (0..31 auf 0..255 mappen)
                         int grayValue = (int)((height / 31.0f) * 255);
-                        pixelColor = Color.FromArgb(grayValue, grayValue, grayValue);
+                         pixelColor = new Rgba32((byte)grayValue, (byte)grayValue, (byte)grayValue);
                     }
 
-                    bmp.SetPixel(x, z, pixelColor);
+                    image[x, z] = pixelColor;
                 }
             }
         
-            bmp.Save(filename, ImageFormat.Png);
+            image.SaveAsPng(filename);
             Console.WriteLine($"Noise Map gespeichert unter: {Path.GetFullPath(filename)}");
         }
     }

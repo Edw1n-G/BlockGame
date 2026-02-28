@@ -10,12 +10,10 @@ uniform mat4 uProjection;
 
 out vec2 fragTexCoords;
 out float fragbrightness;
-out vec3 WorldPos;
 
 void main()
 {
     gl_Position = uProjection * uView * uModel* vec4(aPos, 1.0);
     fragTexCoords = aTexCoord;
     fragbrightness = brightness;
-    WorldPos = vec3(uModel * vec4(aPos, 1.0));
 }

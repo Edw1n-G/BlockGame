@@ -31,6 +31,14 @@ namespace Basics.Graphics
             _gl.VertexAttribPointer(index, count, type, false, vertexSize * (uint) sizeof(TVertexType), (void*) (offSet * sizeof(TVertexType)));
             _gl.EnableVertexAttribArray(index);
         }
+        
+        //Um später die Layers und AO werte als Int8 zu übergeben
+        public unsafe void VertexAttributeIPointer(uint index, int count, VertexAttribIType type, uint vertexSize, int offSet)
+        {
+            // Für Integer-Attribute, z.B. die Textur-IDs, damit sie nicht normalisiert werden
+            _gl.VertexAttribIPointer(index, count, type, vertexSize * (uint) sizeof(TVertexType), (void*) (offSet * sizeof(TVertexType)));
+            _gl.EnableVertexAttribArray(index);
+        }
 
         public void Bind()
         {

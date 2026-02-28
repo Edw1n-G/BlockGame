@@ -115,10 +115,10 @@ public class ChunkMesher : IDisposable
         _vbo = new BufferObject<float>(_gl, _vertices.ToArray(), BufferTargetARB.ArrayBuffer);
         _vao = new VertexArrayObject<float, uint>(_gl, _vbo, _ebo);
 
-        // Layout (Position=3 + UV=2 + Brightness=1) => Stride = 6
-        _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 7, 0); // aPos (x,y,z)
-        _vao.VertexAttributePointer(1, 3, VertexAttribPointerType.Float, 7, 3); // aTexCoord (u, v, layer)
-        _vao.VertexAttributePointer(2, 1, VertexAttribPointerType.Float, 7, 6); // brightness
+        // Layout (Position=3 + Layer= + Brightness=1) => Stride = 6
+        _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 5, 0); // aPos (x,y,z)
+        _vao.VertexAttributePointer(1, 1, VertexAttribPointerType.Float, 5, 3); // layer
+        _vao.VertexAttributePointer(2, 1, VertexAttribPointerType.Float, 5, 4); // brightness
 
         this._vertices = null;
         this._indices = null;
@@ -149,10 +149,10 @@ public class ChunkMesher : IDisposable
 
                 _vertices.AddRange(new float[]
                 {
-                    x,     y + 1, z + 1, 0, 0, textureLayer, ao[0],
-                    x + 1, y + 1, z + 1, 1, 0, textureLayer, ao[1],
-                    x + 1, y + 1, z,     1, 1, textureLayer, ao[2],
-                    x,     y + 1, z,     0, 1, textureLayer, ao[3]
+                    x,     y + 1, z + 1, textureLayer, ao[0],
+                    x + 1, y + 1, z + 1, textureLayer, ao[1],
+                    x + 1, y + 1, z,     textureLayer, ao[2],
+                    x,     y + 1, z,     textureLayer, ao[3]
                 });
                 break;
             }
@@ -163,10 +163,10 @@ public class ChunkMesher : IDisposable
 
                 _vertices.AddRange(new float[]
                 {
-                    x,     y, z,     0, 0, textureLayer, ao[0],
-                    x + 1, y, z,     1, 0, textureLayer, ao[1],
-                    x + 1, y, z + 1, 1, 1, textureLayer, ao[2],
-                    x,     y, z + 1, 0, 1, textureLayer, ao[3]
+                    x,     y, z,     textureLayer, ao[0],
+                    x + 1, y, z,     textureLayer, ao[1],
+                    x + 1, y, z + 1, textureLayer, ao[2],
+                    x,     y, z + 1, textureLayer, ao[3]
                 });
                 break;
             }
@@ -177,10 +177,10 @@ public class ChunkMesher : IDisposable
 
                 _vertices.AddRange(new float[]
                 {
-                    x,     y,     z + 1, 0, 0, textureLayer, ao[0],
-                    x + 1, y,     z + 1, 1, 0, textureLayer, ao[1],
-                    x + 1, y + 1, z + 1, 1, 1, textureLayer, ao[2],
-                    x,     y + 1, z + 1, 0, 1, textureLayer, ao[3]
+                    x,     y,     z + 1, textureLayer, ao[0],
+                    x + 1, y,     z + 1, textureLayer, ao[1],
+                    x + 1, y + 1, z + 1, textureLayer, ao[2],
+                    x,     y + 1, z + 1, textureLayer, ao[3]
                 });
                 break;
             }
@@ -192,10 +192,10 @@ public class ChunkMesher : IDisposable
 
                 _vertices.AddRange(new float[]
                 {
-                    x + 1, y,     z, 0, 0, textureLayer, ao[0],
-                    x,     y,     z, 1, 0, textureLayer, ao[1],
-                    x,     y + 1, z, 1, 1, textureLayer, ao[2],
-                    x + 1, y + 1, z, 0, 1, textureLayer, ao[3]
+                    x + 1, y,     z, textureLayer, ao[0],
+                    x,     y,     z, textureLayer, ao[1],
+                    x,     y + 1, z, textureLayer, ao[2],
+                    x + 1, y + 1, z, textureLayer, ao[3]
                 });
                 break;
             }
@@ -206,10 +206,10 @@ public class ChunkMesher : IDisposable
 
                 _vertices.AddRange(new float[]
                 {
-                    x, y,     z,     0, 0, textureLayer, ao[0],
-                    x, y,     z + 1, 1, 0, textureLayer, ao[1],
-                    x, y + 1, z + 1, 1, 1, textureLayer, ao[2],
-                    x, y + 1, z,     0, 1, textureLayer, ao[3]
+                    x, y,     z,      textureLayer, ao[0],
+                    x, y,     z + 1,  textureLayer, ao[1],
+                    x, y + 1, z + 1,  textureLayer, ao[2],
+                    x, y + 1, z,      textureLayer, ao[3]
                 });
                 break;
             }
@@ -220,15 +220,15 @@ public class ChunkMesher : IDisposable
 
                 _vertices.AddRange(new float[]
                 {
-                    x + 1, y,     z + 1, 0, 0, textureLayer, ao[0],
-                    x + 1, y,     z,     1, 0, textureLayer, ao[1],
-                    x + 1, y + 1, z,     1, 1, textureLayer, ao[2],
-                    x + 1, y + 1, z + 1, 0, 1, textureLayer, ao[3]
+                    x + 1, y,     z + 1, textureLayer, ao[0],
+                    x + 1, y,     z,     textureLayer, ao[1],
+                    x + 1, y + 1, z,     textureLayer, ao[2],
+                    x + 1, y + 1, z + 1, textureLayer, ao[3]
                 });
                 break;
             }
         }
-        AddIndices((uint)_vertices.Count / 7 - 4, ao);
+        AddIndices((uint)_vertices.Count / 5 - 4, ao);
     }
     
     // Relative Offsets für AO Checks

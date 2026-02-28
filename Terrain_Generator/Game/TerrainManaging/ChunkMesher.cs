@@ -15,7 +15,7 @@ namespace Basics.Game;
  */
 public class ChunkMesher : IDisposable
 {
-    private ChunkCoord ChunkPosition; // Weltposition des Chunks
+    public ChunkCoord ChunkPosition; // Position des Chunks in Chunk-Koordinaten (z.B. 0/0, 1/0, -1/0, etc.)
     private List<uint> _indices = new List<uint>();
     private List<float> _vertices = new List<float>();
 
@@ -98,7 +98,7 @@ public class ChunkMesher : IDisposable
         _indicesCount = (uint)_indices.Count;
         
         // Model Matrix initialisieren (basierend auf Chunk Position)
-        model = Matrix4x4.CreateTranslation(new Vector3(ChunkPosition.X, ChunkPosition.Y, ChunkPosition.Z));
+        model = Matrix4x4.CreateTranslation(new Vector3(ChunkPosition.X*32, ChunkPosition.Y*32, ChunkPosition.Z*32));
     }
 
     /// <summary>
@@ -356,9 +356,6 @@ public class ChunkMesher : IDisposable
         // Gebe die 4 Werte als Tupel zurück
         return ao;
     }
-
-    
-    
     
 
     /// <summary>
@@ -407,13 +404,6 @@ public class ChunkMesher : IDisposable
         
         _gl.DrawElements(PrimitiveType.Triangles, _indicesCount, DrawElementsType.UnsignedInt, (void*)0);
     }
-
-    // Should return the world coordinates of the corner vertices of this chunk,
-    // so that the frustum culling can check if the chunk is inside the camera's view.
-    //public int[,,,] GetWorldBoundingBox()
-    //{
-    //    
-    //}
     
     // Unloading
     public void Dispose()

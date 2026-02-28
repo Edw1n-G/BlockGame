@@ -24,6 +24,7 @@ public class MainClass
     private static ChunkRequestor _chunkRequestor;
 
     public static Camera PlayerCamera;
+    public static Camera? DebugCamera; // Zweite Freecam 
     private static Vector3 PlayerStartPosition = new Vector3(0, 40, 0);
     
     /**
@@ -67,6 +68,7 @@ public class MainClass
         InputManager.SetActionBindings(Actions.Close, () => WindowSetup.window.Close());
         InputManager.SetActionBindings(Actions.Fullscreen, ToggleFullscreen);
         InputManager.SetActionBindings(Actions.Borderless, ToggleBorderless);
+        InputManager.SetActionBindings(Actions.ToogleDebugCamera, ToggleDebugCamera);
         
         // Texture Mapping lesen und in den speicher legen
         BlockTextures.Initialize("Configurations/TextureConfig.json");
@@ -149,6 +151,25 @@ public class MainClass
             WindowSetup.window.WindowState = WindowState.Normal;   // Zuerst ent-maximieren
             WindowSetup.window.WindowBorder = WindowBorder.Hidden; // Dann Rahmen ausblenden
             WindowSetup.window.WindowState = WindowState.Maximized;// Dann über den Bildschirm strecken
+        }
+    }
+    
+    // Debug-Camera toggeln
+    private static void ToggleDebugCamera()
+    {
+        if (DebugCamera == null)
+        {
+            // Debug-Camera erstellen und aktivieren
+            DebugCamera = new Camera(PlayerCamera.Position);
+            Movement.SetPlayerCamera(DebugCamera);
+            Console.WriteLine("Debug Camera aktiviert");
+        }
+        else
+        {
+            // Zurück zur Player-Camera wechseln und Debug-Camera löschen
+            Movement.SetPlayerCamera(PlayerCamera);
+            DebugCamera = null;
+            Console.WriteLine("Debug Camera deaktiviert");
         }
     }
 }

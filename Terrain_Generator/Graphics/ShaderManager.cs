@@ -12,13 +12,13 @@ namespace Basics.Graphics;
 /**
  * Die Klasse verwaltet die Shaderdateien und die Texturen
  * Shader werden von der Shader Klasse kompiliert, dann hier benutzt.
- * Mit dem Camera Objekt wird die Richtige Sicht gesetzt
+ * Mit dem Camera Objekt wird die richtige Sicht gesetzt
  */
 public class ShaderManager : IDisposable
 {
     
     // Die Tutorial-Shader und Texture Klassen
-    private Shader _shader;
+    private readonly Shader _shader;
     private GL _gl; 
     
     
@@ -36,7 +36,7 @@ public class ShaderManager : IDisposable
     }
     
     //Shader "Aktivieren" und die Uniforms setzen
-    public unsafe void Use(GL gl, Camera camera)
+    public unsafe Frustum Use(GL gl, Camera camera)
     {
         gl.Enable(EnableCap.DepthTest);
         gl.Enable(EnableCap.CullFace);
@@ -46,18 +46,34 @@ public class ShaderManager : IDisposable
         
         // Shader aktivieren
         _shader.Use();
-        Frustum frustum = camera.CreateFrustum();
-        var size = WindowSetup.window.FramebufferSize;
-        var view = camera.GetViewMatrix();
-        var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), (float)size.X / size.Y, camera.nearPlane, camera.farPlane);
         
+        var size = WindowSetup.window.FramebufferSize;
+        camera.AspectRatio = (float)size.X / size.Y; 
+        
+        // Culling aus der Sicht der Hauptkamera behalten
+        var view = camera.GetViewMatrix();
+        var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), camera.AspectRatio, camera.nearPlane, camera.farPlane);
+        Frustum frustum = camera.CreateFrustum(view, projection);
+        
+        //Wenn eine Debugkamera existiert, soll aus ihrer Sicht gerendert
+        if (MainClass.DebugCamera != null)
+        {
+            var debugView = MainClass.DebugCamera.GetViewMatrix();
+            var debugProjection = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), MainClass.DebugCamera.AspectRatio, MainClass.DebugCamera.nearPlane, MainClass.DebugCamera.farPlane);
+            _shader.SetUniform("uView", debugView);
+            _shader.SetUniform("uProjection", debugProjection);
+        }
+        else
+        {
+            _shader.SetUniform("uView", view);
+            _shader.SetUniform("uProjection", projection);
+        }
+
         // Dem Shader sagen, dass die Textur auf Slot 0 liegt
         _shader.SetUniform("uTexture", 0);
-        
-        
-        _shader.SetUniform("uView", view);
-        _shader.SetUniform("uProjection", projection);
-        
+
+        //Frustum an den Renderer zurückgeben, damit er die Chunks cullen kann
+        return frustum;
     }
     
     //Um ein Objekt and die richtige Stelle zu setzten.

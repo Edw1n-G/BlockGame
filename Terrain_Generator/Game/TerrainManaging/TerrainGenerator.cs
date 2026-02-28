@@ -44,7 +44,7 @@ public class TerrainGenerator
             Console.ResetColor(); 
         }
         int chunkStartX = coord.X * 32;
-        int chunkStartY = coord.Y * 62;
+        int chunkStartY = coord.Y * 32;
         int chunkStartZ = coord.Z * 32;
         
         int[,,] chunkBlocks = new int[32, 32, 32];
@@ -96,7 +96,7 @@ public class TerrainGenerator
                 }
             }
         }
-        return new ChunkMesher(new ChunkCoord(chunkStartX, chunkStartY, chunkStartZ), chunkBlocks);
+        return new ChunkMesher(new ChunkCoord(coord.X, coord.Y, coord.Z), chunkBlocks);
     }
     
     public void DebugExportNoiseMap(string filename = "debug_noisemap.png")

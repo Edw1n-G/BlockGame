@@ -13,6 +13,7 @@ public enum Actions
     Close,
     Fullscreen,
     Borderless,
+    ToogleDebugCamera,
     Up,
     Down,
     Left,
@@ -56,6 +57,7 @@ public class InputManager
         _keyBindings.Add(Actions.Close, Key.Escape);
         _keyBindings.Add(Actions.Fullscreen, Key.F11);
         _keyBindings.Add(Actions.Borderless, Key.F12);
+        _keyBindings.Add(Actions.ToogleDebugCamera, Key.F1);
         _keyBindings.Add(Actions.Up, Key.Space);
         _keyBindings.Add(Actions.Down, Key.ShiftLeft);
         _keyBindings.Add(Actions.Left, Key.A);
@@ -130,13 +132,11 @@ public class InputManager
                 }
             }
         }
-        Console.WriteLine($"Key Down: {key}");
     }
 
     private static void KeyUp(IKeyboard keyboard, Key key, int arg3)
     {
-        //Hier können Sie die Logik für das Loslassen von Tasten implementieren
-        Console.WriteLine($"Key Up: {key}");
+        
     }
     
     //Funktionen zum Verarbeiten von Mausbewegungen

@@ -4,11 +4,13 @@ using Basics.Utilities;
 
 namespace Basics.Game;
 
-public class Camera
+public class Camera(Vector3 position)
 {
-    public Vector3 Position { get; set; }
+    public Vector3 Position { get; set; } = position;
     public Vector3 Front { get; set; } = -Vector3.UnitZ; // Blickrichtung (nach vorne in Z-Minus)
-    public Vector3 Up { get; set; } = Vector3.UnitY;
+    public Vector3 GlobalUp { get; set; } = Vector3.UnitY; //Zeigt immer +Y
+    public Vector3 Right => Vector3.Normalize(Vector3.Cross(Front, GlobalUp));
+    public Vector3 Up => Vector3.Normalize(Vector3.Cross(Right, Front)); // Zeigt relativ zum _pitch der Kamera nach oben
     
     private float _yaw = -90f; 
     private float _pitch = 0f;
@@ -17,20 +19,12 @@ public class Camera
     public float nearPlane = 0.1f;
     public float farPlane = 1000f;
     public float fovY = 45f;
-    public float aspectRatio = 16f / 9f;
+    public float AspectRatio = 16f / 9f; // Default-Wert, wird aber in Renderer gesetzt beim start
     
-    // Event das gefeuert wird wenn der Spieler einen neuen Chunk betritt
+    // Event das gefeuert wird, wenn der Spieler einen neuen Chunk betritt
     public event Action<ChunkCoord>? OnChunkChanged;
-    private ChunkCoord _currentChunkCoord;
-    
-    public Vector3 Right => Vector3.Normalize(Vector3.Cross(Front, Up));
-    
-    public Camera(Vector3 position)
-    {
-        Position = position;
-        _currentChunkCoord = GetChunkCoord(position);
-    }
-    
+    private ChunkCoord _currentChunkCoord = GetChunkCoord(position);
+
     /// <summary>
     /// Feuert das OnChunkChanged Event manuell, z.B. beim Spielstart
     /// </summary>
@@ -51,7 +45,7 @@ public class Camera
     
     public Matrix4x4 GetViewMatrix()
     {
-        return Matrix4x4.CreateLookAt(Position, Position + Front, Up);
+        return Matrix4x4.CreateLookAt(Position, Position + Front, GlobalUp);
     }
     
     public void Move(Vector3 direction)
@@ -62,7 +56,7 @@ public class Camera
         // direction.X ist Strafing (Seitwärts), direction.Z ist Vor/Zurück
         Position += groundedFront * direction.Z;
         Position += Right * direction.X;
-        Position += Up * direction.Y; // Optional: Fliegen
+        Position += GlobalUp * direction.Y; // Optional: Fliegen
         
         // Prüfen ob wir in einen neuen Chunk gewechselt haben
         ChunkCoord newChunk = GetChunkCoord(Position);
@@ -80,7 +74,7 @@ public class Camera
         _pitch = Math.Clamp(_pitch, -89.0f, 89.0f);
         // Yaw: Rotation um die Y-Achse (links/rechts)
         // Pitch: Rotation um die X-Achse (hoch/runter)
-        // Wir berechnen die neue Front-Vektor basierend auf den Yaw und Pitch Werten
+        
         Vector3 front;
         front.X = MathF.Cos(MathHelper.DegreesToRadians(_yaw)) * MathF.Cos(MathHelper.DegreesToRadians(_pitch));
         front.Y = MathF.Sin(MathHelper.DegreesToRadians(_pitch));
@@ -94,33 +88,49 @@ public class Camera
     //Erstellt ein Frustum für diese Kamera, das für Frustum Culling verwendet werden kann.
     //Müsste jedes Mal neu erstellt werden, wenn die einstellungen der Kamera sich in Runtime ändern
     //Aber da ich noch keine Einstellungen hab Problem für future me
+    // Learn Opengl.com hat Planes benutzt und mit Kreuzprodukt gerechnet
+    // Gemini hat mir aber gesagt ich die Matrixen benutzen was super geil ist und viel besser funktioniert
     //</summary>
-    public Frustum CreateFrustum()
+    public Frustum CreateFrustum(Matrix4x4 view, Matrix4x4 projection)
     {
-        Frustum frustum;
-        float halfVSide = farPlane * MathF.Tan(fovY * .5f);
-        float halfHSide = halfVSide * aspectRatio;
-        Vector3 frontMultFar = farPlane * Front;
-        
-        frustum.nearFace = new Basics.Graphics.Plane(Front, -Vector3.Dot(Front, Position + Front * nearPlane));
-        frustum.farFace = new Basics.Graphics.Plane(-Front, Vector3.Dot(-Front, Position + frontMultFar));
-        
-        frustum.rightFace = new Basics.Graphics.Plane(
-            Vector3.Normalize(Vector3.Cross(frontMultFar - Right * halfHSide, Up)),
-            -Vector3.Dot(Vector3.Normalize(Vector3.Cross(frontMultFar - Right * halfHSide, Up)), Position));
+        //Matrizen kombinieren
+        Matrix4x4 vp = view * projection;
+        Frustum frustum = new Frustum();
+    
+        // Left Face (w + x)
+        frustum.LeftFace = NormalizePlane(new Basics.Graphics.Plane(
+            new Vector3(vp.M14 + vp.M11, vp.M24 + vp.M21, vp.M34 + vp.M31), vp.M44 + vp.M41));
 
-        frustum.leftFace = new Basics.Graphics.Plane(
-            Vector3.Normalize(Vector3.Cross(Up, frontMultFar + Right * halfHSide)),
-            -Vector3.Dot(Vector3.Normalize(Vector3.Cross(Up, frontMultFar + Right * halfHSide)), Position));
+        // Right Face (w - x)
+        frustum.RightFace = NormalizePlane(new Basics.Graphics.Plane(
+            new Vector3(vp.M14 - vp.M11, vp.M24 - vp.M21, vp.M34 - vp.M31), vp.M44 - vp.M41));
 
-        frustum.topFace = new Basics.Graphics.Plane(
-            Vector3.Normalize(Vector3.Cross(Right, frontMultFar - Up * halfVSide)),
-            -Vector3.Dot(Vector3.Normalize(Vector3.Cross(Right, frontMultFar - Up * halfVSide)), Position));
+        // Bottom Face (w + y)
+        frustum.BottomFace = NormalizePlane(new Basics.Graphics.Plane(
+            new Vector3(vp.M14 + vp.M12, vp.M24 + vp.M22, vp.M34 + vp.M32), vp.M44 + vp.M42));
 
-        frustum.bottomFace = new Basics.Graphics.Plane(
-            Vector3.Normalize(Vector3.Cross(frontMultFar + Up * halfVSide, Right)),
-            -Vector3.Dot(Vector3.Normalize(Vector3.Cross(frontMultFar + Up * halfVSide, Right)), Position));
+        // Top Face (w - y)
+        frustum.TopFace = NormalizePlane(new Basics.Graphics.Plane(
+            new Vector3(vp.M14 - vp.M12, vp.M24 - vp.M22, vp.M34 - vp.M32), vp.M44 - vp.M42));
+
+        // Near Face (w + z)
+        frustum.NearFace = NormalizePlane(new Basics.Graphics.Plane(
+            new Vector3(vp.M13, vp.M23, vp.M33), vp.M43));
+
+        // Far Face (w - z)
+        frustum.FarFace = NormalizePlane(new Basics.Graphics.Plane(
+            new Vector3(vp.M14 - vp.M13, vp.M24 - vp.M23, vp.M34 - vp.M33), vp.M44 - vp.M43));
 
         return frustum;
+    }
+
+// Hilfsmethode, um die Normalen auf eine Länge von 1 zu bringen
+    private Basics.Graphics.Plane NormalizePlane(Basics.Graphics.Plane p)
+    {
+        float length = p.Normal.Length();
+        // Verhindere Division durch 0
+        if (length <= 0) return p; 
+    
+        return new Basics.Graphics.Plane(p.Normal / length, p.Distance / length);
     }
 }

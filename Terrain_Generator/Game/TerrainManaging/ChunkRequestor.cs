@@ -16,7 +16,7 @@ public class ChunkRequestor
 {
     private readonly ChunkProvidor _chunkProvidor;
     private readonly Camera _camera;
-    private int _renderDistance = 16; // Render-Distanz in Chunks
+    private int _renderDistance = 10; // Render-Distanz in Chunks
     private HashSet<ChunkCoord> _activeChunks = new();
     private List<ChunkCoord> _ChunksToLoad = new();
 

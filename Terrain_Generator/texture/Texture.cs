@@ -31,7 +31,8 @@ namespace Basics.Graphics
 
             SetParameters();
         }
-
+        
+        // Das kommt aus dem Tutorial idk was das machen soll
         public unsafe Texture(GL gl, Span<byte> data, uint width, uint height)
         {
             //Saving the gl instance.

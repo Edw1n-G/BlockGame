@@ -17,7 +17,7 @@ public class Renderer
     public static GL gl;
     
     public static ShaderManager terrainshader;
-    public static Texture terrainTexture;
+    public static TextureArray terrainTexture;
     private static Camera Camera;
     
     public static ChunkProvidor ChunkProvidor; // Referenz auf den Chunk-Verwalter
@@ -34,8 +34,7 @@ public class Renderer
         Camera = camera;
         
         terrainshader = new ShaderManager(gl, "shader.vert", "shader.frag");
-        terrainTexture = new Texture(gl, "texture/example.png");
-        Console.Write("tuutututtu");
+        terrainTexture = new TextureArray(gl, "texture/example.png");
     }
 
     /**

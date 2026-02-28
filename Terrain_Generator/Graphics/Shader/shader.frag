@@ -1,10 +1,10 @@
 #version 460 core
             //Werte die pro fragment übergeben werden aus dem Vertex Shader
-            in vec2 fragTexCoords;
+            in vec3 fragTexCoords;
             in float fragbrightness;
             
 //Globale Feste Werte
-uniform sampler2D uTexture;
+uniform sampler2DArray uTexture;
 
 
 out vec4 outColor;

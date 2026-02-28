@@ -83,7 +83,7 @@ public class ShaderManager : IDisposable
         _shader.SetUniform("uModel", model);
     }
     
-    public void BindTexture(Texture texture)
+    public void BindTexture(TextureArray texture)
     {
         texture.Bind(TextureUnit.Texture0);
     }

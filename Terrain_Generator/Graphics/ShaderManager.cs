@@ -58,13 +58,18 @@ public class ShaderManager : IDisposable
         //Wenn eine Debugkamera existiert, soll aus ihrer Sicht gerendert
         if (MainClass.DebugCamera != null)
         {
+            MainClass.DebugCamera.AspectRatio = (float)size.X / size.Y;
             var debugView = MainClass.DebugCamera.GetViewMatrix();
             var debugProjection = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), MainClass.DebugCamera.AspectRatio, MainClass.DebugCamera.nearPlane, MainClass.DebugCamera.farPlane);
+            _shader.SetUniform("u_UseDebugLOD", 1);
+            _shader.SetUniform("u_PlayerCameraPos", camera.Position);
             _shader.SetUniform("uView", debugView);
             _shader.SetUniform("uProjection", debugProjection);
         }
         else
         {
+            _shader.SetUniform("u_UseDebugLOD", 0);
+            _shader.SetUniform("u_PlayerCameraPos", camera.Position);
             _shader.SetUniform("uView", view);
             _shader.SetUniform("uProjection", projection);
         }

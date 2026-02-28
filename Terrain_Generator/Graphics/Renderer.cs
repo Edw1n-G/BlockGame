@@ -35,6 +35,7 @@ public class Renderer
         
         terrainshader = new ShaderManager(gl, "shader.vert", "shader.frag");
         terrainTexture = new Texture(gl, "texture/example.png");
+        Console.Write("tuutututtu");
     }
 
     /**

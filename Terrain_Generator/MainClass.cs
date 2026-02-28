@@ -161,6 +161,9 @@ public class MainClass
         {
             // Debug-Camera erstellen und aktivieren
             DebugCamera = new Camera(PlayerCamera.Position);
+            DebugCamera.Front = PlayerCamera.Front;
+            DebugCamera.Pitch = PlayerCamera.Pitch;
+            DebugCamera.Yaw = PlayerCamera.Yaw;
             Movement.SetPlayerCamera(DebugCamera);
             Console.WriteLine("Debug Camera aktiviert");
         }

@@ -82,6 +82,26 @@ namespace Basics.Graphics
             // Matrix an OpenGL senden (false = nicht transponieren)
             _gl.UniformMatrix4(location, 1, false, (float*) &value);
         }
+        
+        public unsafe void SetUniform(string name, Vector3 value)
+        {
+            int location = _gl.GetUniformLocation(_handle, name);
+            if (location == -1)
+            {
+                return;
+            }
+            _gl.Uniform3(location, value.X, value.Y, value.Z);
+        }
+
+        public unsafe void SetUniform(string name, bool value)
+        {
+            int location = _gl.GetUniformLocation(_handle, name);
+            if (location == -1)
+            {
+                return;
+            }
+            _gl.Uniform1(location, value ? 1 : 0);
+        }
 
         public void Dispose()
         {

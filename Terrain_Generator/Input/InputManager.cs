@@ -123,12 +123,13 @@ public class InputManager
         // Wir suchen rückwärts: Welche Aktion gehört zu dieser Taste?
         foreach (var binding in _keyBindings)
         {
-            if (binding.Value == key)
+            if (binding.Value == key) 
             {
                 // Wenn wir für diese Aktion Methoden registriert haben → Ausführen!
                 if (_actionBindings.TryGetValue(binding.Key, out Action callback))
                 {
                     callback?.Invoke();
+                    
                 }
             }
         }

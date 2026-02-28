@@ -12,8 +12,8 @@ public class Camera(Vector3 position)
     public Vector3 Right => Vector3.Normalize(Vector3.Cross(Front, GlobalUp));
     public Vector3 Up => Vector3.Normalize(Vector3.Cross(Right, Front)); // Zeigt relativ zum _pitch der Kamera nach oben
     
-    private float _yaw = -90f; 
-    private float _pitch = 0f;
+    public float Yaw { get; set; } = -90f; 
+    public float Pitch { get; set; } = 0f;
     
     //Parameter für Kamera einstellung und Frustum Culling
     public float nearPlane = 0.1f;
@@ -69,16 +69,16 @@ public class Camera(Vector3 position)
     
     public void Rotate(float deltayaw, float deltapitch)
     {
-        _yaw += deltayaw;
-        _pitch -= deltapitch;
-        _pitch = Math.Clamp(_pitch, -89.0f, 89.0f);
+        Yaw += deltayaw;
+        Pitch -= deltapitch;
+        Pitch = Math.Clamp(Pitch, -89.0f, 89.0f);
         // Yaw: Rotation um die Y-Achse (links/rechts)
         // Pitch: Rotation um die X-Achse (hoch/runter)
         
         Vector3 front;
-        front.X = MathF.Cos(MathHelper.DegreesToRadians(_yaw)) * MathF.Cos(MathHelper.DegreesToRadians(_pitch));
-        front.Y = MathF.Sin(MathHelper.DegreesToRadians(_pitch));
-        front.Z = MathF.Sin(MathHelper.DegreesToRadians(_yaw)) * MathF.Cos(MathHelper.DegreesToRadians(_pitch));
+        front.X = MathF.Cos(MathHelper.DegreesToRadians(Yaw)) * MathF.Cos(MathHelper.DegreesToRadians(Pitch));
+        front.Y = MathF.Sin(MathHelper.DegreesToRadians(Pitch));
+        front.Z = MathF.Sin(MathHelper.DegreesToRadians(Yaw)) * MathF.Cos(MathHelper.DegreesToRadians(Pitch));
         
         Front = Vector3.Normalize(front);
     }

@@ -119,7 +119,9 @@ public class ChunkMesher : IDisposable
         _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 6, 0);
         _vao.VertexAttributePointer(1, 2, VertexAttribPointerType.Float, 6, 3);
         _vao.VertexAttributePointer(2, 1, VertexAttribPointerType.Float, 6, 5); // Brightness
-        
+
+        this._vertices = null;
+        this._indices = null;
         _uploaded = true;
     }
     

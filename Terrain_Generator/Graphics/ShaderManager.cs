@@ -46,10 +46,10 @@ public class ShaderManager : IDisposable
         
         // Shader aktivieren
         _shader.Use();
-        
+        Frustum frustum = camera.CreateFrustum();
         var size = WindowSetup.window.FramebufferSize;
         var view = camera.GetViewMatrix();
-        var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), (float)size.X / size.Y, 0.1f, 1000.0f);
+        var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), (float)size.X / size.Y, camera.nearPlane, camera.farPlane);
         
         // Dem Shader sagen, dass die Textur auf Slot 0 liegt
         _shader.SetUniform("uTexture", 0);

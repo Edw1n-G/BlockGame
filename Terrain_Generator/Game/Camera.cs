@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Basics.Graphics;
 using Basics.Utilities;
 
 namespace Basics.Game;
@@ -11,6 +12,12 @@ public class Camera
     
     private float _yaw = -90f; 
     private float _pitch = 0f;
+    
+    //Parameter für Kamera einstellung und Frustum Culling
+    public float nearPlane = 0.1f;
+    public float farPlane = 1000f;
+    public float fovY = 45f;
+    public float aspectRatio = 16f / 9f;
     
     // Event das gefeuert wird wenn der Spieler einen neuen Chunk betritt
     public event Action<ChunkCoord>? OnChunkChanged;
@@ -80,5 +87,40 @@ public class Camera
         front.Z = MathF.Sin(MathHelper.DegreesToRadians(_yaw)) * MathF.Cos(MathHelper.DegreesToRadians(_pitch));
         
         Front = Vector3.Normalize(front);
+    }
+    
+    
+    //<summary>
+    //Erstellt ein Frustum für diese Kamera, das für Frustum Culling verwendet werden kann.
+    //Müsste jedes Mal neu erstellt werden, wenn die einstellungen der Kamera sich in Runtime ändern
+    //Aber da ich noch keine Einstellungen hab Problem für future me
+    //</summary>
+    public Frustum CreateFrustum()
+    {
+        Frustum frustum;
+        float halfVSide = farPlane * MathF.Tan(fovY * .5f);
+        float halfHSide = halfVSide * aspectRatio;
+        Vector3 frontMultFar = farPlane * Front;
+        
+        frustum.nearFace = new Basics.Graphics.Plane(Front, -Vector3.Dot(Front, Position + Front * nearPlane));
+        frustum.farFace = new Basics.Graphics.Plane(-Front, Vector3.Dot(-Front, Position + frontMultFar));
+        
+        frustum.rightFace = new Basics.Graphics.Plane(
+            Vector3.Normalize(Vector3.Cross(frontMultFar - Right * halfHSide, Up)),
+            -Vector3.Dot(Vector3.Normalize(Vector3.Cross(frontMultFar - Right * halfHSide, Up)), Position));
+
+        frustum.leftFace = new Basics.Graphics.Plane(
+            Vector3.Normalize(Vector3.Cross(Up, frontMultFar + Right * halfHSide)),
+            -Vector3.Dot(Vector3.Normalize(Vector3.Cross(Up, frontMultFar + Right * halfHSide)), Position));
+
+        frustum.topFace = new Basics.Graphics.Plane(
+            Vector3.Normalize(Vector3.Cross(Right, frontMultFar - Up * halfVSide)),
+            -Vector3.Dot(Vector3.Normalize(Vector3.Cross(Right, frontMultFar - Up * halfVSide)), Position));
+
+        frustum.bottomFace = new Basics.Graphics.Plane(
+            Vector3.Normalize(Vector3.Cross(frontMultFar + Up * halfVSide, Right)),
+            -Vector3.Dot(Vector3.Normalize(Vector3.Cross(frontMultFar + Up * halfVSide, Right)), Position));
+
+        return frustum;
     }
 }

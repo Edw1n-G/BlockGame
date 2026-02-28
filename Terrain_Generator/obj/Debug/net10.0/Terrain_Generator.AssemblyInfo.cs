@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Terrain_Generator")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6abf4a47304b5651fa6e87871658a7ecc96a6236")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+618cb36687005a924c8f961dda60b74bb8330696")]
 [assembly: System.Reflection.AssemblyProductAttribute("Terrain_Generator")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Terrain_Generator")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

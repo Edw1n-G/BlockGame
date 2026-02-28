@@ -407,6 +407,13 @@ public class ChunkMesher : IDisposable
         
         _gl.DrawElements(PrimitiveType.Triangles, _indicesCount, DrawElementsType.UnsignedInt, (void*)0);
     }
+
+    // Should return the world coordinates of the corner vertices of this chunk,
+    // so that the frustum culling can check if the chunk is inside the camera's view.
+    //public int[,,,] GetWorldBoundingBox()
+    //{
+    //    
+    //}
     
     // Unloading
     public void Dispose()

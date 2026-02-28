@@ -27,16 +27,23 @@ public class ChunkMesher : IDisposable
     private uint _indicesCount;
     private Matrix4x4 model; // Model Matrix für diesen Chunk
     private int[,,] _blockData; // 3D Array für die Blocktypen im Chunk (z.B. 0 = Luft, 1 = Erde, etc.)
+    private bool _uploaded = false; // Ob die Daten bereits auf die GPU hochgeladen wurden
     
-    public ChunkMesher(GL gl, ChunkCoord position, int[,,] blockData)
+    /// <summary>
+    /// Konstruktor: Berechnet nur die Mesh-Daten (Vertices/Indices).
+    /// Kann auf jedem Thread aufgerufen werden - keine OpenGL-Calls!
+    /// </summary>
+    public ChunkMesher(ChunkCoord position, int[,,] blockData)
     {
-        _gl = gl;
         this.ChunkPosition = position;
         this._blockData = blockData;
-        InitializeGeometry(blockData);
+        BuildMeshData(blockData);
     }
 
-    private unsafe void InitializeGeometry(int[,,] blockData)
+    /// <summary>
+    /// Berechnet Vertices und Indices - reine CPU-Arbeit, kein OpenGL.
+    /// </summary>
+    private void BuildMeshData(int[,,] blockData)
     {
         _blockData = blockData;
         _vertices.Clear(); // Sicherstellen, dass Listen leer sind
@@ -88,11 +95,22 @@ public class ChunkMesher : IDisposable
             }
         }
         
-            
-
         _indicesCount = (uint)_indices.Count;
+        
+        // Model Matrix initialisieren (basierend auf Chunk Position)
+        model = Matrix4x4.CreateTranslation(new Vector3(ChunkPosition.X, ChunkPosition.Y, ChunkPosition.Z));
+    }
 
-        // Buffer erstellen
+    /// <summary>
+    /// Lädt die berechneten Mesh-Daten auf die GPU hoch.
+    /// MUSS auf dem Main-Thread (OpenGL-Kontext) aufgerufen werden!
+    /// </summary>
+    public void UploadToGpu(GL gl)
+    {
+        if (_uploaded) return;
+        _gl = gl;
+
+        // Buffer erstellen (OpenGL-Calls - nur auf dem Main-Thread!)
         _ebo = new BufferObject<uint>(_gl, _indices.ToArray(), BufferTargetARB.ElementArrayBuffer);
         _vbo = new BufferObject<float>(_gl, _vertices.ToArray(), BufferTargetARB.ArrayBuffer);
         _vao = new VertexArrayObject<float, uint>(_gl, _vbo, _ebo);
@@ -102,9 +120,13 @@ public class ChunkMesher : IDisposable
         _vao.VertexAttributePointer(1, 2, VertexAttribPointerType.Float, 6, 3);
         _vao.VertexAttributePointer(2, 1, VertexAttribPointerType.Float, 6, 5); // Brightness
         
-        // Model Matrix initialisieren (basierend auf Chunk Position)
-        model = Matrix4x4.CreateTranslation(new Vector3(ChunkPosition.X, ChunkPosition.Y, ChunkPosition.Z));
+        _uploaded = true;
     }
+    
+    /// <summary>
+    /// Ob die Daten bereits auf die GPU hochgeladen wurden.
+    /// </summary>
+    public bool IsUploaded => _uploaded;
 
     
     
@@ -372,6 +394,8 @@ public class ChunkMesher : IDisposable
 
     public unsafe void Render(ShaderManager shaderManager)
     {
+        if (!_uploaded) return; // Noch nicht auf der GPU → nicht rendern
+        
         // 1. Dem Shader sagen, wo dieser Chunk liegt
         shaderManager.SetModelMatrix(model);
 

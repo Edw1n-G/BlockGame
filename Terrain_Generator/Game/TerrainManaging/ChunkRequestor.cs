@@ -3,8 +3,9 @@ using Basics.Graphics;
 using Basics.Utilities;
 using Silk.NET.OpenGL;
 //=============================================
-// THIS CODE IS AI GENERATED - USE WITH CAUTION
+// THIS CODE IS BASED ON AI - USE WITH CAUTION
 //=============================================
+// Modified to use parallel chunk generation
 namespace Basics.Game;
 
 /// <summary>
@@ -15,8 +16,9 @@ public class ChunkRequestor
 {
     private readonly ChunkProvidor _chunkProvidor;
     private readonly Camera _camera;
-    private int _renderDistance = 6; // Render-Distanz in Chunks
+    private int _renderDistance = 8; // Render-Distanz in Chunks
     private HashSet<ChunkCoord> _activeChunks = new();
+    private List<ChunkCoord> _ChunksToLoad = new();
 
     public int RenderDistance
     {
@@ -40,6 +42,7 @@ public class ChunkRequestor
     private void OnPlayerChunkChanged(ChunkCoord playerChunk)
     {
         HashSet<ChunkCoord> newActiveChunks = new();
+        _ChunksToLoad = new List<ChunkCoord>();
 
         // Alle Chunks im Render-Radius berechnen (kreisförmig auf der XZ-Ebene)
         for (int x = -_renderDistance; x <= _renderDistance; x++)
@@ -49,13 +52,24 @@ public class ChunkRequestor
                 // Kreisförmige Distanzprüfung statt quadratisch
                 if (x * x + z * z > _renderDistance * _renderDistance)
                     continue;
-
+                
                 ChunkCoord coord = new ChunkCoord(playerChunk.X + x, 0, playerChunk.Z + z);
-                newActiveChunks.Add(coord);
-
-                // Chunk anfordern (ChunkProvidor prüft ob er schon geladen ist)
-                _chunkProvidor.RequestChunk(coord);
+                _ChunksToLoad.Add(coord);
             }
+        }
+        
+        // Chunks parallel generieren lassen
+        Parallel.For(0, _ChunksToLoad.Count, i =>
+        {
+            ChunkCoord coord = _ChunksToLoad[i];
+            // Chunk anfordern (ChunkProvidor prüft ob er schon geladen ist)
+            _chunkProvidor.RequestChunk(coord);
+        });
+        
+        // Aktive Chunks sammeln (nach der parallelen Generierung)
+        foreach (ChunkCoord coord in _ChunksToLoad)
+        {
+            newActiveChunks.Add(coord);
         }
 
         // Chunks entladen die außerhalb des Render-Radius liegen

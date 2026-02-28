@@ -96,7 +96,7 @@ public class TerrainGenerator
                 }
             }
         }
-        return new ChunkMesher(Renderer.gl, new ChunkCoord(chunkStartX, chunkStartY, chunkStartZ), chunkBlocks);
+        return new ChunkMesher(new ChunkCoord(chunkStartX, chunkStartY, chunkStartZ), chunkBlocks);
     }
     
     public void DebugExportNoiseMap(string filename = "debug_noisemap.png")

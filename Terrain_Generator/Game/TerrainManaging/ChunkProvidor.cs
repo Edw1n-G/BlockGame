@@ -1,10 +1,11 @@
-﻿using Basics.Game.TerrainManaging;
+﻿using System.Collections.Concurrent;
+using Basics.Game.TerrainManaging;
 using Basics.Utilities;
 using Basics.Graphics;
 
 
 //=============================================
-// THIS CODE IS AI GENERATED - USE WITH CAUTION
+// THIS CODE IS BASED ON AI - USE WITH CAUTION
 //=============================================
 namespace Basics.Game;
 
@@ -14,7 +15,7 @@ namespace Basics.Game;
 /// </summary>
 public class ChunkProvidor
 {
-    private readonly Dictionary<ChunkCoord, ChunkMesher> _loadedChunks = new();
+    private readonly ConcurrentDictionary<ChunkCoord, ChunkMesher> _loadedChunks = new();
     private readonly TerrainGenerator _terrainGenerator;
 
     public ChunkProvidor(TerrainGenerator terrainGenerator)
@@ -36,13 +37,13 @@ public class ChunkProvidor
         // Versuch von Festplatte zu laden (Placeholder)
         if (TryLoadFromDisk(coord, out ChunkMesher? loadedChunk))
         {
-            _loadedChunks[coord] = loadedChunk!;
+            _loadedChunks.TryAdd(coord, loadedChunk!);
             return;
         }
 
         // Neu generieren
         ChunkMesher newChunk = _terrainGenerator.GenerateChunk(coord);
-        _loadedChunks[coord] = newChunk;
+        _loadedChunks.TryAdd(coord, newChunk);
     }
 
     /// <summary>
@@ -50,13 +51,12 @@ public class ChunkProvidor
     /// </summary>
     public void UnloadChunk(ChunkCoord coord)
     {
-        if (_loadedChunks.TryGetValue(coord, out ChunkMesher? chunk))
+        if (_loadedChunks.TryRemove(coord, out ChunkMesher? chunk))
         {
             // TODO: Chunk auf Festplatte speichern bevor er entladen wird
             // SaveToDisk(coord, chunk);
 
             chunk.Dispose();
-            _loadedChunks.Remove(coord);
         }
     }
 

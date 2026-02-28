@@ -38,6 +38,8 @@ public class Renderer
     /**
      * Abstraktion für Rendern
      * Jeder Chunk in und der Welt wird gerendert.
+     * Chunks die noch nicht auf der GPU sind werden hier hochgeladen,
+     * damit der Main-Thread die Daten an die GPU bringen kann
      */
     public unsafe void Render()
     {
@@ -46,6 +48,10 @@ public class Renderer
 
         foreach (var chunk in ChunkProvidor.GetLoadedChunks())
         {
+            // GPU-Upload auf dem Main-Thread falls noch nicht geschehen
+            if (!chunk.IsUploaded)
+                chunk.UploadToGpu(gl);
+            
             chunk.Render(terrainshader);
         }
     }

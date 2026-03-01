@@ -14,18 +14,18 @@ namespace Basics;
 
 /**
  * Verwaltung der Logic und Render Loops
- * Vorerst auch Fenster Skalierung
+ * vorerst auch Fenster Skalierung
  */
 public class MainClass
 {
-    private static Renderer PlayerRenderer;
-    private static TerrainGenerator _terrainGenerator;
-    private static ChunkProvider _chunkProvider;
-    private static ChunkRequestor _chunkRequestor;
+    private static Renderer _playerRenderer = null!;
+    private static TerrainGenerator _terrainGenerator  = null!;
+    private static ChunkProvider _chunkProvider = null!;
+    private static ChunkRequestor _chunkRequestor = null!;
 
-    public static Camera PlayerCamera;
-    public static Camera? DebugCamera; // Zweite Freecam 
-    private static Vector3 PlayerStartPosition = new Vector3(0, 40, 0);
+    public static Camera PlayerCamera  = null!;
+    public static Camera? DebugCamera  = null!; // Zweite Freecam 
+    private static readonly Vector3 PlayerStartPosition = new Vector3(0, 40, 0);
     
     /**
      * Startpunkt des Programms
@@ -36,19 +36,19 @@ public class MainClass
         //Fenster erstellen und die Event-Handler registrieren
         WindowSetup.CreateWindow();
         
-        WindowSetup.window.Load += OnLoad;
-        WindowSetup.window.Render += OnRender;
-        WindowSetup.window.Update += OnUpdate;
-        WindowSetup.window.FramebufferResize += OnFramebufferResize;
+        WindowSetup.Window.Load += OnLoad;
+        WindowSetup.Window.Render += OnRender;
+        WindowSetup.Window.Update += OnUpdate;
+        WindowSetup.Window.FramebufferResize += OnFramebufferResize;
         
         //Fenster starten und Haupt-thread
         WindowSetup.Run();
         
-        WindowSetup.window.Dispose();
+        WindowSetup.Window.Dispose();
     }
     
     /**
-     * Nach erstellen des Fensters Renderer und InputManager initialisieren
+     * Nach Erstellen des Fensters Renderer und InputManager initialisieren
      */
     private unsafe void OnLoad()
     {   
@@ -56,19 +56,19 @@ public class MainClass
         CoreAvailability.Initialize();
         
         //Main Camera und Renderer erstellen
-        PlayerRenderer = new Renderer();
+        _playerRenderer = new Renderer();
         PlayerCamera = new Camera(PlayerStartPosition);
-        PlayerRenderer.Setup(PlayerCamera);
+        _playerRenderer.Setup(PlayerCamera);
         
         //Main Camera an die Movement Klasse geben
         Movement.SetPlayerCamera(PlayerCamera);
         
         //Die Inputs vom Fenster an den InputManager weitergeben
-        IInputContext input = WindowSetup.window.CreateInput();
+        IInputContext input = WindowSetup.Window.CreateInput();
         InputManager.Initialize(input);
         
         //Aktion -> Methode Mappen
-        InputManager.SetActionBindings(Actions.Close, () => WindowSetup.window.Close());
+        InputManager.SetActionBindings(Actions.Close, () => WindowSetup.Window.Close());
         InputManager.SetActionBindings(Actions.Fullscreen, ToggleFullscreen);
         InputManager.SetActionBindings(Actions.Borderless, ToggleBorderless);
         InputManager.SetActionBindings(Actions.ToogleDebugCamera, ToggleDebugCamera);
@@ -99,8 +99,8 @@ public class MainClass
 //Wird jeden Frame aufgerufen, hier wird alles gerendert.
     private static unsafe void OnRender(double deltaTime)
     {
-        PlayerRenderer.Clear();//Vorherigen Frame löschen
-        PlayerRenderer.Render();
+        _playerRenderer.Clear();//Vorherigen Frame löschen
+        _playerRenderer.Render();
     }
     
     //Wird jeden Frame aufgerufen, hier wird alles außer dem Rendering gemacht.
@@ -112,7 +112,7 @@ public class MainClass
     //Wird aufgerufen, wenn die Fenstergröße geändert wird.
     private static void OnFramebufferResize(Vector2D<int> newSize)
     {
-        PlayerRenderer.FramebufferResize(newSize);
+        _playerRenderer.FramebufferResize(newSize);
     }
     
     //========================================================================
@@ -122,40 +122,40 @@ public class MainClass
     //Funktionen die durch Tasten getriggert werden können.
     private static void ToggleFullscreen()
     {   
-        if (WindowSetup.window.WindowState == WindowState.Fullscreen)
+        if (WindowSetup.Window.WindowState == WindowState.Fullscreen)
         {
             // Raus aus Vollbild → Zurück zum normalen Fenster
-            WindowSetup.window.WindowState = WindowState.Normal;
-            WindowSetup.window.WindowBorder = WindowBorder.Resizable;
+            WindowSetup.Window.WindowState = WindowState.Normal;
+            WindowSetup.Window.WindowBorder = WindowBorder.Resizable;
         }
         else
         {
             // Bevor wir in den Fullscreen gehen, setzen wir das Fenster in 
             // einen sauberen Grundzustand. So merkt sich das System keine "falschen"
             // Borderless-Eigenschaften, die später zu Glitches führen.
-            WindowSetup.window.WindowState = WindowState.Normal;
-            WindowSetup.window.WindowBorder = WindowBorder.Resizable;
+            WindowSetup.Window.WindowState = WindowState.Normal;
+            WindowSetup.Window.WindowBorder = WindowBorder.Resizable;
         
             // Jetzt sicher in den Vollbildmodus wechseln
-            WindowSetup.window.WindowState = WindowState.Fullscreen;
+            WindowSetup.Window.WindowState = WindowState.Fullscreen;
         }
     }
 
     private static void ToggleBorderless()
     {
         // FIX 2: Hier das logische ODER (||) nutzen
-        if (WindowSetup.window.WindowBorder == WindowBorder.Hidden || WindowSetup.window.WindowState == WindowState.Fullscreen)
+        if (WindowSetup.Window.WindowBorder == WindowBorder.Hidden || WindowSetup.Window.WindowState == WindowState.Fullscreen)
         {
             // Zurück zum normalen kleinen Fenster MIT Rahmen
-            WindowSetup.window.WindowState = WindowState.Normal;
-            WindowSetup.window.WindowBorder = WindowBorder.Resizable;
+            WindowSetup.Window.WindowState = WindowState.Normal;
+            WindowSetup.Window.WindowBorder = WindowBorder.Resizable;
         }
         else
         {
             // Rein in den Borderless-Windowed Modus
-            WindowSetup.window.WindowState = WindowState.Normal;   // Zuerst ent-maximieren
-            WindowSetup.window.WindowBorder = WindowBorder.Hidden; // Dann Rahmen ausblenden
-            WindowSetup.window.WindowState = WindowState.Maximized;// Dann über den Bildschirm strecken
+            WindowSetup.Window.WindowState = WindowState.Normal;   // Zuerst ent-maximieren
+            WindowSetup.Window.WindowBorder = WindowBorder.Hidden; // Dann Rahmen ausblenden
+            WindowSetup.Window.WindowState = WindowState.Maximized;// Dann über den Bildschirm strecken
         }
     }
     
@@ -165,10 +165,12 @@ public class MainClass
         if (DebugCamera == null)
         {
             // Debug-Camera erstellen und aktivieren
-            DebugCamera = new Camera(PlayerCamera.Position);
-            DebugCamera.Front = PlayerCamera.Front;
-            DebugCamera.Pitch = PlayerCamera.Pitch;
-            DebugCamera.Yaw = PlayerCamera.Yaw;
+            DebugCamera = new Camera(PlayerCamera.Position)
+            {
+                Front = PlayerCamera.Front,
+                Pitch = PlayerCamera.Pitch,
+                Yaw = PlayerCamera.Yaw
+            };
             Movement.SetPlayerCamera(DebugCamera);
             Console.WriteLine("Debug Camera aktiviert");
         }

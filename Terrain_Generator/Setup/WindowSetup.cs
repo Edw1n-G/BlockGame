@@ -5,11 +5,11 @@ namespace Basics.Setup;
 
 public class WindowSetup
 {
-    public static IWindow window { get; private set; }
+    public static IWindow Window { get; private set; } = null!;
     
     public static void CreateWindow()
     {
-        var options = WindowOptions.Default;
+        WindowOptions options = WindowOptions.Default;
         options.Size = new Vector2D<int>(800, 600);
         options.Title = "Terrain Generator";
         
@@ -17,12 +17,12 @@ public class WindowSetup
         //options.UpdatesPerSecond = 60.0;
         options.VSync = true;
         
-        window = Window.Create(options);
+        Window = Silk.NET.Windowing.Window.Create(options);
     }
 
     public static void Run()
     {
-        window.Run();
+        Window.Run();
     }
     
 }

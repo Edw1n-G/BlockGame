@@ -47,7 +47,7 @@ public class ShaderManager : IDisposable
         // Shader aktivieren
         _shader.Use();
         
-        var size = WindowSetup.window.FramebufferSize;
+        var size = WindowSetup.Window.FramebufferSize;
         camera.AspectRatio = (float)size.X / size.Y; 
         
         // Culling aus der Sicht der Hauptkamera behalten

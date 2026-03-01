@@ -1,13 +1,11 @@
 ﻿using System.Collections.Concurrent;
-using Basics.Game.TerrainManaging;
 using Basics.Utilities;
-using Basics.Graphics;
 
 
 //=============================================
 // THIS CODE IS BASED ON AI - USE WITH CAUTION
 //=============================================
-namespace Basics.Game;
+namespace Basics.Game.TerrainManaging;
 
 /// <summary>
 /// Verwaltet den Chunk-Lebenszyklus: Laden von Disk (Placeholder), Generieren, Speichern.

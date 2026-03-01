@@ -3,21 +3,20 @@ using Basics.Setup; //Für die Color Klasse
 using System.Drawing;
 using System.Diagnostics;// Für Upload Limits
 using Basics.Game;
+using Basics.Game.TerrainManaging;
 using Silk.NET.Maths;
-
-// Für die Kamera
 
 namespace Basics.Graphics;
 
 public class Renderer
 {
-    public static GL gl;
+    private static GL _gl = null!;
+
+    private static ShaderManager _terrainshader = null!;
+    private static TextureArray _terrainTexture = null!;
+    private static Camera _camera = null!;
     
-    public static ShaderManager terrainshader;
-    public static TextureArray terrainTexture;
-    private static Camera Camera;
-    
-    public static ChunkProvider ChunkProvider; // Referenz auf den Chunk-Verwalter
+    public static ChunkProvider ChunkProvider = null!; // Referenz auf den Chunk-Verwalter
     
     /**
      * Setup Methode, alles was man fürs Rendern braucht.
@@ -25,34 +24,35 @@ public class Renderer
      */
     public unsafe void Setup(Camera camera)
     {
-        gl = WindowSetup.window.CreateOpenGL();
-        gl.ClearColor(Color.CornflowerBlue);
+        _gl = WindowSetup.Window.CreateOpenGL();
+        _gl.ClearColor(Color.CornflowerBlue);
         
-        Camera = camera;
+        _camera = camera;
         
-        terrainshader = new ShaderManager(gl, "shader.vert", "shader.frag");
-        terrainTexture = new TextureArray(gl, "texture/example.png");
+        _terrainshader = new ShaderManager(_gl, "shader.vert", "shader.frag");
+        _terrainTexture = new TextureArray(_gl, "texture/example.png");
     }
 
+
+    private const double MaxUploadTimeMs = 3.0;
+    private readonly Stopwatch _uploadTimer = Stopwatch.StartNew();
+    
     ///<summary>
     /// Abstraktion für rendern
     /// jeder Chunk aus dem ChunkProvider wird durchgegangen und auf IsUploaded geprüft
     /// damit der Main-Thread die Daten an die GPU bringen kann,
     /// wenn PCIe Uploads zu lange dauern wird der nächste Frame gerendert und der Upload wird im nächsten Frame fortgesetzt
-    /// Da ich gerade 16.6ms insgesammt habe benutze ich 5ms aber für schnelle gpus braucht man ein smarten upload timer
-    ///<\summary>
-    double maxUploadTimeMs = 5.0;
-    Stopwatch _uploadTimer = Stopwatch.StartNew();
-    
+    /// da ich gerade 16.6ms insgesammt habe benutze ich 5ms aber für schnelle gpus braucht man ein smarten upload timer
+    ///</summary>
     public unsafe void Render()
     {
-        Frustum frustum = terrainshader.Use(gl, Camera);
-        terrainshader.BindTexture(terrainTexture);
+        Frustum frustum = _terrainshader.Use(_gl, _camera);
+        _terrainshader.BindTexture(_terrainTexture);
         
         _uploadTimer.Restart();
-        foreach (var chunk in ChunkProvider.GetLoadedChunks())
+        foreach (ChunkMesher chunk in ChunkProvider.GetLoadedChunks())
         {
-            if (_uploadTimer.Elapsed.TotalMilliseconds > maxUploadTimeMs)
+            if (_uploadTimer.Elapsed.TotalMilliseconds > MaxUploadTimeMs)
             {
                 // Upload-Zeit überschritten, nächsten Frame rendern und Upload fortsetzen
                 break;
@@ -60,11 +60,11 @@ public class Renderer
             
             // GPU-Upload auf dem Main-Thread falls noch nicht geschehen
             if (!chunk.IsUploaded)
-                chunk.UploadToGpu(gl);
+                chunk.UploadToGpu(_gl);
             
             if(!frustum.isInFrustum(chunk.ChunkPosition, frustum)) continue;
             
-            chunk.Render(terrainshader);
+            chunk.Render(_terrainshader);
         }
         _uploadTimer.Stop();
     }
@@ -74,7 +74,7 @@ public class Renderer
      */
     public void Clear()
     {
-        gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        _gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
     }
     
     /**
@@ -82,10 +82,10 @@ public class Renderer
      */
     public void Dispose()
     {
-        terrainshader.Dispose();
-        terrainTexture.Dispose();
+        _terrainshader.Dispose();
+        _terrainTexture.Dispose();
         ChunkProvider.Dispose();
-        gl.Dispose();
+        _gl.Dispose();
     }
     
     /**
@@ -93,7 +93,7 @@ public class Renderer
      */
     public void FramebufferResize(Vector2D<int> size)
     {
-        gl.Viewport(size);
-        Camera.AspectRatio = (float)size.X / size.Y;
+        _gl.Viewport(size);
+        _camera.AspectRatio = (float)size.X / size.Y;
     }
 }

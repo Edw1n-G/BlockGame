@@ -1,12 +1,12 @@
 ﻿using System.Numerics;
-using Basics.Graphics;
-using Silk.NET.OpenGL;
-using System.Collections.Generic;
-using System.Drawing.Imaging.Effects;
 using Basics.Configurations;
-using Basics.Utilities; //Liste
+using Basics.Graphics;
+using Basics.Utilities;
+using Silk.NET.OpenGL;
 
-namespace Basics.Game;
+//Liste
+
+namespace Basics.Game.TerrainManaging;
 
 /**
  * Chunk Objekt 32x32x32 Blöcke, das in der Welt platziert wird.

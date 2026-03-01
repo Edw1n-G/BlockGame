@@ -7,9 +7,9 @@ namespace Basics.Game.TerrainManaging;
 
 public class TerrainGenerator
 {
-    private const int _seed = 1223456789;
-    private const float _step = 5f; // Schrittweite für die Noise-Abtastung, je kleiner desto detaillierter aber auch rechenintensiver
-    private const float _scale = 25.0f;
+    private const int Seed = 1223456789;
+    private const float Step = 5f; // Schrittweite für die Noise-Abtastung, je kleiner desto detaillierter aber auch rechenintensiver
+    private const float Scale = 25.0f;
     private int _maxMapSize = 1; // Maximale Anzahl von Chunks in x und z Richtung. Dummy wert
     private int _mapLimit;
     private int _radius; //Um 0/0 als Mittelpunkt zu haben
@@ -63,12 +63,12 @@ public class TerrainGenerator
                 double angleX = (x + _mapLimit) / (double)(2 * _mapLimit) * 2.0 * Math.PI;
                 double angleZ = (z + _mapLimit) / (double)(2 * _mapLimit) * 2.0 * Math.PI;
                 // Die 4D Koordinaten berechnen (Torus mapping)
-                double x4 = _step * Math.Sin(angleX);
-                double y4 = _step * Math.Cos(angleX);
-                double z4 = _step * Math.Sin(angleZ);
-                double w4 = _step * Math.Cos(angleZ);
-                double noiseValue = OpenSimplex2S.Noise4_Fallback(_seed, x4, y4, z4, w4);
-                int height = (int)(noiseValue * _scale + 16); // +16 mitte des Chunks
+                double x4 = Step * Math.Sin(angleX);
+                double y4 = Step * Math.Cos(angleX);
+                double z4 = Step * Math.Sin(angleZ);
+                double w4 = Step * Math.Cos(angleZ);
+                double noiseValue = OpenSimplex2S.Noise4_Fallback(Seed, x4, y4, z4, w4);
+                int height = (int)(noiseValue * Scale + 16); // +16 mitte des Chunks
                 // Clamp height um Kein OutOfBounds zu bekommen
                 if (height < 0) height = 0;
                 if (height > 31) height = 31;
@@ -118,10 +118,10 @@ public class TerrainGenerator
                     double z4 = _radius * Math.Sin(angleZ);
                     double w4 = _radius * Math.Cos(angleZ);
 
-                    double noiseValue = OpenSimplex2S.Noise4_Fallback(_seed, x4, y4, z4, w4);
+                    double noiseValue = OpenSimplex2S.Noise4_Fallback(Seed, x4, y4, z4, w4);
                 
                     // Height Berechnung exakt wie im Code
-                    int height = (int)(noiseValue * _scale + 16);
+                    int height = (int)(noiseValue * Scale + 16);
 
                     // Clamp Visualisierung (Rot = Fehler unter 0, Blau = Fehler über 31)
                     Rgba32 pixelColor;

@@ -28,14 +28,14 @@ public class TerrainGenerator
 
     }
     
-    /**
-     * Bekommt den Index des Chunkes mit 0/0 als Mittelpunkt
-     * rechnet den ChunkIndex in die Weltposition
-     * generiert alles Blöcke des Chunkes mit 4D OpenSimplex Noise
-     * wird in @param ChunkBlocks gespeichert und an den ChunkMesher übergeben, der die Geometrie erstellt
-     * Berechnung der 4D Koordinate abhängig von @param mapLimit, damit die Karte an den Grenzen nahtlos verbunden ist (Torus Mapping)
-     */
-    public ChunkMesher GenerateChunk(ChunkCoord coord)
+    /// <summary>
+    /// Bekommt den Index des Chunkes mit 0/0 als Mittelpunkt
+    /// rechnet den ChunkIndex in die Weltposition
+    /// generiert alles Blöcke des Chunkes mit 4D OpenSimplex Noise
+    /// wird in @param ChunkBlocks gespeichert und an den ChunkMesher übergeben, der die Geometrie erstellt
+    /// Berechnung der 4D Koordinate abhängig von @param mapLimit, damit die Karte an den Grenzen nahtlos verbunden ist (Torus Mapping)
+    /// </summary>
+    public int[,,] GenerateChunk(ChunkCoord coord)
     {
         if (Math.Abs(coord.X) > _maxMapSize || Math.Abs(coord.Z)+1 > _maxMapSize)
         {
@@ -96,7 +96,8 @@ public class TerrainGenerator
                 }
             }
         }
-        return new ChunkMesher(new ChunkCoord(coord.X, coord.Y, coord.Z), chunkBlocks);
+
+        return chunkBlocks;
     }
     
     public void DebugExportNoiseMap(string filename = "debug_noisemap.png")

@@ -57,37 +57,38 @@ public class ChunkMesher : IDisposable
                 {
                     if (_blockData[x, y, z] == 0) continue; // Nur Blöcke rendern, die nicht Luft sind
                     // Top Face
-                    if (y == 31 || _blockData[x, y + 1, z] == 0) // Nur rendern, wenn oben Luft ist
+                    
+                    if (!IsBlock(x,y+1,z)) // Nur rendern, wenn oben Luft ist
                     {
                         CreateCubeFace(x, y, z, 0);
                     }
                         
                     // Bottom Face
-                    if (y == 0 || _blockData[x, y - 1, z] == 0) // Nur rendern, wenn unten Luft ist
+                    if (!IsBlock(x,y-1,z)) // Nur rendern, wenn unten Luft ist
                     {
                         CreateCubeFace(x, y, z, 1);
                     }
                         
                     // Front Face (+Z)
-                    if (z == 31 || _blockData[x, y, z + 1] == 0)
+                    if (!IsBlock(x,y,z+1))
                     {
                         CreateCubeFace(x, y, z, 2);
                     }
 
                     // Back Face (-Z)
-                    if (z == 0 || _blockData[x, y, z - 1] == 0)
+                    if (!IsBlock(x,y,z-1))
                     {
                         CreateCubeFace(x, y, z, 3);
                     }
                         
                     // Left Face (-X)
-                    if (x == 0 || _blockData[x - 1, y, z] == 0)
+                    if (!IsBlock(x-1,y,z))
                     {
                         CreateCubeFace(x, y, z, 4);
                     }
 
                     // Right Face (+X)
-                    if (x == 31 || _blockData[x + 1, y, z] == 0)
+                    if (!IsBlock(x+1,y,z))
                     {
                         CreateCubeFace(x, y, z, 5);
                     }
@@ -365,14 +366,44 @@ public class ChunkMesher : IDisposable
     /// </summary>
     private bool IsBlock(int x, int y, int z)
     {
-        if (x < 0 || x >= 32 || y < 0 || y >= 32 || z < 0 || z >= 32) return false;
-        return _blockData[x, y, z] != 0;
+        // Wenn alle Koordinaten im lokalen Bereich liegen → direkt prüfen
+        if (x >= 0 && x < 32 && y >= 0 && y < 32 && z >= 0 && z < 32)
+        {
+            return _blockData[x, y, z] != 0;
+        }
+
+        // Nachbar-Chunk-Offset berechnen
+        int cx = ChunkPosition.X;
+        int cy = ChunkPosition.Y;
+        int cz = ChunkPosition.Z;
+
+        // X-Achse normalisieren
+        if (x < 0)      { cx--; x += 32; }
+        else if (x > 31) { cx++; x -= 32; }
+
+        // Y-Achse normalisieren
+        if (y < 0)      { cy--; y += 32; }
+        else if (y > 31) { cy++; y -= 32; }
+
+        // Z-Achse normalisieren
+        if (z < 0)      { cz--; z += 32; }
+        else if (z > 31) { cz++; z -= 32; }
+
+        ChunkCoord neighborCoord = new ChunkCoord(cx, cy, cz);
+        if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out int[,,]? neighborData))
+        {
+            return neighborData[x, y, z] != 0;
+        }
+
+        // Kein Nachbar-Chunk geladen
+        // Sollte nicht passieren können wegen de meshing queue
+        return false;
     }
+
     
     private void AddIndices(uint baseIndex, float[] ao)
     {
-        // Flip quad diagonal when ao[0]+ao[2] < ao[1]+ao[3] to avoid
-        // anisotropic AO interpolation artifacts
+        // Quad flippen damit es keine komischen Dreiecke gibt, abhängig davon wie die AO Werte verteilt sind
         if (ao[0] + ao[2] > ao[1] + ao[3])
         {
             _indices.AddRange(new uint[]
@@ -393,15 +424,12 @@ public class ChunkMesher : IDisposable
 
     public unsafe void Render(ShaderManager shaderManager)
     {
-        if (!_uploaded) return; // Noch nicht auf der GPU → nicht rendern
+        if (!_uploaded) return; // Noch nicht auf der GPU
         
-        // 1. Dem Shader sagen, wo dieser Chunk liegt
+        //Dem Shader sagen, wo dieser Chunk liegt
         shaderManager.SetModelMatrix(model);
-
-        // 2. VAO binden und zeichnen
-        _vao.Bind();
         
-        // 3. EBO binden und draw call
+        _vao.Bind();
         _ebo.Bind();
         
         _gl.DrawElements(PrimitiveType.Triangles, _indicesCount, DrawElementsType.UnsignedInt, (void*)0);

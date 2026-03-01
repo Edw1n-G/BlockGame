@@ -10,6 +10,7 @@ namespace Basics.Utilities;
 public class CoreAvailability
 {
     private static int _terrainGenerationCores;
+    private static int _ChunkMeshingCores;
     private static int _exampleTaskCores;
     
     public static int TotalCores => Environment.ProcessorCount;
@@ -30,18 +31,25 @@ public class CoreAvailability
     static void LoadConfig(String configPath)
     {
         _terrainGenerationCores = 1; //Load values from cinfig
+        _ChunkMeshingCores = 1;
         _exampleTaskCores = 0;
     }
     
     static void DefaultConfig()
     {
-        _terrainGenerationCores = AvailableCores; // Alle verfügbaren Kerne für die Terrain-Generierung nutzen
+        _terrainGenerationCores = AvailableCores - 2; // Alle verfügbaren Kerne für die Terrain-Generierung nutzen
+        _ChunkMeshingCores = 2; // Die 2 die ich oben abziehe
         _exampleTaskCores = 0; // Keine Kerne für andere Aufgaben reservieren
     }
 
     public static int GetTerrainGenerationCores()
     {
-        return AvailableCores;
+        return _terrainGenerationCores;
+    }
+
+    public static int GetChunkMeshingCores()
+    {
+        return _ChunkMeshingCores;
     }
     
 }

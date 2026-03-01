@@ -749,7 +749,7 @@ The following items are tracked in the project README:
 **High priority:**
 - ~~Multi-threading for chunk generation and loading~~ *(done – `Parallel.For` in `ChunkRequestor`)*
 - ~~Frustum culling (skip rendering chunks outside the camera's view frustum)~~ *(done – `Frustum` + `isInFrustum`)*
-- Improved chunk mesh generation (e.g., greedy meshing)
+- Improved chunk mesh generation
 - Cubic / multi-height chunks
 - More efficient block data storage
 - Level-of-detail (LOD) system

@@ -82,7 +82,8 @@ public class MainClass
         _terrainGenerator.SetMapSize(32);
         
         // ChunkProvider verwaltet den Chunk-Lebenszyklus (Laden/Generieren/Speichern)
-        _chunkProvider = new ChunkProvider(_terrainGenerator);
+        int meshingThreads = CoreAvailability.GetChunkMeshingCores();
+        _chunkProvider = new ChunkProvider(_terrainGenerator, meshingThreads );
         Renderer.ChunkProvider = _chunkProvider;
         
         // ChunkRequestor abonniert das Camera-Event und berechnet welche Chunks geladen werden

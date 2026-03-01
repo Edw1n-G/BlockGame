@@ -34,8 +34,8 @@ public class Renderer
     }
 
 
-    private const double MaxUploadTimeMs = 3.0;
-    private readonly Stopwatch _uploadTimer = Stopwatch.StartNew();
+    long startTimestamp = Stopwatch.GetTimestamp();
+    long maxTicks = (long)(2.0 / 1000.0 * Stopwatch.Frequency);
     
     ///<summary>
     /// Abstraktion für rendern
@@ -48,25 +48,26 @@ public class Renderer
     {
         Frustum frustum = _terrainshader.Use(_gl, _camera);
         _terrainshader.BindTexture(_terrainTexture);
-        
-        _uploadTimer.Restart();
-        foreach (ChunkMesher chunk in ChunkProvider.GetLoadedChunks())
+
+        while (ChunkProvider.UploadQueue.TryDequeue(out ChunkMesher? chunk))
         {
-            if (_uploadTimer.Elapsed.TotalMilliseconds > MaxUploadTimeMs)
+            chunk.UploadToGpu(_gl);
+
+            ChunkProvider.LoadedChunks.TryAdd(chunk.ChunkPosition, chunk);
+            
+            if (Stopwatch.GetTimestamp() - startTimestamp >= maxTicks)
             {
-                // Upload-Zeit überschritten, nächsten Frame rendern und Upload fortsetzen
                 break;
             }
-            
-            // GPU-Upload auf dem Main-Thread falls noch nicht geschehen
-            if (!chunk.IsUploaded)
-                chunk.UploadToGpu(_gl);
-            
-            if(!frustum.isInFrustum(chunk.ChunkPosition, frustum)) continue;
-            
+        }
+
+        foreach (ChunkMesher chunk in ChunkProvider.LoadedChunks.Values)
+        {
+            if (!frustum.isInFrustum(chunk.ChunkPosition, frustum)) continue;
+
             chunk.Render(_terrainshader);
         }
-        _uploadTimer.Stop();
+
     }
     
     /**

@@ -13,7 +13,8 @@ namespace Basics.Game.TerrainManaging;
 /// </summary>
 public class ChunkProvider
 {
-    private readonly ConcurrentDictionary<ChunkCoord, ChunkMesher> _loadedChunks = new();
+    public readonly Dictionary<ChunkCoord, ChunkMesher> LoadedChunks = new();
+    public ConcurrentQueue<ChunkMesher> UploadQueue = new();
     private readonly TerrainGenerator _terrainGenerator;
 
     public ChunkProvider(TerrainGenerator terrainGenerator)
@@ -22,26 +23,27 @@ public class ChunkProvider
     }
 
     /// <summary>
-    /// Fordert einen Chunk an. Prüft zuerst ob er schon geladen ist,
+    /// Fordert einen Chunk an. Prüft zuerst, ob er schon geladen ist,
     /// dann ob er von der Festplatte geladen werden kann,
     /// und generiert ihn ansonsten neu.
+    /// Ein Check um zu gucken, ob der Chunk von einem anderen Thread geladen wird fehlt
     /// </summary>
     public void RequestChunk(ChunkCoord coord)
     {
         // Bereits geladen? → nichts tun
-        if (_loadedChunks.ContainsKey(coord))
+        if (LoadedChunks.ContainsKey(coord))
             return;
 
         // Versuch von Festplatte zu laden (Placeholder)
         if (TryLoadFromDisk(coord, out ChunkMesher? loadedChunk))
         {
-            _loadedChunks.TryAdd(coord, loadedChunk!);
+            LoadedChunks.TryAdd(coord, loadedChunk!);
             return;
         }
 
         // Neu generieren
         ChunkMesher newChunk = _terrainGenerator.GenerateChunk(coord);
-        _loadedChunks.TryAdd(coord, newChunk);
+        UploadQueue.Enqueue(newChunk);
     }
 
     /// <summary>
@@ -49,7 +51,7 @@ public class ChunkProvider
     /// </summary>
     public void UnloadChunk(ChunkCoord coord)
     {
-        if (_loadedChunks.TryRemove(coord, out ChunkMesher? chunk))
+        if (LoadedChunks.Remove(coord, out ChunkMesher? chunk))
         {
             // TODO: Chunk auf Festplatte speichern bevor er entladen wird
             // SaveToDisk(coord, chunk);
@@ -63,7 +65,7 @@ public class ChunkProvider
     /// </summary>
     public IEnumerable<ChunkMesher> GetLoadedChunks()
     {
-        return _loadedChunks.Values;
+        return LoadedChunks.Values;
     }
 
     /// <summary>
@@ -71,7 +73,7 @@ public class ChunkProvider
     /// </summary>
     public bool IsChunkLoaded(ChunkCoord coord)
     {
-        return _loadedChunks.ContainsKey(coord);
+        return LoadedChunks.ContainsKey(coord);
     }
 
     /// <summary>
@@ -91,10 +93,10 @@ public class ChunkProvider
     /// </summary>
     public void Dispose()
     {
-        foreach (var chunk in _loadedChunks.Values)
+        foreach (ChunkMesher chunk in LoadedChunks.Values)
         {
             chunk.Dispose();
         }
-        _loadedChunks.Clear();
+        LoadedChunks.Clear();
     }
 }

@@ -13,12 +13,12 @@ namespace Basics.Game;
 /// Verwaltet den Chunk-Lebenszyklus: Laden von Disk (Placeholder), Generieren, Speichern.
 /// Zentraler Speicher für alle geladenen Chunks.
 /// </summary>
-public class ChunkProvidor
+public class ChunkProvider
 {
     private readonly ConcurrentDictionary<ChunkCoord, ChunkMesher> _loadedChunks = new();
     private readonly TerrainGenerator _terrainGenerator;
 
-    public ChunkProvidor(TerrainGenerator terrainGenerator)
+    public ChunkProvider(TerrainGenerator terrainGenerator)
     {
         _terrainGenerator = terrainGenerator;
     }

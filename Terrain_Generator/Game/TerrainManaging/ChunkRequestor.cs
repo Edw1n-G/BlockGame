@@ -14,11 +14,12 @@ namespace Basics.Game;
 /// </summary>
 public class ChunkRequestor
 {
-    private readonly ChunkProvidor _chunkProvidor;
+    private readonly ChunkProvider _chunkProvider;
     private readonly Camera _camera;
+    private readonly ParallelOptions _parallelOptions;
     private int _renderDistance = 10; // Render-Distanz in Chunks
     private HashSet<ChunkCoord> _activeChunks = new();
-    private List<ChunkCoord> _ChunksToLoad = new();
+    private List<ChunkCoord> _chunksToLoad = new();
 
     public int RenderDistance
     {
@@ -26,23 +27,24 @@ public class ChunkRequestor
         set => _renderDistance = Math.Max(1, value);
     }
 
-    public ChunkRequestor(Camera camera, ChunkProvidor chunkProvidor)
+    public ChunkRequestor(Camera camera, ChunkProvider chunkProvider, int availableCores)
     {
         _camera = camera;
-        _chunkProvidor = chunkProvidor;
+        _chunkProvider = chunkProvider;
+        _parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, availableCores) };
 
-        // Event abonnieren: wird gefeuert wenn der Spieler einen neuen Chunk betritt
+        // Event abonnieren: wird gefeuert, wenn der Spieler einen neuen Chunk betritt
         _camera.OnChunkChanged += OnPlayerChunkChanged;
     }
 
     /// <summary>
-    /// Event-Handler: Wird aufgerufen wenn der Spieler in einen neuen Chunk wechselt.
+    /// Event-Handler: Wird aufgerufen, wenn der Spieler in einen neuen Chunk wechselt.
     /// Berechnet welche Chunks im Render-Radius liegen und fordert sie an.
     /// </summary>
     private void OnPlayerChunkChanged(ChunkCoord playerChunk)
     {
         HashSet<ChunkCoord> newActiveChunks = new();
-        _ChunksToLoad = new List<ChunkCoord>();
+        _chunksToLoad = new List<ChunkCoord>();
 
         // Alle Chunks im Render-Radius berechnen (kreisförmig auf der XZ-Ebene)
         for (int x = -_renderDistance; x <= _renderDistance; x++)
@@ -54,28 +56,44 @@ public class ChunkRequestor
                     continue;
                 
                 ChunkCoord coord = new ChunkCoord(playerChunk.X + x, 0, playerChunk.Z + z);
-                _ChunksToLoad.Add(coord);
+                _chunksToLoad.Add(coord);
             }
         }
         
         // Chunks parallel generieren lassen
-        Parallel.For(0, _ChunksToLoad.Count, i =>
+        try
         {
-            ChunkCoord coord = _ChunksToLoad[i];
-            // Chunk anfordern (ChunkProvidor prüft ob er schon geladen ist)
-            _chunkProvidor.RequestChunk(coord);
-        });
-        
-        // Aktive Chunks sammeln (nach der parallelen Generierung)
-        foreach (ChunkCoord coord in _ChunksToLoad)
-        {
-            newActiveChunks.Add(coord);
+            Parallel.For(0, _chunksToLoad.Count,_parallelOptions, i =>
+            {
+                ChunkCoord coord = _chunksToLoad[i];
+                // Chunk anfordern (ChunkProvider prüft ob er schon geladen ist)
+                _chunkProvider.RequestChunk(coord);
+            });
+
+            // Aktive Chunks sammeln (nach der parallelen Generierung)
+            foreach (ChunkCoord coord in _chunksToLoad)
+            {
+                newActiveChunks.Add(coord);
+            }
+
+            // Chunks entladen die außerhalb des Render-Radius liegen
+            UnloadDistantChunks(newActiveChunks);
+
+            _activeChunks = newActiveChunks;
         }
-
-        // Chunks entladen die außerhalb des Render-Radius liegen
-        UnloadDistantChunks(newActiveChunks);
-
-        _activeChunks = newActiveChunks;
+        catch (AggregateException ex)
+        {
+            Console.WriteLine("Fehler bei der parallelen Chunk-Generierung: " + ex.Message);
+            // Fallback: Chunks nacheinander generieren
+            foreach (ChunkCoord coord in _chunksToLoad)
+            {
+                _chunkProvider.RequestChunk(coord);
+                newActiveChunks.Add(coord);
+            }
+            
+            UnloadDistantChunks(newActiveChunks);
+            _activeChunks = newActiveChunks;
+        }
     }
 
     /// <summary>
@@ -89,7 +107,7 @@ public class ChunkRequestor
             if (!newActiveChunks.Contains(oldChunk))
             {
                 // TODO: Hier später auch Chunk-Daten auf Festplatte speichern
-                _chunkProvidor.UnloadChunk(oldChunk);
+                _chunkProvider.UnloadChunk(oldChunk);
             }
         }
     }

@@ -20,7 +20,7 @@ public class MainClass
 {
     private static Renderer PlayerRenderer;
     private static TerrainGenerator _terrainGenerator;
-    private static ChunkProvidor _chunkProvidor;
+    private static ChunkProvider _chunkProvider;
     private static ChunkRequestor _chunkRequestor;
 
     public static Camera PlayerCamera;
@@ -52,6 +52,9 @@ public class MainClass
      */
     private unsafe void OnLoad()
     {   
+        //Kerne aufteilen und reservieren
+        CoreAvailability.Initialize();
+        
         //Main Camera und Renderer erstellen
         PlayerRenderer = new Renderer();
         PlayerCamera = new Camera(PlayerStartPosition);
@@ -78,12 +81,14 @@ public class MainClass
         _terrainGenerator = new TerrainGenerator();
         _terrainGenerator.SetMapSize(32);
         
-        // ChunkProvidor verwaltet den Chunk-Lebenszyklus (Laden/Generieren/Speichern)
-        _chunkProvidor = new ChunkProvidor(_terrainGenerator);
-        Renderer.ChunkProvidor = _chunkProvidor;
+        // ChunkProvider verwaltet den Chunk-Lebenszyklus (Laden/Generieren/Speichern)
+        _chunkProvider = new ChunkProvider(_terrainGenerator);
+        Renderer.ChunkProvider = _chunkProvider;
         
         // ChunkRequestor abonniert das Camera-Event und berechnet welche Chunks geladen werden
-        _chunkRequestor = new ChunkRequestor(PlayerCamera, _chunkProvidor);
+        // Die Chunks werden dann vom Provider parallel bereitgestellt
+        int generationCores = CoreAvailability.GetTerrainGenerationCores();
+        _chunkRequestor = new ChunkRequestor(PlayerCamera, _chunkProvider, generationCores);
         
         // Initiales Laden der Chunks um die Startposition
         PlayerCamera.ForceChunkUpdate();

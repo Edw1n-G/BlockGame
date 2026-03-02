@@ -26,14 +26,19 @@ public class ChunkMesher : IDisposable
     private GL _gl;
     private uint _indicesCount;
     private Matrix4x4 model; // Model Matrix für diesen Chunk
-    private int[,,] _blockData; // 3D Array für die Blocktypen im Chunk (z.B. 0 = Luft, 1 = Erde, etc.)
+    private int[] _blockData; // 1D Array für die Blocktypen im Chunk (z.B. 0 = Luft, 1 = Erde, etc.)
+    
+    /// <summary>
+    /// Berechnet den 1D Index aus 3D Koordinaten: index = x * 32 * 32 + y * 32 + z
+    /// </summary>
+    private static int Idx(int x, int y, int z) => x * 1024 + y * 32 + z;
     private bool _uploaded = false; // Ob die Daten bereits auf die GPU hochgeladen wurden
     
     /// <summary>
     /// Konstruktor: Berechnet nur die Mesh-Daten (Vertices/Indices).
     /// Kann auf jedem Thread aufgerufen werden - keine OpenGL-Calls!
     /// </summary>
-    public ChunkMesher(ChunkCoord position, int[,,] blockData)
+    public ChunkMesher(ChunkCoord position, int[] blockData)
     {
         this.ChunkPosition = position;
         this._blockData = blockData;
@@ -43,7 +48,7 @@ public class ChunkMesher : IDisposable
     /// <summary>
     /// Berechnet Vertices und Indices - reine CPU-Arbeit, kein OpenGL.
     /// </summary>
-    private void BuildMeshData(int[,,] blockData)
+    private void BuildMeshData(int[] blockData)
     {
         _blockData = blockData;
         _vertices.Clear(); // Sicherstellen, dass Listen leer sind
@@ -55,7 +60,7 @@ public class ChunkMesher : IDisposable
             {
                 for (int z = 0; z < 32; z++)
                 {
-                    if (_blockData[x, y, z] == 0) continue; // Nur Blöcke rendern, die nicht Luft sind
+                    if (_blockData[Idx(x, y, z)] == 0) continue; // Nur Blöcke rendern, die nicht Luft sind
                     // Top Face
                     
                     if (!IsBlock(x,y+1,z)) // Nur rendern, wenn oben Luft ist
@@ -120,7 +125,9 @@ public class ChunkMesher : IDisposable
         _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 5, 0); // aPos (x,y,z)
         _vao.VertexAttributePointer(1, 1, VertexAttribPointerType.Float, 5, 3); // layer
         _vao.VertexAttributePointer(2, 1, VertexAttribPointerType.Float, 5, 4); // brightness
-
+        
+        this._vertices.Clear();
+        this._indices.Clear();
         this._vertices = null;
         this._indices = null;
         _uploaded = true;
@@ -138,7 +145,7 @@ public class ChunkMesher : IDisposable
     /// </summary>
     private void CreateCubeFace(int x, int y, int z, int face)
     {
-        int id = _blockData[x, y, z];
+        int id = _blockData[Idx(x, y, z)];
         byte textureLayer  = BlockTextures.Get(id, face);
         float[] ao = CalcVertexBrightness(x, y, z, face);
         
@@ -369,7 +376,7 @@ public class ChunkMesher : IDisposable
         // Wenn alle Koordinaten im lokalen Bereich liegen → direkt prüfen
         if (x >= 0 && x < 32 && y >= 0 && y < 32 && z >= 0 && z < 32)
         {
-            return _blockData[x, y, z] != 0;
+            return _blockData[Idx(x, y, z)] != 0;
         }
 
         // Nachbar-Chunk-Offset berechnen
@@ -390,9 +397,9 @@ public class ChunkMesher : IDisposable
         else if (z > 31) { cz++; z -= 32; }
 
         ChunkCoord neighborCoord = new ChunkCoord(cx, cy, cz);
-        if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out int[,,]? neighborData))
+        if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out int[]? neighborData))
         {
-            return neighborData[x, y, z] != 0;
+            return neighborData[Idx(x, y, z)] != 0;
         }
 
         // Kein Nachbar-Chunk geladen

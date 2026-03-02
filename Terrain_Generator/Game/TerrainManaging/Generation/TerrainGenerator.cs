@@ -34,7 +34,7 @@ public class TerrainGenerator
     /// wird in @param ChunkBlocks gespeichert und an den ChunkMesher übergeben, der die Geometrie erstellt
     /// Berechnung der 4D Koordinate abhängig von @param mapLimit, damit die Karte an den Grenzen nahtlos verbunden ist (Torus Mapping)
     /// </summary>
-    public int[,,] GenerateChunk(ChunkCoord coord)
+    public int[] GenerateChunk(ChunkCoord coord)
     {
         if (Math.Abs(coord.X) > _maxMapSize || Math.Abs(coord.Z)+1 > _maxMapSize)
         {
@@ -46,7 +46,7 @@ public class TerrainGenerator
         int chunkStartY = coord.Y * 32;
         int chunkStartZ = coord.Z * 32;
         
-        int[,,] chunkBlocks = new int[32, 32, 32];
+        int[] chunkBlocks = new int[32*32*32]; // 32x32x32 Blöcke pro Chunk
         
         float[] noiseValues = _noiseCalculator.GetNoiseValues(chunkStartX, chunkStartZ, 32, 32);
         
@@ -63,24 +63,25 @@ public class TerrainGenerator
                 if (height > 31) height = 31;
                 for (int y = 0; y < 32; y++)
                 {
+                    int index = blockX * 32 * 32 + y * 32 + blockZ;
                     if (y <= height)
                     {
                         if (y > 28) 
                         {
-                            chunkBlocks[blockX, y, blockZ] = 3; // Schnee auf den höchsten Blöcken
+                            chunkBlocks[index] = 3; // Schnee auf den höchsten Blöcken
                         }
                         else if (y <= (height - 2) || y > (20)) 
                         {
-                            chunkBlocks[blockX, y, blockZ] = 2; // unter Erde ist und mittlere Blöcke als Stein
+                            chunkBlocks[index] = 2; // unter Erde ist und mittlere Blöcke als Stein
                         }
                         else
                         {
-                            chunkBlocks[blockX, y, blockZ] = 1; // Mitlere Blöcke als Erde
+                            chunkBlocks[index] = 1; // Mitlere Blöcke als Erde
                         }
                     }
                     else
                     {
-                        chunkBlocks[blockX, y, blockZ] = 0;
+                        chunkBlocks[index] = 0;
                     }
                 }
             }

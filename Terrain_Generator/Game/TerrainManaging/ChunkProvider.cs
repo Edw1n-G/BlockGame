@@ -16,7 +16,7 @@ namespace Basics.Game.TerrainManaging;
 public class ChunkProvider
 {
     public static readonly Dictionary<ChunkCoord, ChunkMesher> LoadedChunks = new();
-    public static ConcurrentDictionary<ChunkCoord, int[,,]> Chunkdata = new();//Die Blockdaten
+    public static ConcurrentDictionary<ChunkCoord, int[]> Chunkdata = new();//Die Blockdaten
     private ConcurrentDictionary<ChunkCoord, byte> _queuedForMeshing = new();// Nur damit nicht mehrere Threads den selben Chunk meshen
     public ConcurrentQueue<ChunkCoord> MeshingQueue = new(); // Chunks die bereit für das Meshing sind (haben alle Nachbarn und ihre Blockdaten)
     public ConcurrentQueue<ChunkMesher> UploadQueue = new(); // Chunks die fertig gemesht sind und auf die GPU sollen
@@ -53,11 +53,11 @@ public class ChunkProvider
             return;
         }
 
-        int[,,] chunkBlocks = _terrainGenerator.GenerateChunk(coord);
+        int[] chunkBlocks = _terrainGenerator.GenerateChunk(coord);
         OnChunkDataGenerated(coord, chunkBlocks);
     }
     
-    public void OnChunkDataGenerated(ChunkCoord coord, int[,,] data)
+    public void OnChunkDataGenerated(ChunkCoord coord, int[] data)
     {
         // Daten im Dictionary ablegen
         Chunkdata.TryAdd(coord, data);
@@ -91,7 +91,7 @@ public class ChunkProvider
         if (_queuedForMeshing.TryAdd(coord, 0))
         {
             // Ab in den Meshing-Threadpool! 
-            // (Dein Mesher kann sich die int[,,] Daten jetzt gefahrlos aus _chunkDataDict holen)
+            // (Dein Mesher kann sich die int[] Daten jetzt gefahrlos aus _chunkDataDict holen)
             MeshingQueue.Enqueue(coord); 
         }
     }
@@ -102,7 +102,7 @@ public class ChunkProvider
         {
             if (MeshingQueue.TryDequeue(out ChunkCoord coord))
             {
-                if (Chunkdata.TryGetValue(coord, out int[,,] BlockData))
+                if (Chunkdata.TryGetValue(coord, out int[] BlockData))
                 {
                     ChunkMesher newMesh = new ChunkMesher(coord, BlockData);
                     

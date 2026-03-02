@@ -26,6 +26,9 @@ public class Lod0Mesher : BaseMesher
         // Worst-case Schätzung: Ein Chunk mit vielen Oberflächen hat ca. 30% sichtbare Flächen
         // Pro Face: 4 Vertices × 5 floats = 20 floats, 6 indices
         // Realistisch: ~8000 Faces → 160k floats, 48k indices
+        // das ist der guess von claude
+        // Worst case ist jemand füllt jeden zweiten Blocke also 16*16*16 = 4096 Blöcke davon grenzt jeder an luft also mal 6 = 24576 Flächen
+        // 24576 Flächen × 20 floats = 491520 floats, 24576 × 6 indices = 147456 indices sobald ich blöcke bauen kann gucke ich mal was passiert
         _vertices.Clear();
         _indices.Clear();
         _vertices.Capacity = 80_000;
@@ -60,7 +63,7 @@ public class Lod0Mesher : BaseMesher
         int id = _blockData[Idx(x, y, z)];
         byte textureLayer = BlockTextures.Get(id, face);
         
-        // AO direkt als int berechnen (0–3), kein float[] auf dem Heap
+        // AO direkt als int berechnen (0–3)
         int ao0 = CalcAoLevel(x, y, z, face, 0);
         int ao1 = CalcAoLevel(x, y, z, face, 1);
         int ao2 = CalcAoLevel(x, y, z, face, 2);

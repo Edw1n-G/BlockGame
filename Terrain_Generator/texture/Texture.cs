@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using Silk.NET.OpenGL;
 using StbImageSharp;
 

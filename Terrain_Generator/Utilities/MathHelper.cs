@@ -1,4 +1,6 @@
-﻿namespace Basics.Utilities;
+﻿using System;
+
+namespace Basics.Utilities;
 
 /**
  * Hilfsklasse um Code zu vereinfachen

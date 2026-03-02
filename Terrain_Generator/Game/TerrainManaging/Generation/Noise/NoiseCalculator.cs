@@ -1,4 +1,6 @@
 
+using System;
+
 namespace Basics.Game.TerrainManaging.Generation;
 
 public class NoiseCalculator

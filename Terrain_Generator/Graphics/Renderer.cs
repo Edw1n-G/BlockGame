@@ -50,7 +50,7 @@ public class Renderer
         Frustum frustum = _terrainshader.Use(_gl, _camera);
         _terrainshader.BindTexture(_terrainTexture);
 
-        while (ChunkProvider.UploadQueue.TryDequeue(out ChunkMesher? chunk))
+        while (ChunkProvider.UploadQueue.TryDequeue(out BaseMesher? chunk))
         {
             chunk.UploadToGpu(_gl);
 
@@ -62,7 +62,7 @@ public class Renderer
             }
         }
 
-        foreach (ChunkMesher chunk in ChunkProvider.LoadedChunks.Values)
+        foreach (BaseMesher chunk in ChunkProvider.LoadedChunks.Values)
         {
             if (!frustum.isInFrustum(chunk.ChunkPosition, frustum)) continue;
 

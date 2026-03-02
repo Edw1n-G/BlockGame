@@ -15,11 +15,11 @@ namespace Basics.Game.TerrainManaging;
 /// </summary>
 public class ChunkProvider
 {
-    public static readonly Dictionary<ChunkCoord, ChunkMesher> LoadedChunks = new();
+    public static readonly Dictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
     public static ConcurrentDictionary<ChunkCoord, int[]> Chunkdata = new();//Die Blockdaten
     private ConcurrentDictionary<ChunkCoord, byte> _queuedForMeshing = new();// Nur damit nicht mehrere Threads den selben Chunk meshen
     public ConcurrentQueue<ChunkCoord> MeshingQueue = new(); // Chunks die bereit für das Meshing sind (haben alle Nachbarn und ihre Blockdaten)
-    public ConcurrentQueue<ChunkMesher> UploadQueue = new(); // Chunks die fertig gemesht sind und auf die GPU sollen
+    public ConcurrentQueue<BaseMesher> UploadQueue = new(); // Chunks die fertig gemesht sind und auf die GPU sollen
     private readonly TerrainGenerator _terrainGenerator;
     
     
@@ -47,7 +47,7 @@ public class ChunkProvider
             return;
 
         // Versuch von Festplatte zu laden (Placeholder)
-        if (TryLoadFromDisk(coord, out ChunkMesher? loadedChunk))
+        if (TryLoadFromDisk(coord, out BaseMesher? loadedChunk))
         {
             LoadedChunks.TryAdd(coord, loadedChunk!);
             return;
@@ -104,7 +104,7 @@ public class ChunkProvider
             {
                 if (Chunkdata.TryGetValue(coord, out int[] BlockData))
                 {
-                    ChunkMesher newMesh = new ChunkMesher(coord, BlockData);
+                    BaseMesher newMesh = new Lod0Mesher(coord, BlockData);
                     
                     UploadQueue.Enqueue(newMesh);
                     
@@ -135,7 +135,7 @@ public class ChunkProvider
     /// </summary>
     public void UnloadChunk(ChunkCoord coord)
     {
-        if (LoadedChunks.Remove(coord, out ChunkMesher? chunk))
+        if (LoadedChunks.Remove(coord, out BaseMesher? chunk))
         {
             // TODO: Chunk auf Festplatte speichern bevor er entladen wird
             // SaveToDisk(coord, chunk);
@@ -147,7 +147,7 @@ public class ChunkProvider
     /// <summary>
     /// Gibt alle aktuell geladenen Chunks zurück (für den Renderer).
     /// </summary>
-    public IEnumerable<ChunkMesher> GetLoadedChunks()
+    public IEnumerable<BaseMesher> GetLoadedChunks()
     {
         return LoadedChunks.Values;
     }
@@ -164,7 +164,7 @@ public class ChunkProvider
     /// Placeholder: Versucht einen Chunk von der Festplatte zu laden.
     /// Gibt vorerst immer false zurück.
     /// </summary>
-    private bool TryLoadFromDisk(ChunkCoord coord, out ChunkMesher? chunk)
+    private bool TryLoadFromDisk(ChunkCoord coord, out BaseMesher? chunk)
     {
         // TODO: Implementierung für Chunk-Laden von der Festplatte
         // z.B. aus einer Datei wie "chunks/{coord.X}_{coord.Y}_{coord.Z}.chunk"
@@ -177,7 +177,7 @@ public class ChunkProvider
     /// </summary>
     public void Dispose()
     {
-        foreach (ChunkMesher chunk in LoadedChunks.Values)
+        foreach (BaseMesher chunk in LoadedChunks.Values)
         {
             chunk.Dispose();
         }

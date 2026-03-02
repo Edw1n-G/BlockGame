@@ -67,7 +67,7 @@ public class ChunkRequestor
             Parallel.For(0, _chunksToLoad.Count,_parallelOptions, i =>
             {
                 ChunkCoord coord = _chunksToLoad[i];
-                // Chunk anfordern (ChunkProvider prüft ob er schon geladen ist)
+                // Chunk anfordern (ChunkProvider prüft, ob er schon geladen ist)
                 _chunkProvider.RequestChunk(coord);
             });
 

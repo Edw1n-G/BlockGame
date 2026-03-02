@@ -1,57 +1,33 @@
-﻿using System.Numerics;
+using System.Numerics;
 using Basics.Configurations;
+using Basics.Game.TerrainManaging.Meshing;
 using Basics.Graphics;
 using Basics.Utilities;
 using Silk.NET.OpenGL;
 
-//Liste
+namespace Basics.Game.TerrainManaging;
 
-namespace Basics.Game.TerrainManaging.Meshing;
-
-/**
- * Chunk Objekt 32x32x32 Blöcke, das in der Welt platziert wird.
- * Jeder Chunk hat seine eigene Geometrie (VBO, EBO, VAO)
- * 
- */
-public class ChunkMesher : IDisposable
+public class Lod0Mesher : BaseMesher
 {
-    public ChunkCoord ChunkPosition; // Position des Chunks in Chunk-Koordinaten (z.B. 0/0, 1/0, -1/0, etc.)
-    private List<uint> _indices = new List<uint>();
-    private List<float> _vertices = new List<float>();
-
-    // Die OpenGL Handles für diesen spezifischen Chunk
-    private BufferObject<float> _vbo;
-    private BufferObject<uint> _ebo;
-    private VertexArrayObject<float, uint> _vao;
-    private GL _gl;
-    private uint _indicesCount;
-    private Matrix4x4 model; // Model Matrix für diesen Chunk
     private int[] _blockData; // 1D Array für die Blocktypen im Chunk (z.B. 0 = Luft, 1 = Erde, etc.)
     
-    /// <summary>
-    /// Berechnet den 1D Index aus 3D Koordinaten: index = x * 32 * 32 + y * 32 + z
-    /// </summary>
-    private static int Idx(int x, int y, int z) => x * 1024 + y * 32 + z;
-    private bool _uploaded = false; // Ob die Daten bereits auf die GPU hochgeladen wurden
     
-    /// <summary>
-    /// Konstruktor: Berechnet nur die Mesh-Daten (Vertices/Indices).
-    /// Kann auf jedem Thread aufgerufen werden - keine OpenGL-Calls!
-    /// </summary>
-    public ChunkMesher(ChunkCoord position, int[] blockData)
+    private static int Idx(int x, int y, int z) => x * 1024 + y * 32 + z;
+    
+    public Lod0Mesher(ChunkCoord position, int[] blockData)
     {
         this.ChunkPosition = position;
         this._blockData = blockData;
         BuildMeshData(blockData);
     }
-
+    
     /// <summary>
-    /// Berechnet Vertices und Indices - reine CPU-Arbeit, kein OpenGL.
+    /// Berechnet Vertices und Indices - reine CPU-Arbeit.
     /// </summary>
     private void BuildMeshData(int[] blockData)
     {
         _blockData = blockData;
-        _vertices.Clear(); // Sicherstellen, dass Listen leer sind
+        _vertices.Clear();
         _indices.Clear();
         
         for (int x = 0; x < 32; x++)
@@ -106,43 +82,7 @@ public class ChunkMesher : IDisposable
         // Model Matrix initialisieren (basierend auf Chunk Position)
         model = Matrix4x4.CreateTranslation(new Vector3(ChunkPosition.X*32, ChunkPosition.Y*32, ChunkPosition.Z*32));
     }
-
-    /// <summary>
-    /// Lädt die berechneten Mesh-Daten auf die GPU hoch.
-    /// MUSS auf dem Main-Thread (OpenGL-Kontext) aufgerufen werden
-    /// </summary>
-    public void UploadToGpu(GL gl)
-    {
-        if (_uploaded) return;
-        _gl = gl;
-
-        // Buffer erstellen (OpenGL-Calls - nur auf dem Main-Thread!)
-        _ebo = new BufferObject<uint>(_gl, _indices.ToArray(), BufferTargetARB.ElementArrayBuffer);
-        _vbo = new BufferObject<float>(_gl, _vertices.ToArray(), BufferTargetARB.ArrayBuffer);
-        _vao = new VertexArrayObject<float, uint>(_gl, _vbo, _ebo);
-
-        // Layout (Position=3 + Layer= + Brightness=1) => Stride = 6
-        _vao.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 5, 0); // aPos (x,y,z)
-        _vao.VertexAttributePointer(1, 1, VertexAttribPointerType.Float, 5, 3); // layer
-        _vao.VertexAttributePointer(2, 1, VertexAttribPointerType.Float, 5, 4); // brightness
-        
-        this._vertices.Clear();
-        this._indices.Clear();
-        this._vertices = null;
-        this._indices = null;
-        _uploaded = true;
-    }
     
-    /// <summary>
-    /// Ob die Daten bereits auf die GPU hochgeladen wurden.
-    /// </summary>
-    public bool IsUploaded => _uploaded;
-
-    
-    
-    /// <summary>
-    /// AO basierend darauf wie viele blöcke daneben stehen
-    /// </summary>
     private void CreateCubeFace(int x, int y, int z, int face)
     {
         int id = _blockData[Idx(x, y, z)];
@@ -237,6 +177,44 @@ public class ChunkMesher : IDisposable
             }
         }
         AddIndices((uint)_vertices.Count / 5 - 4, ao);
+    }
+    /// <summary>
+    /// Gibt true zurück, wenn da keine Luft ist.
+    /// </summary>
+    private bool IsBlock(int x, int y, int z)
+    {
+        // Wenn alle Koordinaten im lokalen Bereich liegen → direkt prüfen
+        if (x >= 0 && x < 32 && y >= 0 && y < 32 && z >= 0 && z < 32)
+        {
+            return _blockData[Idx(x, y, z)] != 0;
+        }
+
+        // Nachbar-Chunk-Offset berechnen
+        int cx = ChunkPosition.X;
+        int cy = ChunkPosition.Y;
+        int cz = ChunkPosition.Z;
+
+        // X-Achse normalisieren
+        if (x < 0)      { cx--; x += 32; }
+        else if (x > 31) { cx++; x -= 32; }
+
+        // Y-Achse normalisieren
+        if (y < 0)      { cy--; y += 32; }
+        else if (y > 31) { cy++; y -= 32; }
+
+        // Z-Achse normalisieren
+        if (z < 0)      { cz--; z += 32; }
+        else if (z > 31) { cz++; z -= 32; }
+
+        ChunkCoord neighborCoord = new ChunkCoord(cx, cy, cz);
+        if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out int[]? neighborData))
+        {
+            return neighborData[Idx(x, y, z)] != 0;
+        }
+
+        // Kein Nachbar-Chunk geladen
+        // Sollte nicht passieren können wegen de meshing queue
+        return false;
     }
     
     // Relative Offsets für AO Checks
@@ -365,88 +343,5 @@ public class ChunkMesher : IDisposable
 
         // Gebe die 4 Werte als Tupel zurück
         return ao;
-    }
-    
-
-    /// <summary>
-    /// Gibt true zurück, wenn da keine Luft ist.
-    /// </summary>
-    private bool IsBlock(int x, int y, int z)
-    {
-        // Wenn alle Koordinaten im lokalen Bereich liegen → direkt prüfen
-        if (x >= 0 && x < 32 && y >= 0 && y < 32 && z >= 0 && z < 32)
-        {
-            return _blockData[Idx(x, y, z)] != 0;
-        }
-
-        // Nachbar-Chunk-Offset berechnen
-        int cx = ChunkPosition.X;
-        int cy = ChunkPosition.Y;
-        int cz = ChunkPosition.Z;
-
-        // X-Achse normalisieren
-        if (x < 0)      { cx--; x += 32; }
-        else if (x > 31) { cx++; x -= 32; }
-
-        // Y-Achse normalisieren
-        if (y < 0)      { cy--; y += 32; }
-        else if (y > 31) { cy++; y -= 32; }
-
-        // Z-Achse normalisieren
-        if (z < 0)      { cz--; z += 32; }
-        else if (z > 31) { cz++; z -= 32; }
-
-        ChunkCoord neighborCoord = new ChunkCoord(cx, cy, cz);
-        if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out int[]? neighborData))
-        {
-            return neighborData[Idx(x, y, z)] != 0;
-        }
-
-        // Kein Nachbar-Chunk geladen
-        // Sollte nicht passieren können wegen de meshing queue
-        return false;
-    }
-
-    
-    private void AddIndices(uint baseIndex, float[] ao)
-    {
-        // Quad flippen damit es keine komischen Dreiecke gibt, abhängig davon wie die AO Werte verteilt sind
-        if (ao[0] + ao[2] > ao[1] + ao[3])
-        {
-            _indices.AddRange(new uint[]
-            {
-                baseIndex + 1, baseIndex + 2, baseIndex + 3,
-                baseIndex + 1, baseIndex + 3, baseIndex
-            });
-        }
-        else
-        {
-            _indices.AddRange(new uint[]
-            {
-                baseIndex, baseIndex + 1, baseIndex + 2,
-                baseIndex, baseIndex + 2, baseIndex + 3
-            });
-        }
-    }
-
-    public unsafe void Render(ShaderManager shaderManager)
-    {
-        if (!_uploaded) return; // Noch nicht auf der GPU
-        
-        //Dem Shader sagen, wo dieser Chunk liegt
-        shaderManager.SetModelMatrix(model);
-        
-        _vao.Bind();
-        _ebo.Bind();
-        
-        _gl.DrawElements(PrimitiveType.Triangles, _indicesCount, DrawElementsType.UnsignedInt, (void*)0);
-    }
-    
-    // Unloading
-    public void Dispose()
-    {
-        _vbo.Dispose();
-        _ebo.Dispose();
-        _vao.Dispose();
     }
 }

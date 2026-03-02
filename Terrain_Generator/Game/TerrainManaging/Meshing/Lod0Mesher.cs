@@ -1,84 +1,56 @@
 using System.Numerics;
 using Basics.Configurations;
 using Basics.Game.TerrainManaging.Meshing;
-using Basics.Graphics;
 using Basics.Utilities;
-using Silk.NET.OpenGL;
 
 namespace Basics.Game.TerrainManaging;
 
 public class Lod0Mesher : BaseMesher
 {
-    private int[] _blockData; // 1D Array für die Blocktypen im Chunk (z.B. 0 = Luft, 1 = Erde, etc.)
-    
+    private byte[] _blockData;
     
     private static int Idx(int x, int y, int z) => x * 1024 + y * 32 + z;
     
-    public Lod0Mesher(ChunkCoord position, int[] blockData)
+    // AO Level (0–3) kann auc in den shader
+    private static readonly float[] AoLookup = { 1.0f, 0.8f, 0.6f, 0.4f };
+    
+    public Lod0Mesher(ChunkCoord position, byte[] blockData)
     {
         this.ChunkPosition = position;
         this._blockData = blockData;
-        BuildMeshData(blockData);
+        BuildMeshData();
     }
     
-    /// <summary>
-    /// Berechnet Vertices und Indices - reine CPU-Arbeit.
-    /// </summary>
-    private void BuildMeshData(int[] blockData)
+    private void BuildMeshData()
     {
-        _blockData = blockData;
+        // Worst-case Schätzung: Ein Chunk mit vielen Oberflächen hat ca. 30% sichtbare Flächen
+        // Pro Face: 4 Vertices × 5 floats = 20 floats, 6 indices
+        // Realistisch: ~8000 Faces → 160k floats, 48k indices
         _vertices.Clear();
         _indices.Clear();
+        _vertices.Capacity = 80_000;
+        _indices.Capacity = 24_000;
         
-        for (int x = 0; x < 32; x++)
+        for (byte x = 0; x < 32; x++)
         {
-            for (int y = 0; y < 32; y++)
+            for (byte y = 0; y < 32; y++)
             {
-                for (int z = 0; z < 32; z++)
+                for (byte z = 0; z < 32; z++)
                 {
-                    if (_blockData[Idx(x, y, z)] == 0) continue; // Nur Blöcke rendern, die nicht Luft sind
-                    // Top Face
+                    if (_blockData[Idx(x, y, z)] == 0) continue;
                     
-                    if (!IsBlock(x,y+1,z)) // Nur rendern, wenn oben Luft ist
-                    {
-                        CreateCubeFace(x, y, z, 0);
-                    }
-                        
-                    // Bottom Face
-                    if (!IsBlock(x,y-1,z)) // Nur rendern, wenn unten Luft ist
-                    {
-                        CreateCubeFace(x, y, z, 1);
-                    }
-                        
-                    // Front Face (+Z)
-                    if (!IsBlock(x,y,z+1))
-                    {
-                        CreateCubeFace(x, y, z, 2);
-                    }
-
-                    // Back Face (-Z)
-                    if (!IsBlock(x,y,z-1))
-                    {
-                        CreateCubeFace(x, y, z, 3);
-                    }
-                        
-                    // Left Face (-X)
-                    if (!IsBlock(x-1,y,z))
-                    {
-                        CreateCubeFace(x, y, z, 4);
-                    }
-
-                    // Right Face (+X)
-                    if (!IsBlock(x+1,y,z))
-                    {
-                        CreateCubeFace(x, y, z, 5);
-                    }
+                    if (!IsBlock(x, y + 1, z)) CreateCubeFace(x, y, z, BlockTextures.Top);
+                    if (!IsBlock(x, y - 1, z)) CreateCubeFace(x, y, z, BlockTextures.Bottom);
+                    if (!IsBlock(x, y, z + 1)) CreateCubeFace(x, y, z, BlockTextures.Front);
+                    if (!IsBlock(x, y, z - 1)) CreateCubeFace(x, y, z, BlockTextures.Back);
+                    if (!IsBlock(x - 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Left);
+                    if (!IsBlock(x + 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Right);
                 }
             }
         }
         
         _indicesCount = (uint)_indices.Count;
-        
+
         // Model Matrix initialisieren (basierend auf Chunk Position)
         model = Matrix4x4.CreateTranslation(new Vector3(ChunkPosition.X*32, ChunkPosition.Y*32, ChunkPosition.Z*32));
     }
@@ -86,104 +58,78 @@ public class Lod0Mesher : BaseMesher
     private void CreateCubeFace(int x, int y, int z, int face)
     {
         int id = _blockData[Idx(x, y, z)];
-        byte textureLayer  = BlockTextures.Get(id, face);
-        float[] ao = CalcVertexBrightness(x, y, z, face);
+        byte textureLayer = BlockTextures.Get(id, face);
+        
+        // AO direkt als int berechnen (0–3), kein float[] auf dem Heap
+        int ao0 = CalcAoLevel(x, y, z, face, 0);
+        int ao1 = CalcAoLevel(x, y, z, face, 1);
+        int ao2 = CalcAoLevel(x, y, z, face, 2);
+        int ao3 = CalcAoLevel(x, y, z, face, 3);
+        
+        // Lookup: int → float, kein Rechnen
+        float b0 = AoLookup[ao0];
+        float b1 = AoLookup[ao1];
+        float b2 = AoLookup[ao2];
+        float b3 = AoLookup[ao3];
         
         switch (face)
         {
-            // Top Face (+Y): Nachbarn auf y+1-Ebene in ±X und ±Z
             case BlockTextures.Top:
-            {
-
-                _vertices.AddRange(new float[]
-                {
-                    x,     y + 1, z + 1, textureLayer, ao[0],
-                    x + 1, y + 1, z + 1, textureLayer, ao[1],
-                    x + 1, y + 1, z,     textureLayer, ao[2],
-                    x,     y + 1, z,     textureLayer, ao[3]
-                });
+                _vertices.Add(x);     _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b0);
+                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b1);
+                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b2);
+                _vertices.Add(x);     _vertices.Add(y + 1); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b3);
                 break;
-            }
-
-            // Bottom Face (-Y): Nachbarn auf y-Ebene in ±X und ±Z
             case BlockTextures.Bottom:
-            {
-
-                _vertices.AddRange(new float[]
-                {
-                    x,     y, z,     textureLayer, ao[0],
-                    x + 1, y, z,     textureLayer, ao[1],
-                    x + 1, y, z + 1, textureLayer, ao[2],
-                    x,     y, z + 1, textureLayer, ao[3]
-                });
+                _vertices.Add(x);     _vertices.Add(y); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b0);
+                _vertices.Add(x + 1); _vertices.Add(y); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b1);
+                _vertices.Add(x + 1); _vertices.Add(y); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b2);
+                _vertices.Add(x);     _vertices.Add(y); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b3);
                 break;
-            }
-
-            // Front Face (+Z): Nachbarn auf z+1-Ebene in ±X und ±Y
             case BlockTextures.Front:
-            {
-
-                _vertices.AddRange(new float[]
-                {
-                    x,     y,     z + 1, textureLayer, ao[0],
-                    x + 1, y,     z + 1, textureLayer, ao[1],
-                    x + 1, y + 1, z + 1, textureLayer, ao[2],
-                    x,     y + 1, z + 1, textureLayer, ao[3]
-                });
+                _vertices.Add(x);     _vertices.Add(y);     _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b0);
+                _vertices.Add(x + 1); _vertices.Add(y);     _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b1);
+                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b2);
+                _vertices.Add(x);     _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b3);
                 break;
-            }
-
-            // Back Face (-Z): Nachbarn auf z-Ebene in ±X und ±Y
             case BlockTextures.Back:
-            {
-
-
-                _vertices.AddRange(new float[]
-                {
-                    x + 1, y,     z, textureLayer, ao[0],
-                    x,     y,     z, textureLayer, ao[1],
-                    x,     y + 1, z, textureLayer, ao[2],
-                    x + 1, y + 1, z, textureLayer, ao[3]
-                });
+                _vertices.Add(x + 1); _vertices.Add(y);     _vertices.Add(z); _vertices.Add(textureLayer); _vertices.Add(b0);
+                _vertices.Add(x);     _vertices.Add(y);     _vertices.Add(z); _vertices.Add(textureLayer); _vertices.Add(b1);
+                _vertices.Add(x);     _vertices.Add(y + 1); _vertices.Add(z); _vertices.Add(textureLayer); _vertices.Add(b2);
+                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z); _vertices.Add(textureLayer); _vertices.Add(b3);
                 break;
-            }
-
-            // Left Face (-X): Nachbarn auf x-Ebene in ±Z und ±Y
             case BlockTextures.Left:
-            {
-
-                _vertices.AddRange(new float[]
-                {
-                    x, y,     z,      textureLayer, ao[0],
-                    x, y,     z + 1,  textureLayer, ao[1],
-                    x, y + 1, z + 1,  textureLayer, ao[2],
-                    x, y + 1, z,      textureLayer, ao[3]
-                });
+                _vertices.Add(x); _vertices.Add(y);     _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b0);
+                _vertices.Add(x); _vertices.Add(y);     _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b1);
+                _vertices.Add(x); _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b2);
+                _vertices.Add(x); _vertices.Add(y + 1); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b3);
                 break;
-            }
-
-            // Right Face (+X): Nachbarn auf x+1-Ebene in ±Z und ±Y
             case BlockTextures.Right:
-            {
-
-                _vertices.AddRange(new float[]
-                {
-                    x + 1, y,     z + 1, textureLayer, ao[0],
-                    x + 1, y,     z,     textureLayer, ao[1],
-                    x + 1, y + 1, z,     textureLayer, ao[2],
-                    x + 1, y + 1, z + 1, textureLayer, ao[3]
-                });
+                _vertices.Add(x + 1); _vertices.Add(y);     _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b0);
+                _vertices.Add(x + 1); _vertices.Add(y);     _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b1);
+                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b2);
+                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b3);
                 break;
-            }
         }
-        AddIndices((uint)_vertices.Count / 5 - 4, ao);
+        
+        // Indices direkt hinzufügen, keine Array-Allokation
+        uint baseIdx = (uint)(_vertices.Count / 5 - 4);
+        if (b0 + b2 > b1 + b3)
+        {
+            _indices.Add(baseIdx + 1); _indices.Add(baseIdx + 2); _indices.Add(baseIdx + 3);
+            _indices.Add(baseIdx + 1); _indices.Add(baseIdx + 3); _indices.Add(baseIdx);
+        }
+        else
+        {
+            _indices.Add(baseIdx);     _indices.Add(baseIdx + 1); _indices.Add(baseIdx + 2);
+            _indices.Add(baseIdx);     _indices.Add(baseIdx + 2); _indices.Add(baseIdx + 3);
+        }
     }
     /// <summary>
     /// Gibt true zurück, wenn da keine Luft ist.
     /// </summary>
     private bool IsBlock(int x, int y, int z)
     {
-        // Wenn alle Koordinaten im lokalen Bereich liegen → direkt prüfen
         if (x >= 0 && x < 32 && y >= 0 && y < 32 && z >= 0 && z < 32)
         {
             return _blockData[Idx(x, y, z)] != 0;
@@ -194,20 +140,15 @@ public class Lod0Mesher : BaseMesher
         int cy = ChunkPosition.Y;
         int cz = ChunkPosition.Z;
 
-        // X-Achse normalisieren
-        if (x < 0)      { cx--; x += 32; }
+        if (x < 0)       { cx--; x += 32; }
         else if (x > 31) { cx++; x -= 32; }
-
-        // Y-Achse normalisieren
-        if (y < 0)      { cy--; y += 32; }
+        if (y < 0)       { cy--; y += 32; }
         else if (y > 31) { cy++; y -= 32; }
-
-        // Z-Achse normalisieren
-        if (z < 0)      { cz--; z += 32; }
+        if (z < 0)       { cz--; z += 32; }
         else if (z > 31) { cz++; z -= 32; }
 
         ChunkCoord neighborCoord = new ChunkCoord(cx, cy, cz);
-        if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out int[]? neighborData))
+        if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out byte[]? neighborData))
         {
             return neighborData[Idx(x, y, z)] != 0;
         }
@@ -217,131 +158,66 @@ public class Lod0Mesher : BaseMesher
         return false;
     }
     
-    // Relative Offsets für AO Checks
-    private static readonly int[,,,] AoOffsets = new int[6, 4, 3, 3]
+    // sbyte statt int: Werte sind nur -1, 0, +1
+    private static readonly sbyte[,,,] AoOffsets = new sbyte[6, 4, 3, 3]
     {
-        // Face 0: Top (+Y) — check on y+1 plane, tangent axes are X and Z
-        // Vertices: v0=(x,y+1,z+1), v1=(x+1,y+1,z+1), v2=(x+1,y+1,z), v3=(x,y+1,z)
+        // Face 0: Top (+Y)
         {
-            // v0: corner at (-X, +Z) → side1=(-1,+1,0), side2=(0,+1,+1), corner=(-1,+1,+1)
             { { -1, 1, 0 }, { 0, 1, 1 }, { -1, 1, 1 } },
-            // v1: corner at (+X, +Z) → side1=(+1,+1,0), side2=(0,+1,+1), corner=(+1,+1,+1)
             { { 1, 1, 0 }, { 0, 1, 1 }, { 1, 1, 1 } },
-            // v2: corner at (+X, -Z) → side1=(+1,+1,0), side2=(0,+1,-1), corner=(+1,+1,-1)
             { { 1, 1, 0 }, { 0, 1, -1 }, { 1, 1, -1 } },
-            // v3: corner at (-X, -Z) → side1=(-1,+1,0), side2=(0,+1,-1), corner=(-1,+1,-1)
             { { -1, 1, 0 }, { 0, 1, -1 }, { -1, 1, -1 } },
         },
-        // Face 1: Bottom (-Y) — check on y-1 plane, tangent axes are X and Z
-        // Vertices: v0=(x,y,z), v1=(x+1,y,z), v2=(x+1,y,z+1), v3=(x,y,z+1)
+        // Face 1: Bottom (-Y)
         {
-            // v0: corner at (-X, -Z) → side1=(-1,-1,0), side2=(0,-1,-1), corner=(-1,-1,-1)
             { { -1, -1, 0 }, { 0, -1, -1 }, { -1, -1, -1 } },
-            // v1: corner at (+X, -Z) → side1=(+1,-1,0), side2=(0,-1,-1), corner=(+1,-1,-1)
             { { 1, -1, 0 }, { 0, -1, -1 }, { 1, -1, -1 } },
-            // v2: corner at (+X, +Z) → side1=(+1,-1,0), side2=(0,-1,+1), corner=(+1,-1,+1)
             { { 1, -1, 0 }, { 0, -1, 1 }, { 1, -1, 1 } },
-            // v3: corner at (-X, +Z) → side1=(-1,-1,0), side2=(0,-1,+1), corner=(-1,-1,+1)
             { { -1, -1, 0 }, { 0, -1, 1 }, { -1, -1, 1 } },
         },
-        // Face 2: Front (+Z) — check on z+1 plane, tangent axes are X and Y
-        // Vertices: v0=(x,y,z+1), v1=(x+1,y,z+1), v2=(x+1,y+1,z+1), v3=(x,y+1,z+1)
+        // Face 2: Front (+Z)
         {
-            // v0: corner at (-X, -Y) → side1=(-1,0,+1), side2=(0,-1,+1), corner=(-1,-1,+1)
             { { -1, 0, 1 }, { 0, -1, 1 }, { -1, -1, 1 } },
-            // v1: corner at (+X, -Y) → side1=(+1,0,+1), side2=(0,-1,+1), corner=(+1,-1,+1)
             { { 1, 0, 1 }, { 0, -1, 1 }, { 1, -1, 1 } },
-            // v2: corner at (+X, +Y) → side1=(+1,0,+1), side2=(0,+1,+1), corner=(+1,+1,+1)
             { { 1, 0, 1 }, { 0, 1, 1 }, { 1, 1, 1 } },
-            // v3: corner at (-X, +Y) → side1=(-1,0,+1), side2=(0,+1,+1), corner=(-1,+1,+1)
             { { -1, 0, 1 }, { 0, 1, 1 }, { -1, 1, 1 } },
         },
-        // Face 3: Back (-Z) — check on z-1 plane, tangent axes are X and Y
-        // Vertices: v0=(x+1,y,z), v1=(x,y,z), v2=(x,y+1,z), v3=(x+1,y+1,z)
+        // Face 3: Back (-Z)
         {
-            // v0: corner at (+X, -Y) → side1=(+1,0,-1), side2=(0,-1,-1), corner=(+1,-1,-1)
             { { 1, 0, -1 }, { 0, -1, -1 }, { 1, -1, -1 } },
-            // v1: corner at (-X, -Y) → side1=(-1,0,-1), side2=(0,-1,-1), corner=(-1,-1,-1)
             { { -1, 0, -1 }, { 0, -1, -1 }, { -1, -1, -1 } },
-            // v2: corner at (-X, +Y) → side1=(-1,0,-1), side2=(0,+1,-1), corner=(-1,+1,-1)
             { { -1, 0, -1 }, { 0, 1, -1 }, { -1, 1, -1 } },
-            // v3: corner at (+X, +Y) → side1=(+1,0,-1), side2=(0,+1,-1), corner=(+1,+1,-1)
             { { 1, 0, -1 }, { 0, 1, -1 }, { 1, 1, -1 } },
         },
-        // Face 4: Left (-X) — check on x-1 plane, tangent axes are Z and Y
-        // Vertices: v0=(x,y,z), v1=(x,y,z+1), v2=(x,y+1,z+1), v3=(x,y+1,z)
+        // Face 4: Left (-X)
         {
-            // v0: corner at (-Z, -Y) → side1=(-1,0,-1), side2=(-1,-1,0), corner=(-1,-1,-1)
             { { -1, 0, -1 }, { -1, -1, 0 }, { -1, -1, -1 } },
-            // v1: corner at (+Z, -Y) → side1=(-1,0,+1), side2=(-1,-1,0), corner=(-1,-1,+1)
             { { -1, 0, 1 }, { -1, -1, 0 }, { -1, -1, 1 } },
-            // v2: corner at (+Z, +Y) → side1=(-1,0,+1), side2=(-1,+1,0), corner=(-1,+1,+1)
             { { -1, 0, 1 }, { -1, 1, 0 }, { -1, 1, 1 } },
-            // v3: corner at (-Z, +Y) → side1=(-1,0,-1), side2=(-1,+1,0), corner=(-1,+1,-1)
             { { -1, 0, -1 }, { -1, 1, 0 }, { -1, 1, -1 } },
         },
-        // Face 5: Right (+X) — check on x+1 plane, tangent axes are Z and Y
-        // Vertices: v0=(x+1,y,z+1), v1=(x+1,y,z), v2=(x+1,y+1,z), v3=(x+1,y+1,z+1)
+        // Face 5: Right (+X)
         {
-            // v0: corner at (+Z, -Y) → side1=(+1,0,+1), side2=(+1,-1,0), corner=(+1,-1,+1)
             { { 1, 0, 1 }, { 1, -1, 0 }, { 1, -1, 1 } },
-            // v1: corner at (-Z, -Y) → side1=(+1,0,-1), side2=(+1,-1,0), corner=(+1,-1,-1)
             { { 1, 0, -1 }, { 1, -1, 0 }, { 1, -1, -1 } },
-            // v2: corner at (-Z, +Y) → side1=(+1,0,-1), side2=(+1,+1,0), corner=(+1,+1,-1)
             { { 1, 0, -1 }, { 1, 1, 0 }, { 1, 1, -1 } },
-            // v3: corner at (+Z, +Y) → side1=(+1,0,+1), side2=(+1,+1,0), corner=(+1,+1,+1)
             { { 1, 0, 1 }, { 1, 1, 0 }, { 1, 1, 1 } },
         },
     };
+    
     /// <summary>
-    /// AO basierend darauf wie viele blöcke daneben stehen
-    /// Nimmt die Koordinaten und das Face und checkt ob in der Richtung Blöcke sind, je mehr Blöcke desto dunkler
-    /// Die Werte werden an CreateCubeFace übergeben und als zusätzliche Vertex-Attribute gespeichert, damit der Shader sie nutzen kann
+    /// Berechnet den AO-Level (0–3) für einen einzelnen Vertex.
+    /// Gibt direkt einen int zurück, keine Heap-Allokation.
     /// </summary>
-    /// 
-    private float[] CalcVertexBrightness(int x, int y, int z, int face)
+    private int CalcAoLevel(int x, int y, int z, int face, int vertex)
     {
-        float[] ao = new float[4]; // AO Werte für die 4 Ecken des Faces
-        // Iteriere über die 4 Eckpunkte (Vertices) des Faces
-        for (int v = 0; v < 4; v++)
-        {
-            int dxS1 = AoOffsets[face, v, 0, 0];
-            int dyS1 = AoOffsets[face, v, 0, 1];
-            int dzS1 = AoOffsets[face, v, 0, 2];
-
-            int dxS2 = AoOffsets[face, v, 1, 0];
-            int dyS2 = AoOffsets[face, v, 1, 1];
-            int dzS2 = AoOffsets[face, v, 1, 2];
-
-            int dxC = AoOffsets[face, v, 2, 0];
-            int dyC = AoOffsets[face, v, 2, 1];
-            int dzC = AoOffsets[face, v, 2, 2];
-
-            // 2. Checke die 3 Blöcke im Array
-            bool side1 = IsBlock(x + dxS1, y + dyS1, z + dzS1);
-            bool side2 = IsBlock(x + dxS2, y + dyS2, z + dzS2);
-            bool corner = IsBlock(x + dxC, y + dyC, z + dzC);
-
-            // 3. Wende die AO-Logik an
-            int aoLevel;
-            if (side1 && side2)
-            {
-                aoLevel = 3; // Maximaler Schatten (verhindert Light-Bleeding)
-            }
-            else
-            {
-                int s1Val = side1 ? 1 : 0;
-                int s2Val = side2 ? 1 : 0;
-                int cVal = corner ? 1 : 0;
-
-                aoLevel = s1Val + s2Val + cVal;
-            }
-            
-            // aoLevel 0 = keine Nachbarn = hell (1.0), aoLevel 3 = max Schatten (0.4)
-            ao[v] = 1.0f - aoLevel * 0.2f;
-        }
-
-        // Gebe die 4 Werte als Tupel zurück
-        return ao;
+        bool side1 = IsBlock(x + AoOffsets[face, vertex, 0, 0], y + AoOffsets[face, vertex, 0, 1], z + AoOffsets[face, vertex, 0, 2]);
+        bool side2 = IsBlock(x + AoOffsets[face, vertex, 1, 0], y + AoOffsets[face, vertex, 1, 1], z + AoOffsets[face, vertex, 1, 2]);
+        
+        if (side1 && side2) return 3;
+        
+        bool corner = IsBlock(x + AoOffsets[face, vertex, 2, 0], y + AoOffsets[face, vertex, 2, 1], z + AoOffsets[face, vertex, 2, 2]);
+        
+        return (side1 ? 1 : 0) + (side2 ? 1 : 0) + (corner ? 1 : 0);
     }
 }

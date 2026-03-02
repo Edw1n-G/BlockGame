@@ -20,42 +20,14 @@ public class BaseMesher : IDisposable
     private BufferObject<uint> _ebo;
     private VertexArrayObject<float, uint> _vao;
     private GL _gl;
-    private int[] _blockData; // 1D Array für die Blocktypen im Chunk (z.B. 0 = Luft, 1 = Erde, etc.)
     
-    private bool _uploaded = false; // Ob die Daten bereits auf die GPU hochgeladen wurden
-    
-    // Für Chunks die AO benutzten. Eigentlich nur LOD 0 idk warum ich das gemacht habe
-    protected void AddIndices(uint baseIndex, float[] ao)
-    {
-        // Quad flippen damit es keine komischen Dreiecke gibt, abhängig davon wie die AO Werte verteilt sind
-        if (ao[0] + ao[2] > ao[1] + ao[3])
-        {
-            _indices.AddRange(new uint[]
-            {
-                baseIndex + 1, baseIndex + 2, baseIndex + 3,
-                baseIndex + 1, baseIndex + 3, baseIndex
-            });
-        }
-        else
-        {
-            _indices.AddRange(new uint[]
-            {
-                baseIndex, baseIndex + 1, baseIndex + 2,
-                baseIndex, baseIndex + 2, baseIndex + 3
-            });
-        }
-        
-        
-    }
+    private bool _uploaded = false;
     
     // Für Chunks die keine AO benutzten
     protected void AddIndices(uint baseIndex)
     {
-
-        _indices.AddRange(new uint[]
-        {
-            baseIndex, baseIndex + 1, baseIndex + 2, baseIndex, baseIndex + 2, baseIndex + 3
-        });
+        _indices.Add(baseIndex);     _indices.Add(baseIndex + 1); _indices.Add(baseIndex + 2);
+        _indices.Add(baseIndex);     _indices.Add(baseIndex + 2); _indices.Add(baseIndex + 3);
     }
 
     /// <summary>

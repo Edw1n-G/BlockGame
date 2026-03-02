@@ -36,7 +36,7 @@ public class TerrainGenerator
     /// wird in @param ChunkBlocks gespeichert und an den ChunkMesher übergeben, der die Geometrie erstellt
     /// Berechnung der 4D Koordinate abhängig von @param mapLimit, damit die Karte an den Grenzen nahtlos verbunden ist (Torus Mapping)
     /// </summary>
-    public int[] GenerateChunk(ChunkCoord coord)
+    public byte[] GenerateChunk(ChunkCoord coord)
     {
         if (Math.Abs(coord.X) > _maxMapSize || Math.Abs(coord.Z)+1 > _maxMapSize)
         {
@@ -47,15 +47,15 @@ public class TerrainGenerator
         int chunkStartX = coord.X * 32;
         int chunkStartY = coord.Y * 32;
         int chunkStartZ = coord.Z * 32;
-        
-        int[] chunkBlocks = new int[32*32*32]; // 32x32x32 Blöcke pro Chunk
+
+        byte[] chunkBlocks = new byte[32*32*32]; // 32x32x32 Blöcke pro Chunk
         
         float[] noiseValues = _noiseCalculator.GetNoiseValues(chunkStartX, chunkStartZ, 32, 32);
         
         //2 Schleifen für alle Blöcke im Chunk
-        for (int blockX = 0; blockX < 32; blockX++)
+        for (byte blockX = 0; blockX < 32; blockX++)
         {
-            for (int blockZ = 0; blockZ < 32; blockZ++)
+            for (byte blockZ = 0; blockZ < 32; blockZ++)
             {
                 float noiseValue = noiseValues[blockZ * 32 + blockX];
                 int height = (int)(noiseValue + 16);
@@ -63,9 +63,9 @@ public class TerrainGenerator
                 // Clamp height um Kein OutOfBounds zu bekommen
                 if (height < 0) height = 0;
                 if (height > 31) height = 31;
-                for (int y = 0; y < 32; y++)
+                for (byte y = 0; y < 32; y++)
                 {
-                    int index = blockX * 32 * 32 + y * 32 + blockZ;
+                    ushort index = (ushort)(blockX * 32 * 32 + y * 32 + blockZ);
                     if (y <= height)
                     {
                         if (y > 28) 

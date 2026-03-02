@@ -19,7 +19,7 @@ namespace Basics.Game.TerrainManaging;
 public class ChunkProvider
 {
     public static readonly Dictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
-    public static ConcurrentDictionary<ChunkCoord, int[]> Chunkdata = new();//Die Blockdaten
+    public static ConcurrentDictionary<ChunkCoord, byte[]> Chunkdata = new();//Die Blockdaten
     private ConcurrentDictionary<ChunkCoord, byte> _queuedForMeshing = new();// Nur damit nicht mehrere Threads den selben Chunk meshen
     public ConcurrentQueue<ChunkCoord> MeshingQueue = new(); // Chunks die bereit für das Meshing sind (haben alle Nachbarn und ihre Blockdaten)
     public ConcurrentQueue<BaseMesher> UploadQueue = new(); // Chunks die fertig gemesht sind und auf die GPU sollen
@@ -56,11 +56,11 @@ public class ChunkProvider
             return;
         }
 
-        int[] chunkBlocks = _terrainGenerator.GenerateChunk(coord);
+        byte[] chunkBlocks = _terrainGenerator.GenerateChunk(coord);
         OnChunkDataGenerated(coord, chunkBlocks);
     }
     
-    public void OnChunkDataGenerated(ChunkCoord coord, int[] data)
+    public void OnChunkDataGenerated(ChunkCoord coord, byte[] data)
     {
         // Daten im Dictionary ablegen
         Chunkdata.TryAdd(coord, data);
@@ -105,7 +105,7 @@ public class ChunkProvider
         {
             if (MeshingQueue.TryDequeue(out ChunkCoord coord))
             {
-                if (Chunkdata.TryGetValue(coord, out int[] BlockData))
+                if (Chunkdata.TryGetValue(coord, out byte[] BlockData))
                 {
                     BaseMesher newMesh = new Lod0Mesher(coord, BlockData);
                     
@@ -144,6 +144,7 @@ public class ChunkProvider
             // SaveToDisk(coord, chunk);
 
             chunk.Dispose();
+            Chunkdata.TryRemove(coord, out _);
         }
     }
 
@@ -170,7 +171,6 @@ public class ChunkProvider
     private bool TryLoadFromDisk(ChunkCoord coord, out BaseMesher? chunk)
     {
         // TODO: Implementierung für Chunk-Laden von der Festplatte
-        // z.B. aus einer Datei wie "chunks/{coord.X}_{coord.Y}_{coord.Z}.chunk"
         chunk = null;
         return false;
     }

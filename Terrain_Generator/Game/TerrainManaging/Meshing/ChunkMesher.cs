@@ -6,7 +6,7 @@ using Silk.NET.OpenGL;
 
 //Liste
 
-namespace Basics.Game.TerrainManaging;
+namespace Basics.Game.TerrainManaging.Meshing;
 
 /**
  * Chunk Objekt 32x32x32 Blöcke, das in der Welt platziert wird.

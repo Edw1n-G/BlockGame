@@ -2,6 +2,7 @@
 using Basics.Configurations;
 using Basics.Game;
 using Basics.Game.TerrainManaging;
+using Basics.Game.TerrainManaging.Generation;
 using Silk.NET.Input; //Für die Tastatureingabe
 using Silk.NET.Maths; //Für die Vector2D Klasse
 using Basics.Graphics;
@@ -94,7 +95,7 @@ public class MainClass
         // Initiales Laden der Chunks um die Startposition
         PlayerCamera.ForceChunkUpdate();
         
-        //_terrainGenerator.DebugExportNoiseMap();
+        _terrainGenerator.DebugExportNoiseMap();
     }
 
 //Wird jeden Frame aufgerufen, hier wird alles gerendert.

@@ -44,3 +44,5 @@ C:\Dev\Silk_learn\Rendering\Terrain_Generator\obj\Debug\net10.0\Terrain_Generato
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\Configurations\TextureConfig.json
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\texture\example.png
 C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\SixLabors.ImageSharp.dll
+C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\FastNoise.dll
+C:\Dev\Silk_learn\Rendering\Terrain_Generator\bin\Debug\net10.0\NodeEditorIpc.dll

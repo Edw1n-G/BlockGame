@@ -18,7 +18,7 @@ High Prio Todos:
 - Storing and loading chunks from disk space
 - breaking and placing blocks
 - general debugging tools (added debug cam)
-- LODs
+- LODs (framework started, stubs added)
 - Player Object
 - Physics
 

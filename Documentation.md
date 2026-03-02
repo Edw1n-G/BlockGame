@@ -28,7 +28,7 @@
 
 ## 1. Project Overview
 
-EdwinCraft is a voxel-based terrain renderer written in C# using Silk.NET for windowing and OpenGL. The player can fly freely through a procedurally generated world that is split into 32×32×32 block **chunks**. The terrain is generated using 4D OpenSimplex noise mapped onto a torus so that the world wraps seamlessly at its edges (no visible seams).
+EdwinCraft is a voxel-based terrain renderer written in C# using Silk.NET for windowing and OpenGL. The player can fly freely through a procedurally generated world that is split into 32×32×32 block **chunks**. The terrain is generated using 4D simplex noise (via the FastNoise2 library) mapped onto a torus so that the world wraps seamlessly at its edges (no visible seams).
 
 Key properties at a glance:
 
@@ -37,12 +37,13 @@ Key properties at a glance:
 | Target Framework | .NET 10 |
 | Chunk size | 32 × 32 × 32 blocks |
 | Default world size | 32 × 32 chunks |
-| Render distance | 10 chunks (radius) |
+| Render distance | 16 chunks (radius) |
 | Block types | 0 Air, 1 Dirt/Grass, 2 Stone, 3 Snow |
 | Rendering API | OpenGL 4.6 Core via Silk.NET |
 | Ambient Occlusion | Per-vertex AO baked into the mesh |
 | Frustum Culling | View-frustum AABB test per chunk |
-| Multithreading | Chunks generated in parallel via `Parallel.For` |
+| Multithreading | Chunk generation via `Parallel.For`; mesh building on dedicated worker threads in `ChunkProvider` |
+| Noise library | FastNoise2 (via `FastNoise.dll`) wrapped by `NoiseCalculator` |
 
 ---
 
@@ -64,10 +65,19 @@ EdwinCraft/
     │   ├── GameLogic.cs               Placeholder for future physics / item logic
     │   ├── Movement.cs                Keyboard + mouse movement logic
     │   └── TerrainManaging/
-    │       ├── TerrainGenerator.cs    Procedural chunk generation (4D noise)
-    │       ├── ChunkMesher.cs         Mesh builder with AO; deferred GPU upload
-    │       ├── ChunkProvidor.cs       Chunk lifecycle manager (load / cache / unload)
-    │       └── ChunkRequestor.cs      Decides which chunks to load (parallel generation)
+    │       ├── ChunkProvider.cs       Chunk lifecycle manager (load / cache / unload / meshing workers)
+    │       ├── ChunkRequestor.cs      Decides which chunks to load (parallel generation)
+    │       ├── Generation/
+    │       │   ├── TerrainGenerator.cs    Procedural chunk block-data generation
+    │       │   └── Noise/
+    │       │       ├── FastNoise2.cs      FastNoise2 C# P/Invoke wrapper (third-party)
+    │       │       └── NoiseCalculator.cs 4D torus-mapped noise using FastNoise2
+    │       └── Meshing/
+    │           ├── BaseMesher.cs      Base class: GPU buffer management, render, dispose
+    │           ├── Lod0Mesher.cs      Full-detail (LOD 0) mesh builder with per-vertex AO
+    │           ├── LOD1Mesher.cs      LOD 1 stub (not yet implemented)
+    │           ├── LOD2Mesher.cs      LOD 2 stub (not yet implemented)
+    │           └── LOD3Mesher.cs      LOD 3 stub (not yet implemented)
     │
     ├── Graphics/
     │   ├── Renderer.cs                Central rendering façade (frustum culling)
@@ -90,8 +100,8 @@ EdwinCraft/
     │
     ├── Utilities/
     │   ├── ChunkCoord.cs              Value type for chunk grid coordinates
-    │   ├── MathHelper.cs              Degrees-to-radians helper
-    │   └── OpenSimplex2S.cs           K.jpg's OpenSimplex 2S noise implementation
+    │   ├── CoreAvailability.cs        Thread-budget helper (allocates CPU cores per task)
+    │   └── MathHelper.cs              Degrees-to-radians helper
     │
     └── texture/
         ├── example.png                Terrain texture atlas (tile sheet)
@@ -119,8 +129,9 @@ Program.Main()
              │    ├─ InputManager.Initialize()      bind keyboard + mouse
              │    ├─ map key-bindings → callbacks   (Close, Fullscreen, Borderless, ToggleDebugCamera)
              │    ├─ BlockTextures.Initialize()     load TextureConfig.json
+             │    ├─ CoreAvailability.Initialize()  compute thread budget
              │    ├─ build terrain pipeline
-             │    │     TerrainGenerator → ChunkProvidor → ChunkRequestor
+             │    │     TerrainGenerator → ChunkProvider → ChunkRequestor
              │    └─ Camera.ForceChunkUpdate()      trigger initial chunk load
              │
              ├─ OnRender(deltaTime)  [every frame]
@@ -140,29 +151,32 @@ Program.Main()
 
 ### 4.1 Terrain Pipeline
 
-The terrain pipeline is a three-stage chain assembled in `MainClass.OnLoad()`:
+The terrain pipeline is a multi-stage chain assembled in `MainClass.OnLoad()`:
 
 ```
-TerrainGenerator
-      │  GenerateChunk(ChunkCoord)
+TerrainGenerator  (NoiseCalculator + FastNoise2)
+      │  GenerateChunk(ChunkCoord) → byte[32768]
       ▼
-ChunkProvidor                  ← central chunk cache (ConcurrentDictionary<ChunkCoord, ChunkMesher>)
-      │  RequestChunk / UnloadChunk / GetLoadedChunks
+ChunkProvider                  ← central chunk cache; owns meshing worker threads
+      │  RequestChunk → data written to Chunkdata (ConcurrentDictionary<ChunkCoord, byte[]>)
+      │  MeshingQueue / UploadQueue (ConcurrentQueue)
+      ▼
+Lod0Mesher (extends BaseMesher) ← built on a worker thread; GPU upload deferred to main thread
       ▼
 ChunkRequestor                 ← listens to Camera.OnChunkChanged
-      │  calculates which ChunkCoords are within render distance
-      └─ calls ChunkProvidor.RequestChunk (via Parallel.For) / UnloadChunk
+      │  calculates which ChunkCoords are within render distance (radius 16)
+      └─ calls ChunkProvider.RequestChunk (via Parallel.For) / UnloadChunk
 ```
 
 **How a chunk goes from noise to screen:**
 
 1. The player's `Camera` fires `OnChunkChanged` whenever the player crosses a chunk boundary.
-2. `ChunkRequestor.OnPlayerChunkChanged()` iterates all chunk coordinates within a circular radius of 10 chunks and calls `ChunkProvidor.RequestChunk()` for each, **in parallel** via `Parallel.For`.
-3. `ChunkProvidor.RequestChunk()` checks its in-memory cache (`ConcurrentDictionary`). If the chunk is absent it calls `TerrainGenerator.GenerateChunk()`.
-4. `TerrainGenerator.GenerateChunk()` uses **4D OpenSimplex noise** with torus-mapping to compute a height value for every XZ column in the 32×32 grid, fills a `int[32,32,32]` block array, then creates a `ChunkMesher`.
-5. `ChunkMesher` immediately builds the CPU-side mesh (vertex / index lists) including per-vertex **AO brightness** values. The OpenGL buffers (VBO / EBO / VAO) are **not** created yet.
-6. On each render frame, `Renderer.Render()` checks `chunk.IsUploaded`; if `false` it calls `chunk.UploadToGpu(gl)` on the main thread before rendering.
-7. After GPU upload, `Renderer.Render()` performs a **frustum cull** using `Frustum.isInFrustum()` and skips any chunk whose AABB lies entirely outside the camera frustum.
+2. `ChunkRequestor.OnPlayerChunkChanged()` iterates all chunk coordinates within a circular radius of **16 chunks** and calls `ChunkProvider.RequestChunk()` for each, **in parallel** via `Parallel.For`.
+3. `ChunkProvider.RequestChunk()` checks its in-memory cache (`LoadedChunks`). If the chunk is absent it calls `TerrainGenerator.GenerateChunk()`, stores the resulting `byte[]` block data in `Chunkdata`, and queues the chunk for meshing once all its neighbours are also present.
+4. `TerrainGenerator.GenerateChunk()` delegates noise evaluation to `NoiseCalculator`, which uses the **FastNoise2** library to produce 4D simplex noise with torus-mapping. The result is a flat `byte[32768]` (`32×32×32`) block array.
+5. A dedicated **meshing worker thread** inside `ChunkProvider` dequeues coordinates from `MeshingQueue`, constructs a `Lod0Mesher`, and places the finished mesher into `UploadQueue`. **No OpenGL calls are made here.**
+6. On each render frame, `Renderer.Render()` drains `ChunkProvider.UploadQueue`: for each queued `BaseMesher` it calls `UploadToGpu(gl)` on the main thread (time-capped to ~2 ms per frame to avoid stalling) and adds the chunk to `LoadedChunks`.
+7. `Renderer.Render()` then performs a **frustum cull** using `Frustum.isInFrustum()` and skips any chunk whose AABB lies entirely outside the camera frustum.
 8. Visible chunks are rendered by calling `chunk.Render(shaderManager)`.
 
 **Block type assignment in `TerrainGenerator.GenerateChunk()`:**
@@ -190,10 +204,13 @@ ShaderManager.Use(gl, camera)  → returns Frustum
 ShaderManager.BindTexture(terrainTexture)
   └─ TextureArray.Bind(Texture0)
 
-for each ChunkMesher in ChunkProvidor.GetLoadedChunks():
-  ├─ if !chunk.IsUploaded → chunk.UploadToGpu(gl)   (deferred main-thread upload)
+drain ChunkProvider.UploadQueue (time-capped ~2 ms):
+  ├─ chunk.UploadToGpu(gl)               VBO / EBO / VAO created on main thread
+  └─ ChunkProvider.LoadedChunks.TryAdd() register as GPU-ready
+
+for each BaseMesher in ChunkProvider.LoadedChunks:
   ├─ if !frustum.isInFrustum(chunk.ChunkPosition, frustum) → skip
-  └─ ChunkMesher.Render(shaderManager)
+  └─ BaseMesher.Render(shaderManager)
        ├─ shaderManager.SetModelMatrix(model)   upload per-chunk uModel
        ├─ _vao.Bind()
        ├─ _ebo.Bind()
@@ -211,7 +228,7 @@ for each ChunkMesher in ChunkProvidor.GetLoadedChunks():
 UV coordinates (`vec2`) are computed in the vertex shader from `gl_VertexID % 4` rather than being stored per vertex.
 
 **Ambient Occlusion (AO):**  
-For every vertex of every visible face, `ChunkMesher.CalcVertexBrightness()` checks the two adjacent side blocks and the diagonal corner block. The brightness value is `1.0 - aoLevel * 0.2f`, where `aoLevel` is 0–3 (0 = fully lit, 3 = darkest). The AO level also determines which diagonal is used when splitting the quad into two triangles, preventing interpolation artifacts.
+For every vertex of every visible face, `Lod0Mesher.CalcAoLevel()` checks the two adjacent side blocks and the diagonal corner block. The brightness value is looked up from `AoLookup = { 1.0f, 0.8f, 0.6f, 0.4f }` (aoLevel 0 = fully lit, 3 = darkest). The AO level also determines which diagonal is used when splitting the quad into two triangles, preventing interpolation artifacts.
 
 ### 4.3 Input System
 
@@ -249,24 +266,33 @@ Registered via `InputManager.SetActionBindings(action, callback)`. Callbacks are
 State machine for a single ChunkCoord:
 
   [Unloaded]
-      │  ChunkProvidor.RequestChunk()  (called in parallel via Parallel.For)
-      │    1. already in cache?  → stay [Loaded]
-      │    2. TryLoadFromDisk()? → [Loaded]  (stub, always false)
-      │    3. TerrainGenerator.GenerateChunk()
+      │  ChunkProvider.RequestChunk()  (called in parallel via Parallel.For)
+      │    1. already in LoadedChunks? → stay [GPU-Loaded]
+      │    2. TryLoadFromDisk()?       → [Data-Ready]  (stub, always false)
+      │    3. TerrainGenerator.GenerateChunk() → byte[] stored in Chunkdata
       ▼
-  [CPU-Loaded]  (mesh data computed on worker thread, no GPU resources yet)
-      │  Renderer.Render() first sees the chunk (main thread)
-      │    chunk.UploadToGpu(gl)   → VBO / EBO / VAO created
+  [Data-Ready]  (block data in Chunkdata; waiting for all 4 XZ neighbours)
+      │  ChunkProvider.TryQueueForMeshing()  (called after each neighbour arrives)
+      │    → all neighbours present? → added to MeshingQueue
       ▼
-  [GPU-Loaded]  (lives in _loadedChunks dictionary, GPU mesh allocated)
-      │  ChunkProvidor.UnloadChunk()
-      │    1. chunk.Dispose()     release VBO / EBO / VAO
-      │    2. remove from cache
+  [Meshing-Queued]  (worker thread picks up coord from MeshingQueue)
+      │  Lod0Mesher constructor runs BuildMeshData()   (background thread)
+      │  Finished mesher pushed to UploadQueue
+      ▼
+  [Upload-Pending]  (CPU mesh ready; no GPU resources yet)
+      │  Renderer.Render() drains UploadQueue (main thread, time-capped ~2 ms/frame)
+      │    BaseMesher.UploadToGpu(gl)  → VBO / EBO / VAO created
+      │    LoadedChunks.TryAdd(coord, mesher)
+      ▼
+  [GPU-Loaded]  (lives in LoadedChunks dictionary, GPU mesh allocated)
+      │  ChunkProvider.UnloadChunk()
+      │    1. BaseMesher.Dispose()  release VBO / EBO / VAO
+      │    2. remove from LoadedChunks and Chunkdata
       ▼
   [Unloaded]
 ```
 
-`ChunkRequestor` drives the transitions: on every `OnChunkChanged` event it computes the new set of active chunk coordinates, generates new chunks in parallel, and diffs against the previous set to unload chunks that moved out of range.
+`ChunkRequestor` drives the transitions: on every `OnChunkChanged` event it computes the new set of active chunk coordinates, requests new chunks in parallel, and diffs against the previous set to unload chunks that moved out of range.
 
 ---
 
@@ -293,7 +319,7 @@ Owns the application controller. Coordinates all subsystems during the window ev
 | `PlayerCamera` (static `Camera`) | The main player camera; shared with `Movement` and `Renderer`. |
 | `DebugCamera` (static `Camera?`) | Optional second free-cam used for debugging. When non-null the renderer draws from this camera's view while frustum culling still uses `PlayerCamera`. |
 | `Run()` | Creates the window, registers event handlers, starts the run-loop, and disposes the window on exit. |
-| `OnLoad()` | Creates `Renderer` and `PlayerCamera` at (0, 40, 0), calls `Renderer.Setup(camera)`, sets the player camera on `Movement`, sets up `InputManager`, loads block texture config, builds the terrain pipeline, and triggers the first chunk load. |
+| `OnLoad()` | Calls `CoreAvailability.Initialize()`, creates `Renderer` and `PlayerCamera` at (0, 40, 0), calls `Renderer.Setup(camera)`, sets the player camera on `Movement`, sets up `InputManager`, loads block texture config, builds the terrain pipeline (`TerrainGenerator` → `ChunkProvider` with meshing worker threads → `ChunkRequestor`), exports a debug noise-map PNG, and triggers the first chunk load. |
 | `OnRender(double deltaTime)` | Clears the frame buffer and calls `Renderer.Render()`. |
 | `OnUpdate(double deltaTime)` | Calls `Movement.MovementUpdate(deltaTime)` for player movement. |
 | `OnFramebufferResize(Vector2D<int>)` | Passes the new size to `Renderer.FramebufferResize()` to update the OpenGL viewport. |
@@ -370,63 +396,103 @@ Constants: `Speed = 12f`, `Sensitivity = 0.1f`.
 
 ### 5.4 TerrainManaging
 
-#### `TerrainGenerator` (`Game/TerrainManaging/TerrainGenerator.cs`)
-**Namespace:** `Basics.Game.TerrainManaging`  
-Generates chunk block data using 4D OpenSimplex noise.
+#### `TerrainGenerator` (`Game/TerrainManaging/Generation/TerrainGenerator.cs`)
+**Namespace:** `Basics.Game.TerrainManaging.Generation`  
+Generates chunk block data using 4D noise via `NoiseCalculator`.
 
 | Member | Description |
 |---|---|
 | `SetMapSize(int size)` | Sets the total number of chunks across both axes. `radius = size/2`, `mapLimit = radius * 32`. Must be called before `GenerateChunk()`. |
-| `GenerateChunk(ChunkCoord coord)` | Generates a full `int[32,32,32]` block array for the given chunk and returns a CPU-side `ChunkMesher` (no GPU resources yet). Uses **torus mapping** to ensure world-edge continuity. |
+| `GenerateChunk(ChunkCoord coord)` | Generates a flat `byte[32768]` (`32×32×32`) block array for the given chunk and returns it. Uses `NoiseCalculator.GetNoiseValues()` for height data. Logs a warning if the requested chunk lies outside world limits. |
 | `DebugExportNoiseMap(string filename)` | Exports a greyscale PNG of the noise map across the whole world using `SixLabors.ImageSharp`. Red pixels indicate heights below 0, blue pixels heights above 31. Saved to the working directory. |
 
 **Torus mapping** explanation:  
-To avoid a seam at the world edge, world coordinates are projected onto a 4D torus. The X and Z coordinates are each independently converted to an angle `θ = (worldCoord + mapLimit) / (2 * mapLimit) * 2π`, then expanded to a 2D circle `(sin(θ), cos(θ))`, giving a 4-component input `(x4, y4, z4, w4)` to the noise function. This ensures that coordinate 0 and coordinate `mapLimit*2-1` sample nearby noise values.
+World coordinates are projected onto a 4D torus inside `NoiseCalculator`. Each axis coordinate is converted to an angle `θ = coord / mapLimit * 2π`, then expanded to a unit-circle pair `(cos θ, sin θ)`, giving a 4-component input `(cosX, sinX, cosZ, sinZ)` to the noise function. This ensures seamless world edges.
 
 ---
 
-#### `ChunkMesher` (`Game/TerrainManaging/ChunkMesher.cs`)
-**Namespace:** `Basics.Game`  
-Builds the CPU-side mesh for a single 32×32×32 chunk and manages its deferred GPU upload.
+#### `NoiseCalculator` (`Game/TerrainManaging/Generation/Noise/NoiseCalculator.cs`)
+**Namespace:** `Basics.Game.TerrainManaging.Generation`  
+Encapsulates FastNoise2 node configuration and batch noise evaluation. Created and owned by `TerrainGenerator`.
 
 | Member | Description |
 |---|---|
-| `ChunkPosition` (`ChunkCoord`) | World-block position of the chunk's origin corner. |
-| `IsUploaded` (`bool`, read-only) | `true` after `UploadToGpu()` has been called successfully. |
-| `ChunkMesher(ChunkCoord position, int[,,] blockData)` | Constructor. Immediately calls `BuildMeshData()` to compute vertices and indices on the calling thread. **No OpenGL calls are made here.** |
-| `UploadToGpu(GL gl)` | Creates the VBO, EBO, and VAO and uploads the pre-computed mesh data. **Must be called on the OpenGL (main) thread.** Idempotent (skips if already uploaded). |
-| `Render(ShaderManager shaderManager)` | Uploads the per-chunk model matrix, binds the VAO and EBO, then issues `DrawElements`. Does nothing if `IsUploaded` is `false`. |
-| `Dispose()` | Releases all OpenGL buffer objects (VBO, EBO, VAO). |
+| `SetMapSize(int size)` | Mirrors `TerrainGenerator.SetMapSize()`; stores map limits for torus-angle calculation. |
+| `GetNoiseValues(int startX, int startZ, int sizeX, int sizeZ)` | Lazily initialises the FastNoise2 node graph on first call, builds 4D torus-mapped coordinate arrays, then calls `GenPositionArray4D()` for SIMD batch evaluation. Returns a `float[]` of `sizeX × sizeZ` height values. |
+
+Constants: `Scale = 25f` (domain scale, controls terrain zoom), `multiplicator = 13f` (output scale, controls terrain height amplitude), `Seed = 1223456789`.
+
+FastNoise2 node graph: `Simplex` → `DomainScale(Scale)` → `Multiply(multiplicator)`.
+
+---
+
+#### `FastNoise2` (`Game/TerrainManaging/Generation/Noise/FastNoise2.cs`)
+**Namespace:** *(global)*  
+C# P/Invoke wrapper for the native `FastNoise.dll` (FastNoise2 library). Provides a node-graph API for constructing noise pipelines and evaluating them in bulk. Used exclusively through `NoiseCalculator`.
+
+Key method used: `GenPositionArray4D(float[] output, float[] xPos, float[] yPos, float[] zPos, float[] wPos, float xOffset, float yOffset, float zOffset, float wOffset, int seed)` — evaluates 4D noise for each position tuple and writes results into `output`.
+
+This file is a third-party library included directly in the project source.
+
+---
+
+#### `BaseMesher` (`Game/TerrainManaging/Meshing/BaseMesher.cs`)
+**Namespace:** `Basics.Game.TerrainManaging.Meshing`  
+Abstract base class for all chunk mesh builders. Manages the per-chunk OpenGL buffer objects and provides the `UploadToGpu`, `Render`, and `Dispose` lifecycle.
+
+| Member | Description |
+|---|---|
+| `ChunkPosition` (`ChunkCoord`) | Chunk-grid position of this mesh. |
+| `IsUploaded` (`bool`, read-only) | `true` after `UploadToGpu()` has been called. |
+| `UploadToGpu(GL gl)` | Creates the VBO, EBO, and VAO from `_vertices`/`_indices` and uploads them. **Must be called on the OpenGL (main) thread.** Idempotent. Clears the CPU-side lists after upload to free memory. |
+| `Render(ShaderManager shaderManager)` | Sets the model matrix uniform, binds VAO + EBO, issues `DrawElements`. No-ops if not uploaded. |
+| `AddIndices(uint baseIndex)` | Helper: appends the two triangles (0,1,2 and 0,2,3) for a quad starting at `baseIndex`. Used by subclasses that do not need AO-based diagonal flipping. |
+| `Dispose()` | Deletes VBO, EBO, VAO. |
+
+Protected fields available to subclasses: `_vertices` (`List<float>`), `_indices` (`List<uint>`), `model` (`Matrix4x4`), `_indicesCount` (`uint`).
+
+---
+
+#### `Lod0Mesher` (`Game/TerrainManaging/Meshing/Lod0Mesher.cs`)
+**Namespace:** `Basics.Game.TerrainManaging`  
+Full-detail (LOD 0) mesh builder. Extends `BaseMesher`. Constructed and run on a meshing worker thread; GPU upload is deferred to the main thread via `BaseMesher.UploadToGpu`.
+
+| Member | Description |
+|---|---|
+| `Lod0Mesher(ChunkCoord position, byte[] blockData)` | Stores the block data, immediately calls `BuildMeshData()`. **No OpenGL calls.** |
 
 **Mesh generation detail (`BuildMeshData`):**  
-Iterates every block in the 3D array. For each non-air block it checks all 6 neighbours; if a neighbour is air (or the block is on the chunk boundary), the corresponding face is added. Each face consists of 4 vertices stored as 5 floats per vertex `(x, y, z, textureLayer, brightness)`, and 2 triangles (6 indices). The texture layer comes from `BlockTextures.Get(blockId, faceIndex)`. Per-vertex AO brightness is computed by `CalcVertexBrightness()`.
-
-**Vertex layout** (stride = 5 floats):
-
-| Attribute | Location | Components | Offset |
-|---|---|---|---|
-| `aPos` | 0 | 3 floats (x, y, z) | 0 |
-| `aLayer` | 1 | 1 float (texture array layer) | 3 |
-| `brightness` | 2 | 1 float (AO, 0.4–1.0) | 4 |
-
-**Face index constants** (defined in `BlockTextures`): `Top=0`, `Bottom=1`, `Front=2`, `Back=3`, `Left=4`, `Right=5`.
+Iterates every block in the 32×32×32 array (flat index `x*1024 + y*32 + z`). For each non-air block it checks all 6 neighbours; if a neighbour is air (or out-of-bounds, resolved via `ChunkProvider.Chunkdata`), the corresponding face is added. Each face consists of 4 vertices stored as 5 floats per vertex `(x, y, z, textureLayer, brightness)`, and 2 triangles (6 indices). The texture layer comes from `BlockTextures.Get(blockId, faceIndex)`. Per-vertex AO brightness is computed by `CalcAoLevel()` using a pre-baked `AoOffsets[6,4,3,3]` lookup table, then mapped via `AoLookup = { 1.0f, 0.8f, 0.6f, 0.4f }`. The quad diagonal is flipped when `b0+b2 > b1+b3` to avoid AO interpolation artifacts.
 
 ---
 
-#### `ChunkProvidor` (`Game/TerrainManaging/ChunkProvidor.cs`)
-**Namespace:** `Basics.Game`  
-Central in-memory registry for all live chunks. Acts as a thread-safe cache between `ChunkRequestor` and `TerrainGenerator`.
+#### `LOD1Mesher` / `LOD2Mesher` / `LOD3Mesher` (`Game/TerrainManaging/Meshing/`)
+**Namespace:** `Basics.Game.TerrainManaging`  
+Stub classes for lower LOD levels. Not yet implemented; bodies are empty.
+
+---
+
+#### `ChunkProvider` (`Game/TerrainManaging/ChunkProvider.cs`)
+**Namespace:** `Basics.Game.TerrainManaging`  
+Central in-memory registry for all live chunk data and meshes. Owns a pool of meshing worker threads.
 
 | Member | Description |
 |---|---|
-| `ChunkProvidor(TerrainGenerator terrainGenerator)` | Constructor. Stores the generator reference. |
-| `RequestChunk(ChunkCoord coord)` | Loads or generates the chunk at `coord` if it is not already in the cache. Thread-safe via `ConcurrentDictionary`. |
-| `UnloadChunk(ChunkCoord coord)` | Disposes the chunk's GPU resources and removes it from the cache. |
-| `GetLoadedChunks()` | Returns all currently cached `ChunkMesher` instances (used by `Renderer`). |
-| `IsChunkLoaded(ChunkCoord coord)` | Returns `true` if the chunk is in the cache. |
-| `Dispose()` | Disposes all cached chunks and clears the dictionary. |
+| `LoadedChunks` (static `Dictionary<ChunkCoord, BaseMesher>`) | GPU-ready meshes indexed by chunk coordinate. |
+| `Chunkdata` (static `ConcurrentDictionary<ChunkCoord, byte[]>`) | Raw block data for all generated chunks (including those not yet meshed). |
+| `MeshingQueue` (`ConcurrentQueue<ChunkCoord>`) | Coords whose block data and all XZ neighbours are ready for meshing. |
+| `UploadQueue` (`ConcurrentQueue<BaseMesher>`) | Finished CPU-side meshes waiting for GPU upload on the main thread. |
+| `ChunkProvider(TerrainGenerator terrainGenerator, int meshingThreads)` | Starts `meshingThreads` background `Task`s running `MeshingWorkerLoop`. |
+| `RequestChunk(ChunkCoord coord)` | Generates block data via `TerrainGenerator` if the chunk is absent, then calls `OnChunkDataGenerated`. Thread-safe. |
+| `OnChunkDataGenerated(ChunkCoord coord, byte[] data)` | Stores block data in `Chunkdata`, then calls `TryQueueForMeshing` for the chunk and all 6 neighbours. |
+| `UnloadChunk(ChunkCoord coord)` | Disposes the `BaseMesher`, removes from `LoadedChunks` and `Chunkdata`. |
+| `GetLoadedChunks()` | Returns all GPU-ready `BaseMesher` instances (used by `Renderer`). |
+| `IsChunkLoaded(ChunkCoord coord)` | Returns `true` if `coord` is in `LoadedChunks`. |
+| `Dispose()` | Disposes all loaded meshes and clears the dictionary. |
 
 `TryLoadFromDisk()` is a stub that always returns `false`; disk persistence is a planned feature.
+
+**Neighbour requirement:** A chunk is only queued for meshing once all four horizontal XZ neighbours (`±X`, `±Z`) have block data in `Chunkdata`. This prevents seam artifacts at chunk borders because `Lod0Mesher` reads neighbour block data directly during AO and face-visibility checks.
 
 ---
 
@@ -436,14 +502,14 @@ Subscribes to `Camera.OnChunkChanged` and drives chunk loading/unloading based o
 
 | Member | Description |
 |---|---|
-| `RenderDistance` (`int`, default 10) | Radius in chunks around the player that should be loaded. Minimum 1. |
-| `ChunkRequestor(Camera camera, ChunkProvidor chunkProvidor)` | Constructor. Subscribes `OnPlayerChunkChanged` to `camera.OnChunkChanged`. |
+| `RenderDistance` (`int`, default 16) | Radius in chunks around the player that should be loaded. Minimum 1. |
+| `ChunkRequestor(Camera camera, ChunkProvider chunkProvider, int availableCores)` | Constructor. Subscribes `OnPlayerChunkChanged` to `camera.OnChunkChanged`. Configures `Parallel.For` with `availableCores` as the degree of parallelism. |
 
 **Algorithm in `OnPlayerChunkChanged(ChunkCoord playerChunk)`:**
 
-1. Build `_ChunksToLoad`: iterate `(-RenderDistance … +RenderDistance)²` on the XZ plane, skip coordinates where `x²+z²  > RenderDistance²` (circular mask).
-2. Call `ChunkProvidor.RequestChunk()` for each coordinate in parallel via `Parallel.For`.
-3. Diff against `_activeChunks` (previous frame's set): call `ChunkProvidor.UnloadChunk()` for every chunk that was active before but is not in the new set.
+1. Build `_chunksToLoad`: iterate `(-RenderDistance … +RenderDistance)²` on the XZ plane, skip coordinates where `x²+z² > RenderDistance²` (circular mask).
+2. Call `ChunkProvider.RequestChunk()` for each coordinate in parallel via `Parallel.For`.
+3. Diff against `_activeChunks` (previous set): call `ChunkProvider.UnloadChunk()` for every chunk that was active before but is not in the new set.
 4. Replace `_activeChunks` with the new set.
 
 ---
@@ -459,11 +525,11 @@ Instance class that owns global OpenGL resources and drives the render loop.
 | `gl` (static `GL`) | Silk.NET OpenGL context. |
 | `terrainshader` (static `ShaderManager`) | The shader used for all terrain chunks. |
 | `terrainTexture` (static `TextureArray`) | The terrain atlas as a `Texture2DArray`. |
-| `ChunkProvidor` (static `ChunkProvidor`) | Set from `MainClass.OnLoad()`; provides chunks for rendering. |
+| `ChunkProvider` (static `ChunkProvider`) | Set from `MainClass.OnLoad()`; provides chunks for rendering. |
 | `Setup(Camera camera)` | Creates the GL context, sets the clear colour, stores the camera reference, constructs the shader and terrain texture array. |
-| `Render()` | Calls `ShaderManager.Use()` (returns a `Frustum`), binds the texture array, iterates all loaded chunks, uploads any pending GPU data on the main thread, frustum-culls each chunk, and renders visible chunks. |
+| `Render()` | Calls `ShaderManager.Use()` (returns a `Frustum`), binds the texture array, drains `ChunkProvider.UploadQueue` (time-capped ~2 ms) to upload pending meshes, frustum-culls each chunk in `LoadedChunks`, and renders visible chunks. |
 | `Clear()` | Clears the colour and depth buffers. |
-| `Dispose()` | Disposes the shader, texture array, chunk providor, and GL context. |
+| `Dispose()` | Disposes the shader, texture array, chunk provider, and GL context. |
 | `FramebufferResize(Vector2D<int> size)` | Updates the OpenGL viewport and sets `Camera.AspectRatio`. |
 
 ---
@@ -583,7 +649,7 @@ Utility class that computes a model matrix from position, rotation, and scale.
 | `Rotation` (`Quaternion`, default Identity) | Rotation component. |
 | `ModelMatrix` (computed `Matrix4x4`) | `Identity * CreateFromQuaternion(Rotation) * CreateScale(Scale) * CreateTranslation(Position)`. |
 
-> Note: `Transform` is currently not used by any active code path; chunks use a `Matrix4x4` directly in `ChunkMesher`.
+> Note: `Transform` is currently not used by any active code path; chunks use a `Matrix4x4` directly in `Lod0Mesher`.
 
 ---
 
@@ -640,9 +706,23 @@ Static loader and lookup table for block face texture-array layers.
 
 ### 5.8 Utilities
 
+#### `CoreAvailability` (`Utilities/CoreAvailability.cs`)
+**Namespace:** `Basics.Utilities`  
+Static helper that distributes available CPU cores across different background tasks.
+
+| Member | Description |
+|---|---|
+| `TotalCores` (static `int`) | `Environment.ProcessorCount`. |
+| `AvailableCores` (static `int`) | `TotalCores - 2` (reserves one core each for the render and logic threads). Minimum 1. |
+| `Initialize()` | Loads `coreconfig.txt` if present, otherwise calls `DefaultConfig()` which reserves 2 cores for meshing and the rest for terrain generation. |
+| `GetTerrainGenerationCores()` | Returns the number of cores to pass to `Parallel.For` in `ChunkRequestor`. |
+| `GetChunkMeshingCores()` | Returns the number of meshing worker threads to start in `ChunkProvider`. |
+
+---
+
 #### `ChunkCoord` (`Utilities/ChunkCoord.cs`)
 **Namespace:** `Basics.Utilities`  
-Immutable value type (`struct`) representing a chunk's position in the chunk grid (not block-world coordinates, except when used as the chunk's world-block origin in `ChunkMesher`).
+Immutable value type (`struct`) representing a chunk's position in the chunk grid (not block-world coordinates, except when used as the chunk's world-block origin in `Lod0Mesher`).
 
 | Member | Description |
 |---|---|
@@ -662,18 +742,6 @@ Static utility class.
 | Member | Description |
 |---|---|
 | `DegreesToRadians(float degrees)` | Converts degrees to radians using `MathF.PI / 180f * degrees`. |
-
----
-
-#### `OpenSimplex2S` (`Utilities/OpenSimplex2S.cs`)
-**Namespace:** *(global)*  
-Open-source implementation of K.jpg's OpenSimplex 2, smooth variant. Used exclusively by `TerrainGenerator` for 4D noise evaluation.
-
-| Method used | Description |
-|---|---|
-| `Noise4_Fallback(long seed, double x, double y, double z, double w)` | Evaluates 4D simplex noise at the given coordinates. Returns a value roughly in the range `[-1, 1]`. |
-
-This file is a third-party library included directly in the project source.
 
 ---
 
@@ -740,6 +808,13 @@ All dependencies are managed via NuGet (see `Terrain_Generator.csproj`).
 | `SixLabors.ImageSharp` | 3.1.12 | Image creation and PNG export used in `TerrainGenerator.DebugExportNoiseMap()` |
 | `System.Drawing.Common` | 10.0.3 | Included as a transitive dependency |
 
+**Native libraries (shipped as DLLs):**
+
+| File | Purpose |
+|---|---|
+| `FastNoise.dll` | FastNoise2 native library; P/Invoke'd by `FastNoise2.cs` for SIMD noise evaluation |
+| `NodeEditorIpc.dll` | FastNoise2 node-editor IPC helper (bundled with FastNoise2) |
+
 ---
 
 ## 9. Known Limitations & Planned Features
@@ -747,12 +822,12 @@ All dependencies are managed via NuGet (see `Terrain_Generator.csproj`).
 The following items are tracked in the project README:
 
 **High priority:**
-- ~~Multi-threading for chunk generation and loading~~ *(done – `Parallel.For` in `ChunkRequestor`)*
+- ~~Multi-threading for chunk generation and loading~~ *(done – `Parallel.For` in `ChunkRequestor` + meshing worker threads in `ChunkProvider`)*
 - ~~Frustum culling (skip rendering chunks outside the camera's view frustum)~~ *(done – `Frustum` + `isInFrustum`)*
-- Improved chunk mesh generation
+- ~~Improved chunk mesh generation~~ *(done – `BaseMesher`/`Lod0Mesher` hierarchy with AO-diagonal flip)*
+- Level-of-detail (LOD) system *(framework started – `LOD1Mesher`, `LOD2Mesher`, `LOD3Mesher` stubs added)*
 - Cubic / multi-height chunks
 - More efficient block data storage
-- Level-of-detail (LOD) system
 - Player object with collision
 - Physics
 - Disk persistence: saving and loading chunks

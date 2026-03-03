@@ -24,7 +24,7 @@ public class TerrainGenerator
     {
         _maxMapSize = size;
         _radius = _maxMapSize/2;
-        _mapLimit = _radius * 32;
+        _mapLimit = _radius;
         _noiseCalculator.SetMapSize(size);
 
     }
@@ -32,70 +32,113 @@ public class TerrainGenerator
     /// <summary>
     /// Bekommt den Index des Chunkes mit 0/0 als Mittelpunkt
     /// rechnet den ChunkIndex in die Weltposition
-    /// generiert alles Blöcke des Chunkes mit 4D OpenSimplex Noise
+    /// generiert alles Blöcke des Chunkes mit 4D Noise
     /// wird in @param ChunkBlocks gespeichert und an den ChunkMesher übergeben, der die Geometrie erstellt
     /// Berechnung der 4D Koordinate abhängig von @param mapLimit, damit die Karte an den Grenzen nahtlos verbunden ist (Torus Mapping)
     /// </summary>
     public byte[] GenerateChunk(ChunkCoord coord)
     {
-        if (Math.Abs(coord.X) > _maxMapSize || Math.Abs(coord.Z)+1 > _maxMapSize)
+        if (Math.Abs(coord.X) > _maxMapSize || Math.Abs(coord.Z) > _maxMapSize)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("WARNUNG: Chunk außerhalb der Weltlimits angefragt.");
-            Console.ResetColor(); 
+            Console.ResetColor();
+            return new byte[32 * 32 * 32]; // Leerer Chunk (nur Luft)
         }
+        
         int chunkStartX = coord.X * 32;
         int chunkStartY = coord.Y * 32;
         int chunkStartZ = coord.Z * 32;
-
-        byte[] chunkBlocks = new byte[32*32*32]; // 32x32x32 Blöcke pro Chunk
+    
+        byte[] chunkBlocks = new byte[32 * 32 * 32];
         
-        float[] noiseValues = _noiseCalculator.GetNoiseValues(chunkStartX, chunkStartZ, 32, 32);
+        // 2D HeightMap
+        float[] heightMap = _noiseCalculator.GetNoiseValues(chunkStartX, chunkStartZ, 32, 32);
         
-        //2 Schleifen für alle Blöcke im Chunk
-        for (byte blockX = 0; blockX < 32; blockX++)
+        // 3D Höhlen-Noise
+        float[] caves3D = _noiseCalculator.GetCaves3D(chunkStartX, chunkStartY, chunkStartZ, 32, 32, 32);
+        //_noiseCalculator.Dispose();
+        
+        for (byte x = 0; x < 32; x++)
         {
-            for (byte blockZ = 0; blockZ < 32; blockZ++)
+            for (byte z = 0; z < 32; z++)
             {
-                float noiseValue = noiseValues[blockZ * 32 + blockX];
-                int height = (int)(noiseValue + 16);
-                
-                // Clamp height um Kein OutOfBounds zu bekommen
-                if (height < 0) height = 0;
-                if (height > 31) height = 31;
+                // Die 2D-Basishöhe an dieser X/Z Koordinate
+                float baseHeight = heightMap[z * 32 + x];
+    
                 for (byte y = 0; y < 32; y++)
                 {
-                    ushort index = (ushort)(blockX * 32 * 32 + y * 32 + blockZ);
-                    if (y <= height)
+                    // Wetkoordinate
+                    int globalY = chunkStartY + y;
+                    
+                    // Indizes für die Arrays
+                    ushort blockIndex = (ushort)(x * 32 * 32 + y * 32 + z);
+                    
+                    // FastNoise UniformGrid3D index
+                    int noise3DIndex = x + y * 32 + z * 32 * 32; 
+                    
+                    float density = baseHeight - globalY;
+    
+                    // Höhlen-Logik anwenden:
+                    // Nur unterhalb der Oberfläche Höhlen erlauben (Schutzzone an der Oberfläche)
+                    // Je tiefer unter der Oberfläche, desto stärker die Höhlen
+                    float depthBelowSurface = baseHeight - globalY;
+                    float caveAttenuation = MathF.Max(0, MathF.Min(1, (depthBelowSurface - 4f) / 8f));
+                    float cavePower = MathF.Abs(caves3D[noise3DIndex]) * 20f * caveAttenuation;
+                    
+                    // Wir subtrahieren die Höhlen von unserer Dichte!
+                    density -= cavePower;
+    
+                    // ==========================================
+                    // BLOCK PLATZIEREN BASIEREND AUF DICHTE
+                    // ==========================================
+                    if (density > 0)
                     {
-                        if (y > 28) 
+                        // Der Block ist solide Materie! 
+                        // Je nachdem wie tief wir unter der Oberfläche sind (Dichte), wählen wir den Block:
+                        
+                        if (density < 2 && globalY > 30) 
                         {
-                            chunkBlocks[index] = 3; // Schnee auf den höchsten Blöcken
+                            chunkBlocks[blockIndex] = 3; // Schnee (Ganz oben auf den Bergspitzen)
                         }
-                        else if (y <= (height - 2) || y > (20)) 
+                        else if (density < 4) 
                         {
-                            chunkBlocks[index] = 2; // unter Erde ist und mittlere Blöcke als Stein
+                            chunkBlocks[blockIndex] = 1; // Erde (Die obersten 3-4 Blöcke der Oberfläche)
                         }
-                        else
+                        else 
                         {
-                            chunkBlocks[index] = 1; // Mitlere Blöcke als Erde
+                            chunkBlocks[blockIndex] = 2; // Stein (Tief im Inneren der Berge)
                         }
                     }
                     else
                     {
-                        chunkBlocks[index] = 0;
+                        // Dichte ist negativ -> Luft!
+                        chunkBlocks[blockIndex] = 0;
                     }
                 }
             }
         }
-
+    
         return chunkBlocks;
     }
     
-    public void DebugExportNoiseMap(string filename = "debug_noisemap.png")
+    public void DebugExportNoiseMap(string filename = "debug_noisemap.png", int steps = 16)
     {
         int totalwidth = _mapLimit * 2;
         float[] noiseValues = _noiseCalculator.GetNoiseValues(-_mapLimit, -_mapLimit, totalwidth, totalwidth);
+        
+        float minNoise = noiseValues[0];
+        float maxNoise = noiseValues[0];
+        foreach (float value in noiseValues)
+        {
+            if (value < minNoise) minNoise = value;
+            if (value > maxNoise) maxNoise = value;
+        }
+        
+        float range = maxNoise - minNoise;
+        if (range == 0) range = 1; // null teilen verhindern
+        
+        Console.WriteLine($"Noise Map Stats: Min={minNoise:F2}, Max={maxNoise:F2}, Range={range:F2}, Steps={steps}");
         
         // Bitmap erstellen
         using (Image<Rgba32> image = new Image<Rgba32>(totalwidth, totalwidth))
@@ -106,22 +149,17 @@ public class TerrainGenerator
                 {
                     int index = z * totalwidth + x;
                     
-                    float noiseValue = noiseValues[index];
-                    int height = (int)(noiseValue + 16);
+                    // Normalisieren auf 0..1 basierend auf min/max
+                    float normalized = (noiseValues[index] - minNoise) / range;
                     
-                    // Clamp Visualisierung (Rot = Fehler unter 0, Blau = Fehler über 31)
-                    Rgba32 pixelColor;
-                    if (height < 0) 
-                        pixelColor = new Rgba32(255, 0, 0);
-                    else if (height > 31) 
-                        pixelColor = new Rgba32(0, 0, 255);
-                    else
-                    {
-                        // Graustufen basierend auf Höhe (0..31 auf 0..255 mappen)
-                        int grayValue = (int)((height / 31.0f) * 255);
-                         pixelColor = new Rgba32((byte)grayValue, (byte)grayValue, (byte)grayValue);
-                    }
-
+                    // In diskrete Stufen (Steps) quantisieren
+                    // z.B. bei 16 steps: 0.0, 0.0625, 0.125, ... 1.0
+                    float stepped = MathF.Floor(normalized * steps) / steps;
+                    
+                    // Werte nahe -1 (Min) → weiß (255), Werte nahe 1 (Max) → schwarz (0)
+                    byte val = (byte)((1f - stepped) * 255);
+                    Rgba32 pixelColor = new Rgba32(val, val, val);
+                    
                     image[x, z] = pixelColor;
                 }
             }

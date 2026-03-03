@@ -2,14 +2,14 @@ using System.Numerics;
 using Basics.Configurations;
 using Basics.Game.TerrainManaging.Meshing;
 using Basics.Utilities;
+using System.Runtime.CompilerServices;
 
 namespace Basics.Game.TerrainManaging;
 
 public class Lod0Mesher : BaseMesher
 {
     private byte[] _blockData;
-    
-    private static int Idx(int x, int y, int z) => x * 1024 + y * 32 + z;
+    private byte[][] _neighborCache = new byte[27][]; //Is Block wird verdammt oft aufgerufen, pointer auf die Nachbarn während des ersten mes
     
     // AO Level (0–3) kann auc in den shader
     private static readonly float[] AoLookup = { 1.0f, 0.8f, 0.6f, 0.4f };
@@ -18,7 +18,47 @@ public class Lod0Mesher : BaseMesher
     {
         this.ChunkPosition = position;
         this._blockData = blockData;
+        CreateNeighborCache();
         BuildMeshData();
+    }
+    
+    private void CreateNeighborCache()
+    {
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                for (int dz = -1; dz <= 1; dz++)
+                {
+                    // Index im 1D-Array berechnen dafür ist KI gut
+                    int cacheIndex = (dx + 1) * 9 + (dy + 1) * 3 + (dz + 1);
+
+                    // Wenn es der eigene Chunk ist den Cache direkt auf die Blockdaten setzen
+                    // Dann muss man nicht hin und her wechseln
+                    if (dx == 0 && dy == 0 && dz == 0)
+                    {
+                        _neighborCache[cacheIndex] = _blockData;
+                        continue;
+                    }
+
+                    ChunkCoord neighborCoord = new ChunkCoord(
+                        ChunkPosition.X + dx, 
+                        ChunkPosition.Y + dy, 
+                        ChunkPosition.Z + dz
+                    );
+
+                    
+                    if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out byte[] neighborData))
+                    {
+                        _neighborCache[cacheIndex] = neighborData;
+                    }
+                    else
+                    {
+                        _neighborCache[cacheIndex] = null; // Nachbar ist (noch) nicht geladen
+                    }
+                }
+            }
+        }
     }
     
     private void BuildMeshData()
@@ -34,14 +74,18 @@ public class Lod0Mesher : BaseMesher
         _vertices.Capacity = 80_000;
         _indices.Capacity = 24_000;
         
-        for (byte x = 0; x < 32; x++)
+        byte[] data = _blockData; 
+
+        for (int x = 0; x < 32; x++)
         {
-            for (byte y = 0; y < 32; y++)
+            for (int y = 0; y < 32; y++)
             {
-                for (byte z = 0; z < 32; z++)
+                for (int z = 0; z < 32; z++)
                 {
-                    if (_blockData[Idx(x, y, z)] == 0) continue;
-                    
+                    // Kein Block, keine Flächen
+                    if (data[x * 1024 + y * 32 + z] == 0) continue;
+
+                    // Koordinaten direkt übergeben, IsBlock wurde optimiert
                     if (!IsBlock(x, y + 1, z)) CreateCubeFace(x, y, z, BlockTextures.Top);
                     if (!IsBlock(x, y - 1, z)) CreateCubeFace(x, y, z, BlockTextures.Bottom);
                     if (!IsBlock(x, y, z + 1)) CreateCubeFace(x, y, z, BlockTextures.Front);
@@ -60,7 +104,7 @@ public class Lod0Mesher : BaseMesher
     
     private void CreateCubeFace(int x, int y, int z, int face)
     {
-        int id = _blockData[Idx(x, y, z)];
+        int id = _blockData[x * 1024 + y * 32 + z];
         byte textureLayer = BlockTextures.Get(id, face);
         
         // AO direkt als int berechnen (0–3)
@@ -131,34 +175,48 @@ public class Lod0Mesher : BaseMesher
     /// <summary>
     /// Gibt true zurück, wenn da keine Luft ist.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)] // Black magic 
     private bool IsBlock(int x, int y, int z)
     {
-        if (x >= 0 && x < 32 && y >= 0 && y < 32 && z >= 0 && z < 32)
+        // Der "uint" Trick: Prüft (>= 0 UND < 32)
+        if ((uint)x < 32u && (uint)y < 32u && (uint)z < 32u)
         {
-            return _blockData[Idx(x, y, z)] != 0;
+            // Blitzschneller Array-Zugriff. 
+            // 1024 ist 32*32 vorab ausgerechnet, das spart Multiplikationen!
+            return _blockData[x * 1024 + y * 32 + z] != 0; 
         }
 
-        // Nachbar-Chunk-Offset berechnen
-        int cx = ChunkPosition.X;
-        int cy = ChunkPosition.Y;
-        int cz = ChunkPosition.Z;
+        // Wenn der Block AUßERHALB liegt (x=-1, z=32 etc.), gehe in den langsameren Pfad
+        return IsBlockNeighbor(x, y, z);
+    }
 
-        if (x < 0)       { cx--; x += 32; }
-        else if (x > 31) { cx++; x -= 32; }
-        if (y < 0)       { cy--; y += 32; }
-        else if (y > 31) { cy++; y -= 32; }
-        if (z < 0)       { cz--; z += 32; }
-        else if (z > 31) { cz++; z -= 32; }
+    // Diese Methode wird nur aufgerufen, wenn wir WIRKLICH über die Chunk-Grenze gucken
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private bool IsBlockNeighbor(int x, int y, int z)
+    {
+        int cx = 1;
+        int cy = 1;
+        int cz = 1;
 
-        ChunkCoord neighborCoord = new ChunkCoord(cx, cy, cz);
-        if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out byte[]? neighborData))
+        // Koordinaten "wrappen" und Nachbar-Index berechnen
+        if (x < 0)       { cx = 0; x += 32; }
+        else if (x > 31) { cx = 2; x -= 32; }
+
+        if (y < 0)       { cy = 0; y += 32; }
+        else if (y > 31) { cy = 2; y -= 32; }
+
+        if (z < 0)       { cz = 0; z += 32; }
+        else if (z > 31) { cz = 2; z -= 32; }
+
+        // Cache Index (0 bis 26) berechnen
+        byte[] neighborData = _neighborCache[cx * 9 + cy * 3 + cz];
+
+        if (neighborData != null)
         {
-            return neighborData[Idx(x, y, z)] != 0;
+            return neighborData[x * 1024 + y * 32 + z] != 0;
         }
 
-        // Kein Nachbar-Chunk geladen
-        // Sollte nicht passieren können wegen de meshing queue
-        return false;
+        return false; // Nachbar nicht geladen
     }
     
     // sbyte statt int: Werte sind nur -1, 0, +1

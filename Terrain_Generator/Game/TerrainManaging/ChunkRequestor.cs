@@ -21,9 +21,10 @@ public class ChunkRequestor
     private readonly ChunkProvider _chunkProvider;
     private readonly Camera _camera;
     private readonly ParallelOptions _parallelOptions;
-    private int _renderDistance = 16; // Render-Distanz in Chunks
+    private int _renderDistance = 10; // Render-Distanz in Chunks
+    private int _verticalRenderDistance = 5; // Vertikale Render-Distanz
     private HashSet<ChunkCoord> _activeChunks = new();
-    private List<ChunkCoord> _chunksToLoad = new();
+    private readonly object _chunkLock = new();
 
     public int RenderDistance
     {
@@ -47,57 +48,39 @@ public class ChunkRequestor
     /// </summary>
     private void OnPlayerChunkChanged(ChunkCoord playerChunk)
     {
-        HashSet<ChunkCoord> newActiveChunks = new();
-        _chunksToLoad = new List<ChunkCoord>();
-
-        // Alle Chunks im Render-Radius berechnen (kreisförmig auf der XZ-Ebene)
-        for (int x = -_renderDistance; x <= _renderDistance; x++)
+        Task.Run(() =>
         {
-            for (int z = -_renderDistance; z <= _renderDistance; z++)
-            {
-                // Kreisförmige Distanzprüfung statt quadratisch
-                if (x * x + z * z > _renderDistance * _renderDistance)
-                    continue;
-                
-                ChunkCoord coord = new ChunkCoord(playerChunk.X + x, 0, playerChunk.Z + z);
-                _chunksToLoad.Add(coord);
-            }
-        }
-        
-        // Chunks parallel generieren lassen
-        try
-        {
-            Parallel.For(0, _chunksToLoad.Count,_parallelOptions, i =>
-            {
-                ChunkCoord coord = _chunksToLoad[i];
-                // Chunk anfordern (ChunkProvider prüft, ob er schon geladen ist)
-                _chunkProvider.RequestChunk(coord);
-            });
-
-            // Aktive Chunks sammeln (nach der parallelen Generierung)
-            foreach (ChunkCoord coord in _chunksToLoad)
-            {
-                newActiveChunks.Add(coord);
-            }
-
-            // Chunks entladen die außerhalb des Render-Radius liegen
-            UnloadDistantChunks(newActiveChunks);
-
-            _activeChunks = newActiveChunks;
-        }
-        catch (AggregateException ex)
-        {
-            Console.WriteLine("Fehler bei der parallelen Chunk-Generierung: " + ex.Message);
-            // Fallback: Chunks nacheinander generieren
-            foreach (ChunkCoord coord in _chunksToLoad)
-            {
-                _chunkProvider.RequestChunk(coord);
-                newActiveChunks.Add(coord);
-            }
             
-            UnloadDistantChunks(newActiveChunks);
-            _activeChunks = newActiveChunks;
-        }
+            HashSet<ChunkCoord> newActiveChunks = new();
+            List<ChunkCoord> chunksToLoad = new();
+            for (int x = -_renderDistance; x <= _renderDistance; x++)
+            {
+                for (int z = -_renderDistance; z <= _renderDistance; z++)
+                {
+                    if (x * x + z * z > _renderDistance * _renderDistance) continue;
+                    for (int y = -_verticalRenderDistance; y <= _verticalRenderDistance; y++)
+                    {
+                        ChunkCoord coord = new ChunkCoord(playerChunk.X + x, playerChunk.Y + y, playerChunk.Z + z);
+                        chunksToLoad.Add(coord);
+                        newActiveChunks.Add(coord);
+                    }
+                }
+            }
+            // Dieses Parallel.For blockiert jetzt nur diesen Task, nicht das ganze Spiel!
+            // Es kann sich nun alle freien Kerne der CPU schnappen.
+            Parallel.For(0, chunksToLoad.Count, _parallelOptions, i =>
+            {
+                _chunkProvider.RequestChunk(chunksToLoad[i]);
+            });
+            
+            // Thread-safe austauschen
+            lock (_chunkLock)
+            {
+                // Nein ich entlade nicht die neuen Chunks, der name ist nur blöd
+                UnloadDistantChunks(newActiveChunks);
+                _activeChunks = newActiveChunks;
+            }
+        });
     }
 
     /// <summary>

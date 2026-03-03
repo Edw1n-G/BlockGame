@@ -81,7 +81,7 @@ public class MainClass
         // Terrain-Pipeline aufbauen:
         // TerrainGenerator erzeugt Chunk-Daten
         _terrainGenerator = new TerrainGenerator();
-        _terrainGenerator.SetMapSize(32);
+        _terrainGenerator.SetMapSize(100);
         
         // ChunkProvider verwaltet den Chunk-Lebenszyklus (Laden/Generieren/Speichern)
         int meshingThreads = CoreAvailability.GetChunkMeshingCores();

@@ -18,11 +18,12 @@ namespace Basics.Game.TerrainManaging;
 /// </summary>
 public class ChunkProvider
 {
-    public static readonly Dictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
+    public static readonly ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
     public static ConcurrentDictionary<ChunkCoord, byte[]> Chunkdata = new();//Die Blockdaten
     private ConcurrentDictionary<ChunkCoord, byte> _queuedForMeshing = new();// Nur damit nicht mehrere Threads den selben Chunk meshen
-    public ConcurrentQueue<ChunkCoord> MeshingQueue = new(); // Chunks die bereit für das Meshing sind (haben alle Nachbarn und ihre Blockdaten)
+    public BlockingCollection<ChunkCoord> MeshingQueue = new(); // Chunks die bereit für das Meshing sind (haben alle Nachbarn und ihre Blockdaten)
     public ConcurrentQueue<BaseMesher> UploadQueue = new(); // Chunks die fertig gemesht sind und auf die GPU sollen
+    public ConcurrentQueue<BaseMesher> UnloadQueue = new(); // Chunks die wieder aus der GPU raus müssen
     private readonly TerrainGenerator _terrainGenerator;
     
     
@@ -33,7 +34,11 @@ public class ChunkProvider
         _terrainGenerator = terrainGenerator;
         for (int i = 0; i < meshingThreads; i++)
         {
-            Task.Run(MeshingWorkerLoop);
+            // Threads machen die nicht aus dem Algemeienen Threadpool kommen
+            Thread t = new Thread(MeshingWorkerLoop);
+            t.IsBackground = true;
+            t.Name = $"MeshingThread_{i}";
+            t.Start();
         }
     }
 
@@ -45,8 +50,11 @@ public class ChunkProvider
     /// </summary>
     public void RequestChunk(ChunkCoord coord)
     {
-        // Bereits geladen? → nichts tun
+        // Bereits geladen oder Daten bereits generiert? → nichts tun
         if (LoadedChunks.ContainsKey(coord))
+            return;
+        
+        if (Chunkdata.ContainsKey(coord))
             return;
 
         // Versuch von Festplatte zu laden (Placeholder)
@@ -75,6 +83,28 @@ public class ChunkProvider
         TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y - 1, coord.Z));
         TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y, coord.Z + 1));
         TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y, coord.Z - 1));
+        // Diagonale
+        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y + 1 , coord.Z + 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y + 1, coord.Z - 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y - 1, coord.Z + 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y - 1, coord.Z - 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y, coord.Z + 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y, coord.Z - 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y, coord.Z + 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y, coord.Z - 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y + 1, coord.Z));
+        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y - 1, coord.Z));
+        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y + 1, coord.Z));
+        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y - 1, coord.Z));
+        // Ecken
+        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y + 1, coord.Z + 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y + 1, coord.Z - 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y - 1, coord.Z + 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y - 1, coord.Z - 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y + 1, coord.Z + 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y + 1, coord.Z - 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y - 1, coord.Z + 1));
+        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y - 1, coord.Z - 1));
     }
     
     private void TryQueueForMeshing(ChunkCoord coord)
@@ -95,42 +125,61 @@ public class ChunkProvider
         {
             // Ab in den Meshing-Threadpool! 
             // (Dein Mesher kann sich die int[] Daten jetzt gefahrlos aus _chunkDataDict holen)
-            MeshingQueue.Enqueue(coord); 
+            MeshingQueue.Add(coord); 
         }
     }
     
     private void MeshingWorkerLoop()
     {
-        while (_isRunning)
+        // GetConsumingEnumerable() blockiert automatisch wenn nichts drinne ist und wird selbst aktiv wenn man add aufruft
+        foreach (ChunkCoord coord in MeshingQueue.GetConsumingEnumerable())
         {
-            if (MeshingQueue.TryDequeue(out ChunkCoord coord))
+            if (!_isRunning) break;
+
+            if (Chunkdata.TryGetValue(coord, out byte[] BlockData))
             {
-                if (Chunkdata.TryGetValue(coord, out byte[] BlockData))
-                {
-                    BaseMesher newMesh = new Lod0Mesher(coord, BlockData);
-                    
-                    UploadQueue.Enqueue(newMesh);
-                    
-                    _queuedForMeshing.TryRemove(coord, out _);
-                }
-            }
-            else
-            {
-                // Wenn die Queue leer ist, schläft der Thread kurz, um die CPU nicht zu verbrennen
-                Thread.Sleep(5);
+                BaseMesher newMesh = new Lod0Mesher(coord, BlockData);
+                UploadQueue.Enqueue(newMesh);
+                _queuedForMeshing.TryRemove(coord, out _);
             }
         }
     }
 
     private bool HasAllNeighbors(ChunkCoord c)
     {
-        // Gucken Ob Nachbarn da sind
-        return Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y, c.Z)) &&
-               Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y, c.Z)) &&
-               //Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y + 1, c.Z)) &&
-               //Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y - 1, c.Z)) &&
-               Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y, c.Z + 1)) &&
-               Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y, c.Z - 1));
+        // 6 direkte Nachbarn
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y, c.Z))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y, c.Z))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y + 1, c.Z))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y - 1, c.Z))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y, c.Z + 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y, c.Z - 1))) return false;
+
+        // 12 Kanten-Nachbarn
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y + 1, c.Z + 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y + 1, c.Z - 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y - 1, c.Z + 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y - 1, c.Z - 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y, c.Z + 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y, c.Z - 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y, c.Z + 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y, c.Z - 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y + 1, c.Z))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y - 1, c.Z))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y + 1, c.Z))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y - 1, c.Z))) return false;
+
+        // 8 Eck-Nachbarn
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y + 1, c.Z + 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y + 1, c.Z - 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y - 1, c.Z + 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y - 1, c.Z - 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y + 1, c.Z + 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y + 1, c.Z - 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y - 1, c.Z + 1))) return false;
+        if (!Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y - 1, c.Z - 1))) return false;
+
+        return true;
     }
 
     /// <summary>
@@ -138,14 +187,17 @@ public class ChunkProvider
     /// </summary>
     public void UnloadChunk(ChunkCoord coord)
     {
-        if (LoadedChunks.Remove(coord, out BaseMesher? chunk))
+        if (LoadedChunks.TryRemove(coord, out BaseMesher? chunk))
         {
             // TODO: Chunk auf Festplatte speichern bevor er entladen wird
             // SaveToDisk(coord, chunk);
-
-            chunk.Dispose();
-            Chunkdata.TryRemove(coord, out _);
+            
+            UnloadQueue.Enqueue(chunk);
         }
+        
+        //Chunks könnten auch ohne Mesh entladen werden
+        Chunkdata.TryRemove(coord, out _);
+        _queuedForMeshing.TryRemove(coord, out _);
     }
 
     /// <summary>

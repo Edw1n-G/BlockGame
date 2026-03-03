@@ -39,7 +39,7 @@ public class Camera(Vector3 position)
     {
         // Integer-Division die auch für negative Koordinaten korrekt funktioniert
         int cx = (int)MathF.Floor(pos.X / 32f);
-        int cy = 0; // Vorerst nur horizontale Chunks
+        int cy = (int)MathF.Floor(pos.Y / 32f);
         int cz = (int)MathF.Floor(pos.Z / 32f);
         return new ChunkCoord(cx, cy, cz);
     }

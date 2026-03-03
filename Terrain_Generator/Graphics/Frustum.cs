@@ -18,7 +18,7 @@ public struct Frustum
     private const int CHUNK_DEPTH = 32;
     private const int CHUNK_HEIGHT = 32;
     
-    public bool isInFrustum(ChunkCoord chunk, Frustum frustum)
+    public bool isInFrustum(ChunkCoord chunk)
     {
         //Mittelpunkt (Center) des Chunks berechnen
         // Chunkcoord gibt die KOordinaten aus dem Chunk grid an
@@ -38,12 +38,12 @@ public struct Frustum
         );
 
         //Prüfen, ob die Box VOR allen 6 Ebenen liegt
-        return IsOnOrForwardPlane(this.LeftFace, center, extents) &&
+        return IsOnOrForwardPlane(this.NearFace, center, extents) &&
+               IsOnOrForwardPlane(this.LeftFace, center, extents) &&
                IsOnOrForwardPlane(this.RightFace, center, extents) &&
                IsOnOrForwardPlane(this.FarFace, center, extents) &&
-               IsOnOrForwardPlane(this.NearFace, center, extents) &&
-               IsOnOrForwardPlane(this.TopFace, center, extents) &&
-               IsOnOrForwardPlane(this.BottomFace, center, extents);
+               IsOnOrForwardPlane(this.BottomFace, center, extents) &&
+               IsOnOrForwardPlane(this.TopFace, center, extents);
     }
     
     

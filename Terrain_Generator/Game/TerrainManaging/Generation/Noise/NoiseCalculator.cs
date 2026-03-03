@@ -8,7 +8,7 @@ public class NoiseCalculator : IDisposable
     
     // Terrain Config
     private const float BaseHeight = 1f;     // Average height
-    private const float Amplitude = 1f;      // Height variation
+    private const float Amplitude = 10f;      // Height variation
     
     private int _maxMapSize = 1;
     private int _mapLimit;
@@ -29,7 +29,7 @@ public class NoiseCalculator : IDisposable
 
     private void SetNoiseParameters()
     {
-        FastNoise simplex = new FastNoise("Simplex");
+        FastNoise simplex = new FastNoise("Super Simplex");
 
         // One fractal noise node that has simplex as input
         // FractalRidged creates nice mountain peaks

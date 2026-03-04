@@ -1,9 +1,7 @@
 ﻿using Silk.NET.OpenGL; //Für die OpenGL Funktionen
 using Basics.Setup; //Für die Color Klasse
-using System.Collections.Generic;
 using System.Drawing;
 using System.Diagnostics;// Für Upload Limits
-using System.Linq;
 using Basics.Game;
 using Basics.Game.TerrainManaging;
 using Basics.Game.TerrainManaging.Meshing;
@@ -38,7 +36,7 @@ public class Renderer
 
 
     long startTimestamp = Stopwatch.GetTimestamp();
-    long maxTicks = (long)(2.0 / 1000.0 * Stopwatch.Frequency);
+    long maxTicks = (long)(4.0 / 1000.0 * Stopwatch.Frequency);
     private int totalchunks;
     private int shownchunks;
     
@@ -57,7 +55,7 @@ public class Renderer
         Frustum frustum = _terrainshader.Use(_gl, _camera);
         _terrainshader.BindTexture(_terrainTexture);
 
-        while (ChunkProvider.UploadQueue.TryDequeue(out BaseMesher? chunk))
+        while (ChunkProvider.UploadQueue.TryTake(out BaseMesher? chunk))
         {
             // Wenn der Chunk nicht mehr in Chunkdata ist, wurde er schon entladen
             if (!ChunkProvider.Chunkdata.ContainsKey(chunk.ChunkPosition))

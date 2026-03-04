@@ -1,8 +1,8 @@
 #version 460 core
 
 layout (location = 0) in vec3 aPos;
-layout (location = 1) in float aLayer;
-layout (location = 2) in float brightness;
+layout (location = 1) in int aLayer;    // Textur-Layer als byte (int8)
+layout (location = 2) in int aAoLevel;  // AO Level 0-3 als byte (int8)
 
 uniform mat4 uModel;
 uniform mat4 uView;
@@ -10,6 +10,9 @@ uniform mat4 uProjection;
 
 out vec3 fragTexCoords;
 out float fragbrightness;
+
+// AO Lookup: Index 0=hell, 3=dunkel
+const float aoLookup[4] = float[4](1.0, 0.8, 0.6, 0.4);
 
 void main()
 {
@@ -26,6 +29,6 @@ void main()
     vec2 uv = quadUVs[cornerIndex];
     
     gl_Position = uProjection * uView * uModel* vec4(aPos, 1.0);
-    fragTexCoords = vec3(uv.x, uv.y, aLayer);
-    fragbrightness = brightness;
+    fragTexCoords = vec3(uv.x, uv.y, float(aLayer));
+    fragbrightness = aoLookup[aAoLevel];
 }

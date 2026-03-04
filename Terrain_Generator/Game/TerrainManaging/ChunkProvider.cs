@@ -22,7 +22,7 @@ public class ChunkProvider
     public static ConcurrentDictionary<ChunkCoord, byte[]> Chunkdata = new();//Die Blockdaten
     private ConcurrentDictionary<ChunkCoord, byte> _queuedForMeshing = new();// Nur damit nicht mehrere Threads den selben Chunk meshen
     public BlockingCollection<ChunkCoord> MeshingQueue = new(); // Chunks die bereit für das Meshing sind (haben alle Nachbarn und ihre Blockdaten)
-    public ConcurrentQueue<BaseMesher> UploadQueue = new(); // Chunks die fertig gemesht sind und auf die GPU sollen
+    public BlockingCollection<BaseMesher> UploadQueue = new(100); // Chunks die fertig gemesht sind und auf die GPU sollen
     public ConcurrentQueue<BaseMesher> UnloadQueue = new(); // Chunks die wieder aus der GPU raus müssen
     private readonly TerrainGenerator _terrainGenerator;
     
@@ -63,7 +63,13 @@ public class ChunkProvider
             LoadedChunks.TryAdd(coord, loadedChunk!);
             return;
         }
-
+        
+        // Wenn der Chunkgenerator null zurückgibt ist der Chunk nur Luft oder 
+        // Nicht in der Welt 
+        if (_terrainGenerator.GenerateChunk(coord) == null)
+        {
+            return;
+        }
         byte[] chunkBlocks = _terrainGenerator.GenerateChunk(coord);
         OnChunkDataGenerated(coord, chunkBlocks);
     }
@@ -139,7 +145,7 @@ public class ChunkProvider
             if (Chunkdata.TryGetValue(coord, out byte[] BlockData))
             {
                 BaseMesher newMesh = new Lod0Mesher(coord, BlockData);
-                UploadQueue.Enqueue(newMesh);
+                UploadQueue.Add(newMesh);
                 _queuedForMeshing.TryRemove(coord, out _);
             }
         }

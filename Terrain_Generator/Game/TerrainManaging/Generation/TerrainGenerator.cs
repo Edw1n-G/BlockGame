@@ -14,8 +14,8 @@ public class TerrainGenerator
     
     // Theoretische Grenzen aus NoiseCalculator: BaseHeight ± Amplitude
     // Noise liefert Werte im Bereich -1..1, also: Höhe = BaseHeight + noise * Amplitude
-    private const float MaxPossibleHeight = 1f + 40f;  // = 41  (BaseHeight + Amplitude)
-    private const float MinPossibleHeight = 1f - 40f;  // = -39 (BaseHeight - Amplitude)
+    private const float MaxPossibleHeight = 1f + 70f;  // = 41  (BaseHeight + Amplitude)
+    private const float MinPossibleHeight = 1f - 70f;  // = -39 (BaseHeight - Amplitude)
     private const float CaveSafetyMargin = 12f;         // 4 Blöcke Schutzzone + 8 Blöcke Übergang
     
     private readonly NoiseCalculator _noiseCalculator = new NoiseCalculator();
@@ -49,7 +49,7 @@ public class TerrainGenerator
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("WARNUNG: Chunk außerhalb der Weltlimits angefragt.");
             Console.ResetColor();
-            return new byte[32 * 32 * 32]; // Leerer Chunk (nur Luft)
+            return null;
         }
         
         int chunkStartX = coord.X * 32;
@@ -62,7 +62,7 @@ public class TerrainGenerator
         // Chunk-Boden liegt über dem maximal möglichen Terrain
         if (chunkStartY > MaxPossibleHeight)
         {
-            return chunkBlocks; // Luft zurückgeben
+            return null; // Nichts zurückgeben und den Chunk skippen
         }
         
         // Chunk-Decke liegt unter der oberfläche

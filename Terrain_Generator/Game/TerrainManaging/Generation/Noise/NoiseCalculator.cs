@@ -8,7 +8,7 @@ public class NoiseCalculator : IDisposable
     
     // Terrain Config
     private const float BaseHeight = 1f;     // Average height
-    private const float Amplitude = 40f;    // Height Multiplier
+    private const float Amplitude = 70f;    // Height Multiplier
     private const float FeatureScale = 10f; // Detail. je kleiner, desto mehr Details, aber auch mehr Rechenzeit
     private const float Scale = 23f;         // End result scale
     

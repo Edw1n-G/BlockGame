@@ -96,7 +96,7 @@ public class MainClass
         // Initiales Laden der Chunks um die Startposition
         PlayerCamera.ForceChunkUpdate();
         
-        _terrainGenerator.DebugExportNoiseMap();
+        //_terrainGenerator.DebugExportNoiseMap();
     }
 
 //Wird jeden Frame aufgerufen, hier wird alles gerendert.

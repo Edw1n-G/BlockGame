@@ -11,11 +11,11 @@ public class Lod0Mesher : BaseMesher
     private byte[] _blockData;
     private byte[][] _neighborCache = new byte[27][]; //Is Block wird verdammt oft aufgerufen, pointer auf die Nachbarn während des ersten mes
     
-    // AO Level (0–3) kann auc in den shader
-    private static readonly float[] AoLookup = { 1.0f, 0.8f, 0.6f, 0.4f };
+    // AO Level (0–3) wird als int an den Shader gesendet, Konvertierung in float passiert dort
     
     public Lod0Mesher(ChunkCoord position, byte[] blockData)
     {
+        if (blockData == null) return;
         this.ChunkPosition = position;
         this._blockData = blockData;
         CreateNeighborCache();
@@ -64,14 +64,12 @@ public class Lod0Mesher : BaseMesher
     private void BuildMeshData()
     {
         // Worst-case Schätzung: Ein Chunk mit vielen Oberflächen hat ca. 30% sichtbare Flächen
-        // Pro Face: 4 Vertices × 5 floats = 20 floats, 6 indices
-        // Realistisch: ~8000 Faces → 160k floats, 48k indices
-        // das ist der guess von claude
-        // Worst case ist jemand füllt jeden zweiten Blocke also 16*16*16 = 4096 Blöcke davon grenzt jeder an luft also mal 6 = 24576 Flächen
-        // 24576 Flächen × 20 floats = 491520 floats, 24576 × 6 indices = 147456 indices sobald ich blöcke bauen kann gucke ich mal was passiert
+        // Pro Face: 4 Vertices × 14 Bytes = 56 Bytes, 6 indices
+        // Realistisch: ~8000 Faces → 448k Bytes, 48k indices
         _vertices.Clear();
         _indices.Clear();
-        _vertices.Capacity = 160_000;
+        _vertexCount = 0;
+        _vertices.Capacity = 450_000;
         _indices.Capacity = 48_000;
         
         byte[] data = _blockData; 
@@ -97,9 +95,13 @@ public class Lod0Mesher : BaseMesher
         }
         
         _indicesCount = (uint)_indices.Count;
-
+        _vertices.TrimExcess();
+        _indices.TrimExcess();
         // Model Matrix initialisieren (basierend auf Chunk Position)
         model = Matrix4x4.CreateTranslation(new Vector3(ChunkPosition.X*32, ChunkPosition.Y*32, ChunkPosition.Z*32));
+        // brauchen Daten nicht mehr im RAM, sind in der ChunkProvider.Chunkdata gespeichert
+        _neighborCache = null;
+        _blockData = null;
     }
     
     private void CreateCubeFace(int x, int y, int z, int face)
@@ -108,60 +110,54 @@ public class Lod0Mesher : BaseMesher
         byte textureLayer = BlockTextures.Get(id, face);
         
         // AO direkt als int berechnen (0–3)
-        int ao0 = CalcAoLevel(x, y, z, face, 0);
-        int ao1 = CalcAoLevel(x, y, z, face, 1);
-        int ao2 = CalcAoLevel(x, y, z, face, 2);
-        int ao3 = CalcAoLevel(x, y, z, face, 3);
-        
-        // Lookup: int → float, kein Rechnen
-        float b0 = AoLookup[ao0];
-        float b1 = AoLookup[ao1];
-        float b2 = AoLookup[ao2];
-        float b3 = AoLookup[ao3];
+        byte ao0 = CalcAoLevel(x, y, z, face, 0);
+        byte ao1 = CalcAoLevel(x, y, z, face, 1);
+        byte ao2 = CalcAoLevel(x, y, z, face, 2);
+        byte ao3 = CalcAoLevel(x, y, z, face, 3);
         
         switch (face)
         {
             case BlockTextures.Top:
-                _vertices.Add(x);     _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b0);
-                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b1);
-                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b2);
-                _vertices.Add(x);     _vertices.Add(y + 1); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b3);
+                AddVertex(x,     y + 1, z + 1, textureLayer, ao0);
+                AddVertex(x + 1, y + 1, z + 1, textureLayer, ao1);
+                AddVertex(x + 1, y + 1, z,     textureLayer, ao2);
+                AddVertex(x,     y + 1, z,     textureLayer, ao3);
                 break;
             case BlockTextures.Bottom:
-                _vertices.Add(x);     _vertices.Add(y); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b0);
-                _vertices.Add(x + 1); _vertices.Add(y); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b1);
-                _vertices.Add(x + 1); _vertices.Add(y); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b2);
-                _vertices.Add(x);     _vertices.Add(y); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b3);
+                AddVertex(x,     y, z,     textureLayer, ao0);
+                AddVertex(x + 1, y, z,     textureLayer, ao1);
+                AddVertex(x + 1, y, z + 1, textureLayer, ao2);
+                AddVertex(x,     y, z + 1, textureLayer, ao3);
                 break;
             case BlockTextures.Front:
-                _vertices.Add(x);     _vertices.Add(y);     _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b0);
-                _vertices.Add(x + 1); _vertices.Add(y);     _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b1);
-                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b2);
-                _vertices.Add(x);     _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b3);
+                AddVertex(x,     y,     z + 1, textureLayer, ao0);
+                AddVertex(x + 1, y,     z + 1, textureLayer, ao1);
+                AddVertex(x + 1, y + 1, z + 1, textureLayer, ao2);
+                AddVertex(x,     y + 1, z + 1, textureLayer, ao3);
                 break;
             case BlockTextures.Back:
-                _vertices.Add(x + 1); _vertices.Add(y);     _vertices.Add(z); _vertices.Add(textureLayer); _vertices.Add(b0);
-                _vertices.Add(x);     _vertices.Add(y);     _vertices.Add(z); _vertices.Add(textureLayer); _vertices.Add(b1);
-                _vertices.Add(x);     _vertices.Add(y + 1); _vertices.Add(z); _vertices.Add(textureLayer); _vertices.Add(b2);
-                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z); _vertices.Add(textureLayer); _vertices.Add(b3);
+                AddVertex(x + 1, y,     z, textureLayer, ao0);
+                AddVertex(x,     y,     z, textureLayer, ao1);
+                AddVertex(x,     y + 1, z, textureLayer, ao2);
+                AddVertex(x + 1, y + 1, z, textureLayer, ao3);
                 break;
             case BlockTextures.Left:
-                _vertices.Add(x); _vertices.Add(y);     _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b0);
-                _vertices.Add(x); _vertices.Add(y);     _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b1);
-                _vertices.Add(x); _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b2);
-                _vertices.Add(x); _vertices.Add(y + 1); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b3);
+                AddVertex(x, y,     z,     textureLayer, ao0);
+                AddVertex(x, y,     z + 1, textureLayer, ao1);
+                AddVertex(x, y + 1, z + 1, textureLayer, ao2);
+                AddVertex(x, y + 1, z,     textureLayer, ao3);
                 break;
             case BlockTextures.Right:
-                _vertices.Add(x + 1); _vertices.Add(y);     _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b0);
-                _vertices.Add(x + 1); _vertices.Add(y);     _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b1);
-                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z);     _vertices.Add(textureLayer); _vertices.Add(b2);
-                _vertices.Add(x + 1); _vertices.Add(y + 1); _vertices.Add(z + 1); _vertices.Add(textureLayer); _vertices.Add(b3);
+                AddVertex(x + 1, y,     z + 1, textureLayer, ao0);
+                AddVertex(x + 1, y,     z,     textureLayer, ao1);
+                AddVertex(x + 1, y + 1, z,     textureLayer, ao2);
+                AddVertex(x + 1, y + 1, z + 1, textureLayer, ao3);
                 break;
         }
         
         // Indices direkt hinzufügen, keine Array-Allokation
-        uint baseIdx = (uint)(_vertices.Count / 5 - 4);
-        if (b0 + b2 > b1 + b3)
+        uint baseIdx = (uint)(_vertexCount - 4);
+        if (ao0 + ao2 > ao1 + ao3)
         {
             _indices.Add(baseIdx + 1); _indices.Add(baseIdx + 2); _indices.Add(baseIdx + 3);
             _indices.Add(baseIdx + 1); _indices.Add(baseIdx + 3); _indices.Add(baseIdx);
@@ -269,7 +265,7 @@ public class Lod0Mesher : BaseMesher
     /// Berechnet den AO-Level (0–3) für einen einzelnen Vertex.
     /// Gibt direkt einen int zurück, keine Heap-Allokation.
     /// </summary>
-    private int CalcAoLevel(int x, int y, int z, int face, int vertex)
+    private byte CalcAoLevel(int x, int y, int z, int face, int vertex)
     {
         int offsetIndex = (face * 4 + vertex) * 9;
         bool side1 = IsBlock(x + AoOffsets[offsetIndex], y + AoOffsets[offsetIndex+1], z + AoOffsets[offsetIndex+2]);
@@ -279,6 +275,6 @@ public class Lod0Mesher : BaseMesher
         
         bool corner = IsBlock(x + AoOffsets[offsetIndex+6], y + AoOffsets[offsetIndex+7], z + AoOffsets[offsetIndex+8]);
         
-        return (side1 ? 1 : 0) + (side2 ? 1 : 0) + (corner ? 1 : 0);
+        return (byte)((side1 ? 1 : 0) + (side2 ? 1 : 0) + (corner ? 1 : 0));
     }
 }

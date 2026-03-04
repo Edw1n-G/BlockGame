@@ -12,6 +12,12 @@ public class TerrainGenerator
     private int _mapLimit;
     private int _radius; //Um 0/0 als Mittelpunkt zu haben
     
+    // Theoretische Grenzen aus NoiseCalculator: BaseHeight ± Amplitude
+    // Noise liefert Werte im Bereich -1..1, also: Höhe = BaseHeight + noise * Amplitude
+    private const float MaxPossibleHeight = 1f + 40f;  // = 41  (BaseHeight + Amplitude)
+    private const float MinPossibleHeight = 1f - 40f;  // = -39 (BaseHeight - Amplitude)
+    private const float CaveSafetyMargin = 12f;         // 4 Blöcke Schutzzone + 8 Blöcke Übergang
+    
     private readonly NoiseCalculator _noiseCalculator = new NoiseCalculator();
     
     /// <summary>
@@ -49,13 +55,32 @@ public class TerrainGenerator
         int chunkStartX = coord.X * 32;
         int chunkStartY = coord.Y * 32;
         int chunkStartZ = coord.Z * 32;
+        int chunkTopY = chunkStartY + 31; // Oberster Block im Chunk
     
         byte[] chunkBlocks = new byte[32 * 32 * 32];
         
-        // 2D HeightMap
+        // Chunk-Boden liegt über dem maximal möglichen Terrain
+        if (chunkStartY > MaxPossibleHeight)
+        {
+            return chunkBlocks; // Luft zurückgeben
+        }
+        
+        // Chunk-Decke liegt unter der oberfläche
+        if (chunkTopY < MinPossibleHeight - CaveSafetyMargin)
+        {
+            Array.Fill(chunkBlocks, (byte)2); // Komplett Stein
+            return chunkBlocks;
+        }
+        
         float[] heightMap = _noiseCalculator.GetNoiseValues(chunkStartX, chunkStartZ, 32, 32);
         
-        // 3D Höhlen-Noise
+        // Herausfinden was der höchste und niedrigste Punkt in dieser Spalte ist
+        float maxHeight = float.MinValue;
+        float minHeight = float.MaxValue;
+        
+        // ======================================================================
+        // Ab hier ist der Chunk in dem Bereich zwischen min und max der Heightmap
+        // ======================================================================
         float[] caves3D = _noiseCalculator.GetCaves3D(chunkStartX, chunkStartY, chunkStartZ, 32, 32, 32);
         //_noiseCalculator.Dispose();
         

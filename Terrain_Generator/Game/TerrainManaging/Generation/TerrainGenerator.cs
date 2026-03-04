@@ -124,8 +124,8 @@ public class TerrainGenerator
     
     public void DebugExportNoiseMap(string filename = "debug_noisemap.png", int steps = 16)
     {
-        int totalwidth = _mapLimit * 2;
-        float[] noiseValues = _noiseCalculator.GetNoiseValues(-_mapLimit, -_mapLimit, totalwidth, totalwidth);
+        int totalwidth = _mapLimit * 2 * 32;
+        float[] noiseValues = _noiseCalculator.GetNoiseValues(-_mapLimit*32, -_mapLimit*32, totalwidth, totalwidth);
         
         float minNoise = noiseValues[0];
         float maxNoise = noiseValues[0];

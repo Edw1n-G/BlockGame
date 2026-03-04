@@ -71,8 +71,8 @@ public class Lod0Mesher : BaseMesher
         // 24576 Flächen × 20 floats = 491520 floats, 24576 × 6 indices = 147456 indices sobald ich blöcke bauen kann gucke ich mal was passiert
         _vertices.Clear();
         _indices.Clear();
-        _vertices.Capacity = 80_000;
-        _indices.Capacity = 24_000;
+        _vertices.Capacity = 160_000;
+        _indices.Capacity = 48_000;
         
         byte[] data = _blockData; 
 
@@ -220,50 +220,49 @@ public class Lod0Mesher : BaseMesher
     }
     
     // sbyte statt int: Werte sind nur -1, 0, +1
-    private static readonly sbyte[,,,] AoOffsets = new sbyte[6, 4, 3, 3]
+    private static readonly sbyte[] AoOffsets = new sbyte[]
     {
         // Face 0: Top (+Y)
-        {
-            { { -1, 1, 0 }, { 0, 1, 1 }, { -1, 1, 1 } },
-            { { 1, 1, 0 }, { 0, 1, 1 }, { 1, 1, 1 } },
-            { { 1, 1, 0 }, { 0, 1, -1 }, { 1, 1, -1 } },
-            { { -1, 1, 0 }, { 0, 1, -1 }, { -1, 1, -1 } },
-        },
+        
+             -1, 1, 0,  0, 1, 1 ,  -1, 1, 1 ,
+             1, 1, 0,   0, 1, 1 ,  1, 1, 1 ,
+             1, 1, 0,   0, 1, -1 ,  1, 1, -1 ,
+             -1, 1, 0,  0, 1, -1 ,  -1, 1, -1 ,
+        
         // Face 1: Bottom (-Y)
-        {
-            { { -1, -1, 0 }, { 0, -1, -1 }, { -1, -1, -1 } },
-            { { 1, -1, 0 }, { 0, -1, -1 }, { 1, -1, -1 } },
-            { { 1, -1, 0 }, { 0, -1, 1 }, { 1, -1, 1 } },
-            { { -1, -1, 0 }, { 0, -1, 1 }, { -1, -1, 1 } },
-        },
+        
+             -1, -1, 0 ,  0, -1, -1 ,  -1, -1, -1 ,
+             1, -1, 0 ,  0, -1, -1 ,  1, -1, -1 ,
+             1, -1, 0 ,  0, -1, 1 ,  1, -1, 1 ,
+             -1, -1, 0 ,  0, -1, 1 ,  -1, -1, 1 ,
+        
         // Face 2: Front (+Z)
-        {
-            { { -1, 0, 1 }, { 0, -1, 1 }, { -1, -1, 1 } },
-            { { 1, 0, 1 }, { 0, -1, 1 }, { 1, -1, 1 } },
-            { { 1, 0, 1 }, { 0, 1, 1 }, { 1, 1, 1 } },
-            { { -1, 0, 1 }, { 0, 1, 1 }, { -1, 1, 1 } },
-        },
+        
+             -1, 0, 1 ,  0, -1, 1 ,  -1, -1, 1 ,
+             1, 0, 1 ,  0, -1, 1 ,  1, -1, 1 ,
+             1, 0, 1 ,  0, 1, 1 ,  1, 1, 1 ,
+             -1, 0, 1 ,  0, 1, 1 ,  -1, 1, 1 ,
+        
         // Face 3: Back (-Z)
-        {
-            { { 1, 0, -1 }, { 0, -1, -1 }, { 1, -1, -1 } },
-            { { -1, 0, -1 }, { 0, -1, -1 }, { -1, -1, -1 } },
-            { { -1, 0, -1 }, { 0, 1, -1 }, { -1, 1, -1 } },
-            { { 1, 0, -1 }, { 0, 1, -1 }, { 1, 1, -1 } },
-        },
+        
+             1, 0, -1 ,  0, -1, -1 ,  1, -1, -1 ,
+             -1, 0, -1 ,  0, -1, -1 ,  -1, -1, -1 ,
+             -1, 0, -1 ,  0, 1, -1 ,  -1, 1, -1 ,
+             1, 0, -1 ,  0, 1, -1 ,  1, 1, -1 ,
+        
         // Face 4: Left (-X)
-        {
-            { { -1, 0, -1 }, { -1, -1, 0 }, { -1, -1, -1 } },
-            { { -1, 0, 1 }, { -1, -1, 0 }, { -1, -1, 1 } },
-            { { -1, 0, 1 }, { -1, 1, 0 }, { -1, 1, 1 } },
-            { { -1, 0, -1 }, { -1, 1, 0 }, { -1, 1, -1 } },
-        },
+        
+             -1, 0, -1 ,  -1, -1, 0 ,  -1, -1, -1 ,
+             -1, 0, 1 ,  -1, -1, 0 ,  -1, -1, 1 ,
+             -1, 0, 1 ,  -1, 1, 0 ,  -1, 1, 1 ,
+             -1, 0, -1 ,  -1, 1, 0 ,  -1, 1, -1 ,
+        
         // Face 5: Right (+X)
-        {
-            { { 1, 0, 1 }, { 1, -1, 0 }, { 1, -1, 1 } },
-            { { 1, 0, -1 }, { 1, -1, 0 }, { 1, -1, -1 } },
-            { { 1, 0, -1 }, { 1, 1, 0 }, { 1, 1, -1 } },
-            { { 1, 0, 1 }, { 1, 1, 0 }, { 1, 1, 1 } },
-        },
+        
+             1, 0, 1 ,  1, -1, 0 ,  1, -1, 1 ,
+             1, 0, -1 ,  1, -1, 0,  1, -1, -1 ,
+             1, 0, -1 ,  1, 1, 0 ,  1, 1, -1 ,
+             1, 0, 1 ,  1, 1, 0 ,  1, 1, 1 ,
     };
     
     /// <summary>
@@ -272,12 +271,13 @@ public class Lod0Mesher : BaseMesher
     /// </summary>
     private int CalcAoLevel(int x, int y, int z, int face, int vertex)
     {
-        bool side1 = IsBlock(x + AoOffsets[face, vertex, 0, 0], y + AoOffsets[face, vertex, 0, 1], z + AoOffsets[face, vertex, 0, 2]);
-        bool side2 = IsBlock(x + AoOffsets[face, vertex, 1, 0], y + AoOffsets[face, vertex, 1, 1], z + AoOffsets[face, vertex, 1, 2]);
+        int offsetIndex = (face * 4 + vertex) * 9;
+        bool side1 = IsBlock(x + AoOffsets[offsetIndex], y + AoOffsets[offsetIndex+1], z + AoOffsets[offsetIndex+2]);
+        bool side2 = IsBlock(x + AoOffsets[offsetIndex+3], y + AoOffsets[offsetIndex+4], z + AoOffsets[offsetIndex+5]);
         
         if (side1 && side2) return 3;
         
-        bool corner = IsBlock(x + AoOffsets[face, vertex, 2, 0], y + AoOffsets[face, vertex, 2, 1], z + AoOffsets[face, vertex, 2, 2]);
+        bool corner = IsBlock(x + AoOffsets[offsetIndex+6], y + AoOffsets[offsetIndex+7], z + AoOffsets[offsetIndex+8]);
         
         return (side1 ? 1 : 0) + (side2 ? 1 : 0) + (corner ? 1 : 0);
     }

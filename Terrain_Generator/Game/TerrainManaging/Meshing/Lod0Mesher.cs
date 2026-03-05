@@ -9,7 +9,7 @@ namespace Basics.Game.TerrainManaging;
 public class Lod0Mesher : BaseMesher
 {
     private byte[] _blockData;
-    private byte[][] _neighborCache = new byte[27][]; //Is Block wird verdammt oft aufgerufen, pointer auf die Nachbarn während des ersten mes
+    private byte[][]? _neighborCache = new byte[27][]; //Is Block wird verdammt oft aufgerufen, pointer auf die Nachbarn während des ersten mes
     
     // AO Level (0–3) wird als int an den Shader gesendet, Konvertierung in float passiert dort
     
@@ -44,7 +44,8 @@ public class Lod0Mesher : BaseMesher
                     ChunkCoord neighborCoord = new ChunkCoord(
                         ChunkPosition.X + dx, 
                         ChunkPosition.Y + dy, 
-                        ChunkPosition.Z + dz
+                        ChunkPosition.Z + dz,
+                        0
                     );
 
                     
@@ -99,9 +100,8 @@ public class Lod0Mesher : BaseMesher
         _indices.TrimExcess();
         // Model Matrix initialisieren (basierend auf Chunk Position)
         model = Matrix4x4.CreateTranslation(new Vector3(ChunkPosition.X*32, ChunkPosition.Y*32, ChunkPosition.Z*32));
-        // brauchen Daten nicht mehr im RAM, sind in der ChunkProvider.Chunkdata gespeichert
+        // Der Nachbar Cache ist jetzt nicht mehr nötig
         _neighborCache = null;
-        _blockData = null;
     }
     
     private void CreateCubeFace(int x, int y, int z, int face)
@@ -219,42 +219,34 @@ public class Lod0Mesher : BaseMesher
     private static readonly sbyte[] AoOffsets = new sbyte[]
     {
         // Face 0: Top (+Y)
-        
              -1, 1, 0,  0, 1, 1 ,  -1, 1, 1 ,
              1, 1, 0,   0, 1, 1 ,  1, 1, 1 ,
              1, 1, 0,   0, 1, -1 ,  1, 1, -1 ,
              -1, 1, 0,  0, 1, -1 ,  -1, 1, -1 ,
-        
         // Face 1: Bottom (-Y)
-        
              -1, -1, 0 ,  0, -1, -1 ,  -1, -1, -1 ,
              1, -1, 0 ,  0, -1, -1 ,  1, -1, -1 ,
              1, -1, 0 ,  0, -1, 1 ,  1, -1, 1 ,
              -1, -1, 0 ,  0, -1, 1 ,  -1, -1, 1 ,
-        
         // Face 2: Front (+Z)
-        
              -1, 0, 1 ,  0, -1, 1 ,  -1, -1, 1 ,
              1, 0, 1 ,  0, -1, 1 ,  1, -1, 1 ,
              1, 0, 1 ,  0, 1, 1 ,  1, 1, 1 ,
              -1, 0, 1 ,  0, 1, 1 ,  -1, 1, 1 ,
         
         // Face 3: Back (-Z)
-        
              1, 0, -1 ,  0, -1, -1 ,  1, -1, -1 ,
              -1, 0, -1 ,  0, -1, -1 ,  -1, -1, -1 ,
              -1, 0, -1 ,  0, 1, -1 ,  -1, 1, -1 ,
              1, 0, -1 ,  0, 1, -1 ,  1, 1, -1 ,
         
         // Face 4: Left (-X)
-        
              -1, 0, -1 ,  -1, -1, 0 ,  -1, -1, -1 ,
              -1, 0, 1 ,  -1, -1, 0 ,  -1, -1, 1 ,
              -1, 0, 1 ,  -1, 1, 0 ,  -1, 1, 1 ,
              -1, 0, -1 ,  -1, 1, 0 ,  -1, 1, -1 ,
         
         // Face 5: Right (+X)
-        
              1, 0, 1 ,  1, -1, 0 ,  1, -1, 1 ,
              1, 0, -1 ,  1, -1, 0,  1, -1, -1 ,
              1, 0, -1 ,  1, 1, 0 ,  1, 1, -1 ,

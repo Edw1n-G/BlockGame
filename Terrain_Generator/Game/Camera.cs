@@ -41,7 +41,7 @@ public class Camera(Vector3 position)
         int cx = (int)MathF.Floor(pos.X / 32f);
         int cy = (int)MathF.Floor(pos.Y / 32f);
         int cz = (int)MathF.Floor(pos.Z / 32f);
-        return new ChunkCoord(cx, cy, cz);
+        return new ChunkCoord(cx, cy, cz, 0);//Die Camera ist immer im Lod0 System
     }
     
     public Matrix4x4 GetViewMatrix()

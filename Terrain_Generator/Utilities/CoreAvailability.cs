@@ -28,19 +28,22 @@ public class CoreAvailability
         {
             DefaultConfig();
         }
+        Console.WriteLine("--- Core Availability ---");
+        Console.WriteLine($"Total Cores: {TotalCores}");
+        Console.WriteLine($"Available Cores: {AvailableCores}");
+        Console.WriteLine($"Terrain Generation Cores: {_terrainGenerationCores}");
+        Console.WriteLine($"Chunk Meshing Cores: {_ChunkMeshingCores}");
     }
 
     static void LoadConfig(String configPath)
     {
-        _terrainGenerationCores = 1; //Load values from cinfig
-        _ChunkMeshingCores = 1;
-        _exampleTaskCores = 0;
+        // TODO: Configuration aus Datei laden
     }
     
     static void DefaultConfig()
     {
-        _terrainGenerationCores = AvailableCores - 4; // Alle verfügbaren Kerne für die Terrain-Generierung nutzen
-        _ChunkMeshingCores = 4; // Die 4 die ich oben abziehe
+        _terrainGenerationCores = AvailableCores/2;
+        _ChunkMeshingCores = AvailableCores/2;
         _exampleTaskCores = 0; // Keine Kerne für andere Aufgaben reservieren
     }
 

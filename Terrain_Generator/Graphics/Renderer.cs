@@ -75,9 +75,9 @@ public class Renderer
 
         foreach (BaseMesher chunk in ChunkProvider.LoadedChunks.Values)
         {
-            totalchunks++;
+            //totalchunks++;
             if (!frustum.isInFrustum(chunk.ChunkPosition)) continue;
-            shownchunks++;
+            //shownchunks++;
             chunk.Render(_terrainshader);
         }
         
@@ -86,7 +86,7 @@ public class Renderer
             chunk.Dispose();
         }
         
-        Console.WriteLine($"Total Chunks: {totalchunks}, Shown Chunks: {shownchunks}");
+        //Console.WriteLine($"Total Chunks: {totalchunks}, Shown Chunks: {shownchunks}");
 
     }
     

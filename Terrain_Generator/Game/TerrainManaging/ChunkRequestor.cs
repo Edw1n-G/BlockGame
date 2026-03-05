@@ -21,8 +21,10 @@ public class ChunkRequestor
     private readonly ChunkProvider _chunkProvider;
     private readonly Camera _camera;
     private readonly ParallelOptions _parallelOptions;
-    private int _renderDistance = 10; // Render-Distanz in Chunks
-    private int _verticalRenderDistance = 5; // Vertikale Render-Distanz
+    private int _renderDistance = 30; // Overall distanz wo Chunks angefragt werden
+    private int _lod1Distance = 15; // Ab wann Lod1 angefragt wird
+    private int _lod2Distance = 20; // Ab wann Lod2 angefragt wird
+    private int _verticalRenderDistance = 10; // Vertikale Render-Distanz
     private HashSet<ChunkCoord> _activeChunks = new();
     private readonly object _chunkLock = new();
 
@@ -60,7 +62,7 @@ public class ChunkRequestor
                     if (x * x + z * z > _renderDistance * _renderDistance) continue;
                     for (int y = -_verticalRenderDistance; y <= _verticalRenderDistance; y++)
                     {
-                        ChunkCoord coord = new ChunkCoord(playerChunk.X + x, playerChunk.Y + y, playerChunk.Z + z);
+                        ChunkCoord coord = new ChunkCoord(playerChunk.X + x, playerChunk.Y + y, playerChunk.Z + z, 0);
                         chunksToLoad.Add(coord);
                         newActiveChunks.Add(coord);
                     }

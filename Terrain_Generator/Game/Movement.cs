@@ -14,7 +14,7 @@ public class Movement
     private static Camera camera;
     
     private const float Speed = 30f;
-    private const float Sensitivity = 0.1f; // Empfindlichkeit der Mausbewegung
+    private const float Sensitivity = 0.05f; // Empfindlichkeit der Mausbewegung
     
     public static void SetPlayerCamera(Camera playerCamera)
     {

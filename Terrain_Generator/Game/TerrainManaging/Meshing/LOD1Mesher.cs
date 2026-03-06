@@ -94,8 +94,9 @@ public class Lod1Mesher : BaseMesher
         _indicesCount = (uint)_indices.Count;
         _vertices.TrimExcess();
         _indices.TrimExcess();
-        // Model Matrix initialisieren (basierend auf Chunk Position)
-        model = Matrix4x4.CreateTranslation(new Vector3(ChunkPosition.X*32, ChunkPosition.Y*32, ChunkPosition.Z*32));
+        // Model Matrix: Zuerst skalieren (Blöcke 2x so groß), dann an die richtige Weltposition verschieben
+        model = Matrix4x4.CreateScale(2f) * Matrix4x4.CreateTranslation(
+            new Vector3(ChunkPosition.X * 32 * 2, ChunkPosition.Y * 32 * 2, ChunkPosition.Z * 32 * 2));
         // brauchen Daten nicht mehr im RAM, sind in der ChunkProvider.Chunkdata gespeichert
         _neighborCache = null;
         _blockData = null;

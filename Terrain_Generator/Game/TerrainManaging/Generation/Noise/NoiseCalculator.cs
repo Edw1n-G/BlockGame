@@ -60,63 +60,61 @@ public class NoiseCalculator : IDisposable
         _scaleNode.Set("Scaling", Scale ); // Scale
     }
 
-    public float[] GetNoiseValues(int startX, int startZ, int sizeX, int sizeZ)
+    /// <summary>
+    /// Gibt ein sizeX*sizeZ großes Noise-Array zurück.
+    /// stepSize bestimmt den Welt-Abstand zwischen zwei benachbarten Array-Einträgen:
+    ///   stepSize=1 → deckt sizeX * sizeZ  Blöcke ab  (volle Auflösung)
+    ///   stepSize=2 → deckt 2*sizeX * 2*sizeZ Blöcke ab (jeder 2. Block)
+    ///   stepSize=n → deckt n*sizeX * n*sizeZ Blöcke ab
+    /// </summary>
+    public float[] GetNoiseValues(int startX, int startZ, int sizeX, int sizeZ, int stepSize = 1)
     {
         if (_scaleNode == null) SetNoiseParameters();
-        
+        if (stepSize < 1) stepSize = 1;
+
         int totalCount = sizeX * sizeZ;
         float[] xPositions = new float[totalCount];
         float[] yPositions = new float[totalCount];
         float[] zPositions = new float[totalCount];
         float[] wPositions = new float[totalCount];
-        
-        // Torus Mapping größe chunks * chunkgröße (32) = tatsächliche Breite der Karte in Blöcken
-        float totalWidth = _maxMapSize * 32; 
+
+        // Torus-Breite in Blöcken
+        float totalWidth = _maxMapSize * 32;
 
         int index = 0;
-        for (int z = startZ; z < startZ + sizeZ; z++)
+        for (int zi = 0; zi < sizeZ; zi++)
         {
-            for (int x = startX; x < startX + sizeX; x++)
+            for (int xi = 0; xi < sizeX; xi++)
             {
-                // 1. Das SICHERE Modulo (Verhindert das Spiegel-Muster bei negativen Koordinaten!)
-                // Wir nutzen totalWidth statt _mapLimit für eine saubere Berechnung
+                // Jeden stepSize-ten Block in der Welt samplen
+                int x = startX + xi * stepSize;
+                int z = startZ + zi * stepSize;
+
                 float shiftedX = ((x % totalWidth) + totalWidth) % totalWidth;
                 float shiftedZ = ((z % totalWidth) + totalWidth) % totalWidth;
-                
-                float angleX = (shiftedX / totalWidth) * 2.0f * MathF.PI;
-                float angleZ = (shiftedZ / totalWidth) * 2.0f * MathF.PI;
+
+                float angleX = shiftedX / totalWidth * 2.0f * MathF.PI;
+                float angleZ = shiftedZ / totalWidth * 2.0f * MathF.PI;
 
                 float xBase = MathF.Cos(angleX);
                 float yBase = MathF.Sin(angleX);
                 float zBase = MathF.Cos(angleZ);
                 float wBase = MathF.Sin(angleZ);
-                
-                xPositions[index] = xBase * 0.866f + zBase * 0.5f;
-                zPositions[index] = zBase * 0.866f - xBase * 0.5f;
 
-                yPositions[index] = yBase * 0.965f + wBase * 0.258f;
-                wPositions[index] = wBase * 0.965f - yBase * 0.258f;
-                
-                xPositions[index] += 10.5f;
-                yPositions[index] += 12.3f;
-                zPositions[index] -= 8.7f;
-                wPositions[index] -= 15.2f;
-                
+                xPositions[index] = xBase * 0.866f + zBase * 0.5f  + 10.5f;
+                yPositions[index] = yBase * 0.965f + wBase * 0.258f + 12.3f;
+                zPositions[index] = zBase * 0.866f - xBase * 0.5f  -  8.7f;
+                wPositions[index] = wBase * 0.965f - yBase * 0.258f - 15.2f;
+
                 index++;
             }
         }
 
         float[] noiseOutput = new float[totalCount];
-        // Generate noise
         _scaleNode!.GenPositionArray4D(noiseOutput, xPositions, yPositions, zPositions, wPositions, 0, 0, 0, 0, Seed);
 
-        // Map noise to height
         for (int i = 0; i < totalCount; i++)
-        {
-            // FractalRidged typically returns -1..1 or 0..1 range. 
-            // We scale it to our desired height.
-            noiseOutput[i] = BaseHeight + (noiseOutput[i] * Amplitude);
-        }
+            noiseOutput[i] = BaseHeight + noiseOutput[i] * Amplitude;
 
         return noiseOutput;
     }

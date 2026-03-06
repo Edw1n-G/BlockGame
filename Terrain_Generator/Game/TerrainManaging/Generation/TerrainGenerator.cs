@@ -12,6 +12,7 @@ public class TerrainGenerator
     private int _mapLimit;
     private int _radius; //Um 0/0 als Mittelpunkt zu haben
     
+    
     // Theoretische Grenzen aus NoiseCalculator: BaseHeight ± Amplitude
     // Noise liefert Werte im Bereich -1..1, also: Höhe = BaseHeight + noise * Amplitude
     private const float MaxPossibleHeight = 1f + 70f;  // = 41  (BaseHeight + Amplitude)
@@ -51,11 +52,12 @@ public class TerrainGenerator
             Console.ResetColor();
             return null;
         }
-        
-        int chunkStartX = coord.X * 32;
-        int chunkStartY = coord.Y * 32;
-        int chunkStartZ = coord.Z * 32;
-        int chunkTopY = chunkStartY + 31; // Oberster Block im Chunk
+
+        int stepSize = 1 << coord.LodLevel + 1; // lod0 -> 1, lod1 -> 2, lod2 -> 4, lod3 -> 8,lod4 -> 16
+        int chunkStartX = coord.X * 32 * stepSize;
+        int chunkStartY = coord.Y * 32 * stepSize;
+        int chunkStartZ = coord.Z * 32 * stepSize;
+        int chunkTopY = chunkStartY + 32 * stepSize - 1; // Oberster Block im Chunk (skaliert nach LOD)
     
         byte[] chunkBlocks = new byte[32 * 32 * 32];
         
@@ -72,15 +74,13 @@ public class TerrainGenerator
             return chunkBlocks;
         }
         
-        float[] heightMap = _noiseCalculator.GetNoiseValues(chunkStartX, chunkStartZ, 32, 32);
+        float[] heightMap = _noiseCalculator.GetNoiseValues(chunkStartX, chunkStartZ, 32, 32, stepSize);
         
         // Herausfinden was der höchste und niedrigste Punkt in dieser Spalte ist
         float maxHeight = float.MinValue;
         float minHeight = float.MaxValue;
         
-        // ======================================================================
-        // Ab hier ist der Chunk in dem Bereich zwischen min und max der Heightmap
-        // ======================================================================
+        
         float[] caves3D = _noiseCalculator.GetCaves3D(chunkStartX, chunkStartY, chunkStartZ, 32, 32, 32);
         //_noiseCalculator.Dispose();
         
@@ -94,7 +94,7 @@ public class TerrainGenerator
                 for (byte y = 0; y < 32; y++)
                 {
                     // Wetkoordinate
-                    int globalY = chunkStartY + y;
+                    int globalY = chunkStartY + y * stepSize;
                     
                     // Indizes für die Arrays
                     ushort blockIndex = (ushort)(x * 32 * 32 + y * 32 + z);
@@ -113,14 +113,11 @@ public class TerrainGenerator
                     
                     // Wir subtrahieren die Höhlen von unserer Dichte!
                     density -= cavePower;
-    
-                    // ==========================================
+                    
                     // BLOCK PLATZIEREN BASIEREND AUF DICHTE
-                    // ==========================================
                     if (density > 0)
                     {
-                        // Der Block ist solide Materie! 
-                        // Je nachdem wie tief wir unter der Oberfläche sind (Dichte), wählen wir den Block:
+                        // Der Block ist solid
                         
                         if (density < 2 && globalY > 30) 
                         {
@@ -132,7 +129,7 @@ public class TerrainGenerator
                         }
                         else 
                         {
-                            chunkBlocks[blockIndex] = 2; // Stein (Tief im Inneren der Berge)
+                            chunkBlocks[blockIndex] = 2; // Stein
                         }
                     }
                     else
@@ -150,7 +147,7 @@ public class TerrainGenerator
     public void DebugExportNoiseMap(string filename = "debug_noisemap.png", int steps = 16)
     {
         int totalwidth = _mapLimit * 2 * 32;
-        float[] noiseValues = _noiseCalculator.GetNoiseValues(-_mapLimit*32, -_mapLimit*32, totalwidth, totalwidth);
+        float[] noiseValues = _noiseCalculator.GetNoiseValues(-_mapLimit*32, -_mapLimit*32, totalwidth, totalwidth, 1);
         
         float minNoise = noiseValues[0];
         float maxNoise = noiseValues[0];

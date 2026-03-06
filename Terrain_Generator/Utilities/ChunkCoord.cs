@@ -17,7 +17,7 @@ public struct ChunkCoord : IEquatable<ChunkCoord>
         LodLevel = Lod;
     }
 
-    public bool Equals(ChunkCoord other) => X == other.X && Y == other.Y && Z == other.Z;
+    public bool Equals(ChunkCoord other) => X == other.X && Y == other.Y && Z == other.Z && LodLevel == other.LodLevel;
     public override bool Equals(object? obj) => obj is ChunkCoord other && Equals(other);
     public override int GetHashCode() => HashCode.Combine(X, Y, Z, LodLevel);
     public static bool operator ==(ChunkCoord left, ChunkCoord right) => left.Equals(right);

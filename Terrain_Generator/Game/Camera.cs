@@ -18,7 +18,7 @@ public class Camera(Vector3 position)
     
     //Parameter für Kamera einstellung und Frustum Culling
     public float nearPlane = 0.1f;
-    public float farPlane = 1000f;
+    public float farPlane = 1500f;
     public float fovY = 45f;
     public float AspectRatio = 16f / 9f; // Default-Wert, wird aber in Renderer gesetzt beim start
     

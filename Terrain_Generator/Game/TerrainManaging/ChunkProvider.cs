@@ -64,13 +64,16 @@ public class ChunkProvider
             return;
         }
         
-        // Wenn der Chunkgenerator null zurückgibt ist der Chunk nur Luft oder 
-        // Nicht in der Welt 
-        if (_terrainGenerator.GenerateChunk(coord) == null)
+        // Chunk generieren (nur einmal aufrufen!)
+        byte[]? chunkBlocks = _terrainGenerator.GenerateChunk(coord);
+        
+        // Wenn der Chunkgenerator null zurückgibt ist der Chunk nur Luft oder
+        // nicht in der Welt. Trotzdem als leere Daten speichern, damit Nachbar-Chunks
+        // ihre HasAllNeighbors-Prüfung bestehen und gemesht werden können!
+        if (chunkBlocks == null)
         {
-            return;
+            chunkBlocks = new byte[32 * 32 * 32]; // Alles 0 = Luft
         }
-        byte[] chunkBlocks = _terrainGenerator.GenerateChunk(coord);
         OnChunkDataGenerated(coord, chunkBlocks);
     }
     
@@ -115,22 +118,19 @@ public class ChunkProvider
     
     private void TryQueueForMeshing(ChunkCoord coord)
     {
-        // A: Gibt es meine eigenen Block-Daten überhaupt schon?
+        //Selbstcheck um existenzkrisen zu vermeiden
         if (!Chunkdata.ContainsKey(coord)) return;
 
-        // B: Bin ich vielleicht schon längst in der Meshing-Queue oder fertig?
+        //Selbcheck fertig oder schon angefangen
         if (_queuedForMeshing.ContainsKey(coord)) return;
 
-        // C: Sind alle meine direkten Nachbarn im Dictionary?
+        //Sind direkte Nachbarn im Dictionary?
         if (!HasAllNeighbors(coord)) return;
 
         // WENN WIR HIER SIND: Jackpot! Der Chunk ist zu 100% bereit für das Meshing.
-    
-        // Thread-sicher markieren, dass wir ihn jetzt meshen (verhindert Doppel-Jobs)
         if (_queuedForMeshing.TryAdd(coord, 0))
         {
-            // Ab in den Meshing-Threadpool! 
-            // (Dein Mesher kann sich die int[] Daten jetzt gefahrlos aus _chunkDataDict holen)
+            //Meshing anfangen
             MeshingQueue.Add(coord); 
         }
     }
@@ -144,7 +144,26 @@ public class ChunkProvider
 
             if (Chunkdata.TryGetValue(coord, out byte[] BlockData))
             {
-                BaseMesher newMesh = new Lod0Mesher(coord, BlockData);
+                BaseMesher newMesh;
+                
+                switch (coord.LodLevel)
+                {
+                    case 0:
+                        newMesh = new Lod0Mesher(coord, BlockData);
+                        break;
+                    
+                    case 1:
+                        newMesh = new Lod1Mesher(coord, BlockData);
+                        break;
+                    
+                    case 2:
+                        newMesh = new Lod2Mesher(coord, BlockData);
+                        break;
+                    
+                    default:
+                        throw new Exception($"Ungültiges LOD-Level {coord.LodLevel} für Chunk {coord}");
+                }
+                
                 UploadQueue.Add(newMesh);
                 _queuedForMeshing.TryRemove(coord, out _);
             }

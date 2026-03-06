@@ -14,28 +14,24 @@ public struct Frustum
     public Plane FarFace;
     public Plane NearFace;
     
-    private const int CHUNK_WIDTH = 32;
-    private const int CHUNK_DEPTH = 32;
-    private const int CHUNK_HEIGHT = 32;
+    
     
     public bool isInFrustum(ChunkCoord chunk)
     {
         //Mittelpunkt (Center) des Chunks berechnen
-        // Chunkcoord gibt die KOordinaten aus dem Chunk grid an
-        // 16 + 32*x/y geht gut
+        // Chunkcoord gibt die Koordinaten aus dem Chunk grid an
+        // LOD-Level bestimmt den Skalierungsfaktor: LOD 0 = 1, LOD 1 = 2, LOD 2 = 3
+        int scale = chunk.LodLevel + 1;
+        int halfSize = 16 * scale;
         
-        int x = 16 + 32*chunk.X;
-        int y = 16 + 32*chunk.Y;
-        int z = 16 + 32*chunk.Z;
+        int x = halfSize + 32 * scale * chunk.X;
+        int y = halfSize + 32 * scale * chunk.Y;
+        int z = halfSize + 32 * scale * chunk.Z;
         
         Vector3 center = new Vector3(x, y, z);
-
-        //Halbe Ausdehnung (Extents) für die Box berechnen
-        Vector3 extents = new Vector3(
-            CHUNK_WIDTH / 2f,
-            CHUNK_HEIGHT / 2f,
-            CHUNK_DEPTH / 2f
-        );
+        
+        //Lod0 -> 16, Lod1 -> 32, Lod2 -> 48
+        Vector3 extents = new Vector3(halfSize, halfSize, halfSize);
 
         //Prüfen, ob die Box VOR allen 6 Ebenen liegt
         return IsOnOrForwardPlane(this.NearFace, center, extents) &&

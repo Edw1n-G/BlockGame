@@ -4,20 +4,25 @@ namespace Basics.Game.TerrainManaging.Generation;
 
 public class NoiseCalculator : IDisposable
 {
-    private const int Seed = 1337;
-    
     // Terrain Config
     private const float BaseHeight = 1f;     // Average height
     private const float Amplitude = 70f;    // Height Multiplier
-    private const float FeatureScale = 10f; // Detail. je kleiner, desto mehr Details, aber auch mehr Rechenzeit
-    private const float Scale = 23f;         // End result scale
+    private const float FeatureScale = 9f; // Detail. je kleiner, desto mehr Details, aber auch mehr Rechenzeit
+    private const float Scale = 20f;         // End result scale
     
-    private int _maxMapSize = 1;
-    private int _mapLimit;
+    //Das soll vieleicht maybe vehindern das jeder Chunk seine eigene Instanz von NoiseCalculator erstellt
+    private static readonly Lazy<NoiseCalculator> _instance = new(() => new NoiseCalculator());
+    public static NoiseCalculator Instance => _instance.Value;
+    
     private FastNoise? _superSimplexNode;
     private FastNoise? _domainWarpSuperSimplexNode;
     private FastNoise? _domainWarpFractalProgressiveNode;
     private FastNoise? _scaleNode;
+    
+    private NoiseCalculator()
+    {
+        SetNoiseParameters();
+    }
     
     public void Dispose()
     {
@@ -25,12 +30,6 @@ public class NoiseCalculator : IDisposable
         _domainWarpSuperSimplexNode.Dispose();
         _domainWarpFractalProgressiveNode.Dispose();
         _scaleNode?.Dispose();
-    }
-
-    public void SetMapSize(int size)
-    {
-        _maxMapSize = size;
-        _mapLimit = size / 2;
     }
 
     private void SetNoiseParameters()
@@ -79,7 +78,7 @@ public class NoiseCalculator : IDisposable
         float[] wPositions = new float[totalCount];
 
         // Torus-Breite in Blöcken
-        float totalWidth = _maxMapSize * 32;
+        float totalWidth = GameSettings.MapSize * 32;
 
         int index = 0;
         for (int zi = 0; zi < sizeZ; zi++)
@@ -111,7 +110,8 @@ public class NoiseCalculator : IDisposable
         }
 
         float[] noiseOutput = new float[totalCount];
-        _scaleNode!.GenPositionArray4D(noiseOutput, xPositions, yPositions, zPositions, wPositions, 0, 0, 0, 0, Seed);
+        _scaleNode!.GenPositionArray4D(noiseOutput, xPositions, yPositions, zPositions, wPositions,
+                                                    0, 0, 0, 0, GameSettings.Seed);
 
         for (int i = 0; i < totalCount; i++)
             noiseOutput[i] = BaseHeight + noiseOutput[i] * Amplitude;

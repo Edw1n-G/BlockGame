@@ -178,7 +178,6 @@ public class Lod0Mesher : BaseMesher
         if ((uint)x < 32u && (uint)y < 32u && (uint)z < 32u)
         {
             // Blitzschneller Array-Zugriff. 
-            // 1024 ist 32*32 vorab ausgerechnet, das spart Multiplikationen!
             return _blockData[x * 1024 + y * 32 + z] != 0; 
         }
 

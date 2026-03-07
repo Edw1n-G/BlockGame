@@ -72,7 +72,7 @@ public class ChunkProvider
         // ihre HasAllNeighbors-Prüfung bestehen und gemesht werden können!
         if (chunkBlocks == null)
         {
-            chunkBlocks = new byte[32 * 32 * 32]; // Alles 0 = Luft
+            chunkBlocks = new byte[32768]; // Alles 0 = Luft
         }
         OnChunkDataGenerated(coord, chunkBlocks);
     }

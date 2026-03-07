@@ -8,18 +8,14 @@ namespace Basics.Game.TerrainManaging.Generation;
 
 public class TerrainGenerator
 {
-    private int _maxMapSize = 1; // Maximale Anzahl von Chunks in x und z Richtung. Dummy wert
-    private int _mapLimit;
-    private int _radius; //Um 0/0 als Mittelpunkt zu haben
-    
-    
     // Theoretische Grenzen aus NoiseCalculator: BaseHeight ± Amplitude
     // Noise liefert Werte im Bereich -1..1, also: Höhe = BaseHeight + noise * Amplitude
     private const float MaxPossibleHeight = 1f + 70f;  // = 41  (BaseHeight + Amplitude)
     private const float MinPossibleHeight = 1f - 70f;  // = -39 (BaseHeight - Amplitude)
     private const float CaveSafetyMargin = 12f;         // 4 Blöcke Schutzzone + 8 Blöcke Übergang
     
-    private readonly NoiseCalculator _noiseCalculator = new NoiseCalculator();
+    //Anstatt dass jeder Chunk seine eigenen NoiseCalculator erstellt greift jeder Chunk auf eine Instanz zu
+    private NoiseCalculator _noiseCalculator => NoiseCalculator.Instance;
     
     /// <summary>
     /// Setzt die Max Größe der Karte
@@ -27,25 +23,16 @@ public class TerrainGenerator
     /// @param Menge der Chunks jeweils in die positive und negative Richtung
     /// @param mapLimit die Grenze der Karte in Blöcken
     /// </summary>
-    public void SetMapSize(int size)
-    {
-        _maxMapSize = size;
-        _radius = _maxMapSize/2;
-        _mapLimit = _radius;
-        _noiseCalculator.SetMapSize(size);
-
-    }
     
     /// <summary>
-    /// Bekommt den Index des Chunkes mit 0/0 als Mittelpunkt
+    /// Bekommt den Index des Chunkes
     /// rechnet den ChunkIndex in die Weltposition
     /// generiert alles Blöcke des Chunkes mit 4D Noise
     /// wird in @param ChunkBlocks gespeichert und an den ChunkMesher übergeben, der die Geometrie erstellt
-    /// Berechnung der 4D Koordinate abhängig von @param mapLimit, damit die Karte an den Grenzen nahtlos verbunden ist (Torus Mapping)
     /// </summary>
     public byte[] GenerateChunk(ChunkCoord coord)
     {
-        if (Math.Abs(coord.X) > _maxMapSize || Math.Abs(coord.Z) > _maxMapSize)
+        if (Math.Abs(coord.X) > GameSettings.MapSize || Math.Abs(coord.Z) > GameSettings.MapSize)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("WARNUNG: Chunk außerhalb der Weltlimits angefragt.");
@@ -53,13 +40,13 @@ public class TerrainGenerator
             return null;
         }
 
-        int stepSize = 1 << coord.LodLevel + 1; // lod0 -> 1, lod1 -> 2, lod2 -> 4, lod3 -> 8,lod4 -> 16
-        int chunkStartX = coord.X * 32 * stepSize;
-        int chunkStartY = coord.Y * 32 * stepSize;
-        int chunkStartZ = coord.Z * 32 * stepSize;
-        int chunkTopY = chunkStartY + 32 * stepSize - 1; // Oberster Block im Chunk (skaliert nach LOD)
+        int stepSize = (1 << coord.LodLevel); // lod0 -> 1, lod1 -> 2, lod2 -> 4, lod3 -> 8,lod4 -> 16
+        int chunkStartX = coord.X * stepSize * 32;
+        int chunkStartY = coord.Y * stepSize * 32;
+        int chunkStartZ = coord.Z * stepSize * 32;
+        int chunkTopY = chunkStartY + stepSize - 1; // Oberster Block im Chunk (skaliert nach LOD)
     
-        byte[] chunkBlocks = new byte[32 * 32 * 32];
+        byte[] chunkBlocks = new byte[32768]; // 32*32*32 Blöcke pro Chunk
         
         // Chunk-Boden liegt über dem maximal möglichen Terrain
         if (chunkStartY > MaxPossibleHeight)
@@ -97,10 +84,10 @@ public class TerrainGenerator
                     int globalY = chunkStartY + y * stepSize;
                     
                     // Indizes für die Arrays
-                    ushort blockIndex = (ushort)(x * 32 * 32 + y * 32 + z);
+                    ushort blockIndex = (ushort)(x * 1024 + y * 32 + z);
                     
                     // FastNoise UniformGrid3D index
-                    int noise3DIndex = x + y * 32 + z * 32 * 32; 
+                    int noise3DIndex = x + y * 32 + z * 1024; 
                     
                     float density = baseHeight - globalY;
     
@@ -146,8 +133,8 @@ public class TerrainGenerator
     
     public void DebugExportNoiseMap(string filename = "debug_noisemap.png", int steps = 16)
     {
-        int totalwidth = _mapLimit * 2 * 32;
-        float[] noiseValues = _noiseCalculator.GetNoiseValues(-_mapLimit*32, -_mapLimit*32, totalwidth, totalwidth, 1);
+        int totalwidth = GameSettings.MapSize * 32;
+        float[] noiseValues = _noiseCalculator.GetNoiseValues(-totalwidth/2, -totalwidth/2, totalwidth, totalwidth, 1);
         
         float minNoise = noiseValues[0];
         float maxNoise = noiseValues[0];

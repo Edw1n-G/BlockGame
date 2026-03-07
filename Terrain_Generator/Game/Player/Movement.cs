@@ -13,7 +13,6 @@ public class Movement
     private static Vector2 _lastMousePosition;
     private static Camera camera;
     
-    private const float Speed = 30f;
     private const float Sensitivity = 0.05f; // Empfindlichkeit der Mausbewegung
     
     public static void SetPlayerCamera(Camera playerCamera)
@@ -51,7 +50,7 @@ public class Movement
         // --- Bewegung ausführen ---
         if (direction != Vector3.Zero)
         {
-            direction = Vector3.Normalize(direction) * Speed * (float)deltaTime;
+            direction = Vector3.Normalize(direction) * GameSettings.PlayerMoveSpeed * (float)deltaTime;
             camera.Move(direction);
         }
     }
@@ -66,8 +65,8 @@ public class Movement
         
         _lastMousePosition = Mouseposition;
         
-        float yaw = deltaX * Sensitivity;
-        float pitch = deltaY * Sensitivity;
+        float yaw = deltaX * GameSettings.MouseSensitivity;
+        float pitch = deltaY * GameSettings.MouseSensitivity;
 
         camera.Rotate(yaw, pitch);
     }

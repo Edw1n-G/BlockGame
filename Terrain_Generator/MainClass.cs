@@ -5,6 +5,7 @@ using Basics.Configurations;
 using Basics.Game;
 using Basics.Game.TerrainManaging;
 using Basics.Game.TerrainManaging.Generation;
+using Basics.Game.UI;
 using Silk.NET.Input; //Für die Tastatureingabe
 using Silk.NET.Maths; //Für die Vector2D Klasse
 using Egui.Silk.NET; // Für die Egui-Integration mit Silk.NET
@@ -99,7 +100,6 @@ public class MainClass
         // Terrain-Pipeline aufbauen:
         // TerrainGenerator erzeugt Chunk-Daten
         _terrainGenerator = new TerrainGenerator();
-        _terrainGenerator.SetMapSize(100);
         
         // ChunkProvider verwaltet den Chunk-Lebenszyklus (Laden/Generieren/Speichern)
         int meshingThreads = CoreAvailability.GetChunkMeshingCores();
@@ -143,12 +143,6 @@ public class MainClass
     {
         _playerRenderer.FramebufferResize(newSize);
     }
-    
-    //========================================================================
-    //Muss noch in eine dedizierte Klasse für Einstellungen/Sachen die nicht direkt mit dem Spiel zu tun haben
-    //========================================================================
-    
-    
     
     // Debug-Camera toggeln
     private static void ToggleDebugCamera()

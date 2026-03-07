@@ -46,7 +46,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Game\UI\" />
       <Folder Include="Setup\" />
     </ItemGroup>
 

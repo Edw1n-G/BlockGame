@@ -1,15 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Threading.Tasks;
-using Basics.Game.TerrainManaging;
-using Basics.Graphics;
+﻿using Basics.Game.TerrainManaging;
 using Basics.Utilities;
-using Silk.NET.OpenGL;
-//=============================================
-// THIS CODE IS BASED ON AI - USE WITH CAUTION
-//=============================================
-// Modified to use parallel chunk generation
+
 namespace Basics.Game;
 
 /// <summary>
@@ -21,10 +12,10 @@ public class ChunkRequestor
     private readonly ChunkProvider _chunkProvider;
     private readonly Camera _camera;
     private readonly ParallelOptions _parallelOptions;
-    private int _renderDistance = 30; // Overall distanz wo Chunks angefragt werden
-    private int _lod1Distance = 15; // Ab wann Lod1 angefragt wird
-    private int _lod2Distance = 20; // Ab wann Lod2 angefragt wird
-    private int _verticalRenderDistance = 10; // Vertikale Render-Distanz
+    private int _renderDistance = GameSettings.RenderDistance;
+    private int _lod1Distance = GameSettings.Lod1Distance;
+    private int _lod2Distance = GameSettings.Lod2Distance;
+    private int _verticalRenderDistance = GameSettings.VerticalRenderDistance;
     private HashSet<ChunkCoord> _activeChunks = new();
     private readonly object _chunkLock = new();
 
@@ -100,4 +91,17 @@ public class ChunkRequestor
             }
         }
     }
+    
+    public void UnloadAllChunks()
+    {
+        lock (_chunkLock)
+        {
+            foreach (ChunkCoord chunk in _activeChunks)
+            {
+                _chunkProvider.UnloadChunk(chunk);
+            }
+            _activeChunks.Clear();
+        }
+    }
+    
 }

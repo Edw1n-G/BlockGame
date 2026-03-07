@@ -1,8 +1,7 @@
-using Egui;
-using Basics.Game;
 using Basics.Window;
+using Egui;
 
-namespace Basics.Graphics
+namespace Basics.Game.UI
 {
     public class UIManager
     {
@@ -28,18 +27,39 @@ namespace Basics.Graphics
                 {
                     ui.Heading("EdwinCraft Debug");
 
-                    int dist = _chunkRequestor.RenderDistance;
+                    int dist = GameSettings.RenderDistance;
                     
                     if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, 1, 256).Text("Render Distance")).Changed)
                     {
-                        _chunkRequestor.RenderDistance = dist;
+                        GameSettings.SetRenderDistance(dist);
                     }
 
-                    if (ui.Button("Force Chunk Update").Clicked)
+                    if (ui.Button("Unload All Chunks").Clicked)
                     {
-                        System.Console.WriteLine("Chunks neu laden...");
+                        _chunkRequestor.UnloadAllChunks();
                     }
                 });
+            
+            new Egui.Containers.Window("PlayerSettings")
+                .Resizable((true, true))
+                .Show(ctx, ui =>
+                {
+                    ui.Heading("Player Settings");
+
+                    float speed = GameSettings.PlayerMoveSpeed;
+                    
+                    if (ui.Add(new Egui.Widgets.Slider<float>(ref speed, 1f, 100f).Text("Player Speed")).Changed)
+                    {
+                        GameSettings.SetPlayerMoveSpeed(speed);
+                    }
+                    
+                    float sensitivity = GameSettings.MouseSensitivity;
+                    if (ui.Add(new Egui.Widgets.Slider<float>(ref sensitivity, 0.01f, 1f).Text("Mouse Sensitivity")).Changed)
+                    {
+                        GameSettings.SetMouseSensitivity(sensitivity);
+                    }
+                });
+            
             new Egui.Containers.Window("PlayerInformation")
                 .Resizable((true, true))
                 .Show(ctx, ui =>

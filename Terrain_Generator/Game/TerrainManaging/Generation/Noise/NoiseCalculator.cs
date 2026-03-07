@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 
 namespace Basics.Game.TerrainManaging.Generation;
 
@@ -72,11 +73,12 @@ public class NoiseCalculator : IDisposable
         if (stepSize < 1) stepSize = 1;
 
         int totalCount = sizeX * sizeZ;
-        float[] xPositions = new float[totalCount];
-        float[] yPositions = new float[totalCount];
-        float[] zPositions = new float[totalCount];
-        float[] wPositions = new float[totalCount];
-
+        // ArrayPool damit nicht jedes Array neu erstellt und vom GC gelöscht wird, sondern wiederbenutzen 
+        float[] xPositions = ArrayPool<float>.Shared.Rent(totalCount);
+        float[] yPositions = ArrayPool<float>.Shared.Rent(totalCount);
+        float[] zPositions = ArrayPool<float>.Shared.Rent(totalCount);
+        float[] wPositions = ArrayPool<float>.Shared.Rent(totalCount);
+        
         // Torus-Breite in Blöcken
         float totalWidth = GameSettings.MapSize * 32;
 
@@ -115,7 +117,12 @@ public class NoiseCalculator : IDisposable
 
         for (int i = 0; i < totalCount; i++)
             noiseOutput[i] = BaseHeight + noiseOutput[i] * Amplitude;
-
+        
+        ArrayPool<float>.Shared.Return(xPositions);
+        ArrayPool<float>.Shared.Return(yPositions);
+        ArrayPool<float>.Shared.Return(zPositions);
+        ArrayPool<float>.Shared.Return(wPositions);
+        
         return noiseOutput;
     }
     

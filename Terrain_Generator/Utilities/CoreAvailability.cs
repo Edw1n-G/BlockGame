@@ -42,8 +42,8 @@ public class CoreAvailability
     
     static void DefaultConfig()
     {
-        _terrainGenerationCores = AvailableCores/2;
-        _ChunkMeshingCores = AvailableCores/2;
+        _terrainGenerationCores = AvailableCores/2 + 4;
+        _ChunkMeshingCores = AvailableCores/2 - 4;
         _exampleTaskCores = 0; // Keine Kerne für andere Aufgaben reservieren
     }
 

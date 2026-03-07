@@ -26,6 +26,7 @@ public class BaseMesher : IDisposable
     private GL _gl;
     
     private bool _uploaded = false;
+    public bool IsEmpty => _indicesCount == 0;
     
     // Für Chunks die keine AO benutzten
     protected void AddIndices(uint baseIndex)
@@ -82,7 +83,17 @@ public class BaseMesher : IDisposable
     {
         if (_uploaded) return;
         _gl = gl;
-
+        
+        if (IsEmpty)
+        {
+            this._vertices?.Clear();
+            this._indices?.Clear();
+            this._vertices = null;
+            this._indices = null;
+            _uploaded = true;
+            return; 
+        }
+        
         // Buffer erstellen 
         _ebo = new BufferObject<uint>(_gl, _indices.ToArray(), BufferTargetARB.ElementArrayBuffer);
         _vbo = new BufferObject<byte>(_gl, _vertices.ToArray(), BufferTargetARB.ArrayBuffer);

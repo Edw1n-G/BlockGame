@@ -68,7 +68,7 @@ public class TerrainGenerator
         float minHeight = float.MaxValue;
         
         
-        float[] caves3D = _noiseCalculator.GetCaves3D(chunkStartX, chunkStartY, chunkStartZ, 32, 32, 32);
+        //float[] caves3D = _noiseCalculator.GetCaves3D(chunkStartX, chunkStartY, chunkStartZ, 32, 32, 32);
         //_noiseCalculator.Dispose();
         
         for (byte x = 0; x < 32; x++)
@@ -87,19 +87,19 @@ public class TerrainGenerator
                     ushort blockIndex = (ushort)(x * 1024 + y * 32 + z);
                     
                     // FastNoise UniformGrid3D index
-                    int noise3DIndex = x + y * 32 + z * 1024; 
+                    //int noise3DIndex = x + y * 32 + z * 1024; 
                     
                     float density = baseHeight - globalY;
     
                     // Höhlen-Logik anwenden:
                     // Nur unterhalb der Oberfläche Höhlen erlauben (Schutzzone an der Oberfläche)
                     // Je tiefer unter der Oberfläche, desto stärker die Höhlen
-                    float depthBelowSurface = baseHeight - globalY;
-                    float caveAttenuation = MathF.Max(0, MathF.Min(1, (depthBelowSurface - 4f) / 8f));
-                    float cavePower = MathF.Abs(caves3D[noise3DIndex]) * 20f * caveAttenuation;
+                    //float depthBelowSurface = baseHeight - globalY;
+                    //float caveAttenuation = MathF.Max(0, MathF.Min(1, (depthBelowSurface - 4f) / 8f));
+                    //float cavePower = MathF.Abs(caves3D[noise3DIndex]) * 20f * caveAttenuation;
                     
                     // Wir subtrahieren die Höhlen von unserer Dichte!
-                    density -= cavePower;
+                    density -= 0;
                     
                     // BLOCK PLATZIEREN BASIEREND AUF DICHTE
                     if (density > 0)

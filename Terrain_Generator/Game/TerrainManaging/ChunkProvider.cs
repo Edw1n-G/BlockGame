@@ -1,7 +1,5 @@
 ﻿using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Threading.Channels;
 using Basics.Game.TerrainManaging.Generation;
 using Basics.Game.TerrainManaging.Meshing;
 using Basics.Utilities;
@@ -21,8 +19,19 @@ public class ChunkProvider
     public static readonly ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
     public static ConcurrentDictionary<ChunkCoord, byte[]> Chunkdata = new();//Die Blockdaten
     private ConcurrentDictionary<ChunkCoord, byte> _queuedForMeshing = new();// Nur damit nicht mehrere Threads den selben Chunk meshen
-    public BlockingCollection<ChunkCoord> MeshingQueue = new(); // Chunks die bereit für das Meshing sind (haben alle Nachbarn und ihre Blockdaten)
-    public BlockingCollection<BaseMesher> UploadQueue = new(100); // Chunks die fertig gemesht sind und auf die GPU sollen
+    
+    // Chunks die bereit für das Meshing sind (haben alle Nachbarn und ihre Blockdaten)
+    public Channel<ChunkCoord> MeshingQueue = Channel.CreateUnbounded<ChunkCoord>(new UnboundedChannelOptions { 
+        SingleReader = false, 
+        SingleWriter = false 
+    });
+    
+    // Chunks die fertig gemesht sind und auf die GPU sollen
+    public Channel<BaseMesher> UploadQueue = Channel.CreateUnbounded<BaseMesher>(new UnboundedChannelOptions { 
+        SingleReader = true, // Renderer is the only thread that reads from this
+        SingleWriter = false 
+    });
+    
     public ConcurrentQueue<BaseMesher> UnloadQueue = new(); // Chunks die wieder aus der GPU raus müssen
     private readonly TerrainGenerator _terrainGenerator;
     
@@ -131,14 +140,14 @@ public class ChunkProvider
         if (_queuedForMeshing.TryAdd(coord, 0))
         {
             //Meshing anfangen
-            MeshingQueue.Add(coord); 
+            MeshingQueue.Writer.TryWrite(coord); 
         }
     }
     
     private void MeshingWorkerLoop()
     {
         // GetConsumingEnumerable() blockiert automatisch wenn nichts drinne ist und wird selbst aktiv wenn man add aufruft
-        foreach (ChunkCoord coord in MeshingQueue.GetConsumingEnumerable())
+        foreach (ChunkCoord coord in MeshingQueue.Reader.ReadAllAsync().ToBlockingEnumerable())
         {
             if (!_isRunning) break;
 
@@ -164,7 +173,7 @@ public class ChunkProvider
                         throw new Exception($"Ungültiges LOD-Level {coord.LodLevel} für Chunk {coord}");
                 }
                 
-                UploadQueue.Add(newMesh);
+                UploadQueue.Writer.TryWrite(newMesh);
                 _queuedForMeshing.TryRemove(coord, out _);
             }
         }

@@ -37,7 +37,7 @@ public class Renderer
 
 
     long startTimestamp = Stopwatch.GetTimestamp();
-    long maxTicks = (long)(4.0 / 1000.0 * Stopwatch.Frequency);
+    long maxTicks = (long)(16.0 / 1000.0 * Stopwatch.Frequency);
     private int totalchunks;
     private int shownchunks;
     
@@ -56,11 +56,19 @@ public class Renderer
         Frustum frustum = _terrainshader.Use(_gl, _camera);
         _terrainshader.BindTexture(_terrainTexture);
 
-        while (ChunkProvider.UploadQueue.TryTake(out BaseMesher? chunk))
+        while (ChunkProvider.UploadQueue.Reader.TryRead(out BaseMesher? chunk))
         {
             // Wenn der Chunk nicht mehr in Chunkdata ist, wurde er schon entladen
             if (!ChunkProvider.Chunkdata.ContainsKey(chunk.ChunkPosition))
             {
+                continue;
+            }
+            
+            if (chunk.IsEmpty)
+            {
+                //Leere chunks werden nicht hochgeladen aber trtzdem als fertig markiert
+                ChunkProvider.LoadedChunks.TryAdd(chunk.ChunkPosition, chunk);
+                //Wenn chunk leer war schleife weitermachen
                 continue;
             }
             
@@ -74,8 +82,11 @@ public class Renderer
             }
         }
 
-        foreach (BaseMesher chunk in ChunkProvider.LoadedChunks.Values)
+        foreach (var kvp in ChunkProvider.LoadedChunks) 
         {
+            BaseMesher chunk = kvp.Value;
+            
+            if (chunk.IsEmpty) continue;
             //totalchunks++;
             if (!frustum.isInFrustum(chunk.ChunkPosition)) continue;
             //shownchunks++;

@@ -4,8 +4,8 @@ using System;
 using System.IO;
 using System.Numerics;
 using Basics.Game;
-using Basics.Setup;
 using Basics.Utilities;
+using Basics.Window;
 
 namespace Basics.Graphics;
 

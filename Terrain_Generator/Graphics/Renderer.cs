@@ -1,5 +1,5 @@
 ﻿using Silk.NET.OpenGL; //Für die OpenGL Funktionen
-using Basics.Setup; //Für die Color Klasse
+//Für die Color Klasse
 using System.Drawing;
 using System.Diagnostics;// Für Upload Limits
 using Basics.Game;

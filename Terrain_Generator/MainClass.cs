@@ -10,9 +10,9 @@ using Silk.NET.Maths; //Für die Vector2D Klasse
 using Egui.Silk.NET; // Für die Egui-Integration mit Silk.NET
 using Egui;          // Für die Egui-UI-Komponenten
 using Basics.Graphics;
-using Basics.Setup;
 using Basics.Input;
 using Basics.Utilities;
+using Basics.Window;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 
@@ -90,10 +90,7 @@ public class MainClass
         //My own Input Manager
         InputManager.Initialize(input);   
             
-        //Aktion -> Methode Mappen
-        InputManager.SetActionBindings(Actions.Close, () => WindowSetup.Window.Close());
-        InputManager.SetActionBindings(Actions.Fullscreen, ToggleFullscreen);
-        InputManager.SetActionBindings(Actions.Borderless, ToggleBorderless);
+        
         InputManager.SetActionBindings(Actions.ToogleDebugCamera, ToggleDebugCamera);
         
         // Texture Mapping lesen und in den speicher legen
@@ -151,45 +148,7 @@ public class MainClass
     //Muss noch in eine dedizierte Klasse für Einstellungen/Sachen die nicht direkt mit dem Spiel zu tun haben
     //========================================================================
     
-    //Funktionen die durch Tasten getriggert werden können.
-    private static void ToggleFullscreen()
-    {   
-        if (WindowSetup.Window.WindowState == WindowState.Fullscreen)
-        {
-            // Raus aus Vollbild → Zurück zum normalen Fenster
-            WindowSetup.Window.WindowState = WindowState.Normal;
-            WindowSetup.Window.WindowBorder = WindowBorder.Resizable;
-        }
-        else
-        {
-            // Bevor wir in den Fullscreen gehen, setzen wir das Fenster in 
-            // einen sauberen Grundzustand. So merkt sich das System keine "falschen"
-            // Borderless-Eigenschaften, die später zu Glitches führen.
-            WindowSetup.Window.WindowState = WindowState.Normal;
-            WindowSetup.Window.WindowBorder = WindowBorder.Resizable;
-        
-            // Jetzt sicher in den Vollbildmodus wechseln
-            WindowSetup.Window.WindowState = WindowState.Fullscreen;
-        }
-    }
-
-    private static void ToggleBorderless()
-    {
-        // FIX 2: Hier das logische ODER (||) nutzen
-        if (WindowSetup.Window.WindowBorder == WindowBorder.Hidden || WindowSetup.Window.WindowState == WindowState.Fullscreen)
-        {
-            // Zurück zum normalen kleinen Fenster MIT Rahmen
-            WindowSetup.Window.WindowState = WindowState.Normal;
-            WindowSetup.Window.WindowBorder = WindowBorder.Resizable;
-        }
-        else
-        {
-            // Rein in den Borderless-Windowed Modus
-            WindowSetup.Window.WindowState = WindowState.Normal;   // Zuerst ent-maximieren
-            WindowSetup.Window.WindowBorder = WindowBorder.Hidden; // Dann Rahmen ausblenden
-            WindowSetup.Window.WindowState = WindowState.Maximized;// Dann über den Bildschirm strecken
-        }
-    }
+    
     
     // Debug-Camera toggeln
     private static void ToggleDebugCamera()

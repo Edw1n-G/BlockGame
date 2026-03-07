@@ -1,6 +1,6 @@
 using Egui;
 using Basics.Game;
-using Basics.Setup;
+using Basics.Window;
 
 namespace Basics.Graphics
 {

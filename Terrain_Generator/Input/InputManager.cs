@@ -3,7 +3,8 @@ using System.Numerics;
 using Silk.NET.Windowing;
 
 namespace Basics.Input;
-using Basics.Setup; // Fenstereinstelungen
+
+// Fenstereinstelungen
 using Silk.NET.Input; //Für die Tastatureingabe
 using System.Linq;
 using System;

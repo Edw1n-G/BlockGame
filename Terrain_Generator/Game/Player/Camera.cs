@@ -24,18 +24,18 @@ public class Camera(Vector3 position)
     
     // Event das gefeuert wird, wenn der Spieler einen neuen Chunk betritt
     public event Action<ChunkCoord>? OnChunkChanged;
-    private ChunkCoord _currentChunkCoord = GetChunkCoord(position);
+    public ChunkCoord currentChunkCoord;
 
     /// <summary>
     /// Feuert das OnChunkChanged Event manuell, z.B. beim Spielstart
     /// </summary>
     public void ForceChunkUpdate()
     {
-        _currentChunkCoord = GetChunkCoord(Position);
-        OnChunkChanged?.Invoke(_currentChunkCoord);
+        currentChunkCoord = GetChunkCoord(Position);
+        OnChunkChanged?.Invoke(currentChunkCoord);
     }
     
-    private static ChunkCoord GetChunkCoord(Vector3 pos)
+    public ChunkCoord GetChunkCoord(Vector3 pos)
     {
         // Integer-Division die auch für negative Koordinaten korrekt funktioniert
         int cx = (int)MathF.Floor(pos.X / 32f);
@@ -61,10 +61,10 @@ public class Camera(Vector3 position)
         
         // Prüfen ob wir in einen neuen Chunk gewechselt haben
         ChunkCoord newChunk = GetChunkCoord(Position);
-        if (newChunk != _currentChunkCoord)
+        if (newChunk != currentChunkCoord)
         {
-            _currentChunkCoord = newChunk;
-            OnChunkChanged?.Invoke(_currentChunkCoord);
+            currentChunkCoord = newChunk;
+            OnChunkChanged?.Invoke(currentChunkCoord);
         }
     }
     

@@ -20,7 +20,9 @@ public enum Actions
     Left,
     Right,
     Forward,
-    Backward
+    Backward,
+    ToggleMouseLock,
+    MouseClickTest
 }
 
 public class InputManager
@@ -28,6 +30,7 @@ public class InputManager
     private static IKeyboard _keyboard;
     
     private static IMouse _mouse;
+    private static Boolean _isMouseLocked = false;
     
     public static void Initialize(IInputContext input)
     {
@@ -42,11 +45,17 @@ public class InputManager
         if (_mouse != null)
         {
             _mouse.Cursor.CursorMode = CursorMode.Raw; //Mauszeiger unsichtbar und unbegrenzt
+            _isMouseLocked = true;
             _mouse.MouseMove += OnMouseMove;
             _mouse.Scroll += OnMouseWheel;
+            _mouse.Click += OnMouseClick;
         }
         
         DefaultKeyBindings();
+        DefaultMouseBindings();
+        
+        SetActionBindings(Actions.ToggleMouseLock, ToggleMouseLock);
+        SetActionBindings(Actions.MouseClickTest, MouseClickTest);
     }
     
     //Funktionen zum Verwalten der Tastenbelegung Mapping Key -> Aktion
@@ -65,6 +74,8 @@ public class InputManager
         _keyBindings.Add(Actions.Right, Key.D);
         _keyBindings.Add(Actions.Forward, Key.W);
         _keyBindings.Add(Actions.Backward, Key.S);
+        _keyBindings.Add(Actions.ToggleMouseLock, Key.F);
+        
     }
     
     public static void SetkeyBindings(Actions action, Key key) //Dictonary Updaten
@@ -77,6 +88,13 @@ public class InputManager
         {
             _keyBindings.Add(action, key);
         }
+    }
+    
+    private static Dictionary<Actions, MouseButton> _mouseBindings = new Dictionary<Actions, MouseButton>();
+    
+    private static void DefaultMouseBindings()
+    {
+        _mouseBindings.Add(Actions.MouseClickTest, MouseButton.Left);
     }
     //==========================================================
     
@@ -112,6 +130,12 @@ public class InputManager
         {
             return _keyboard.IsKeyPressed(key);
         }
+        
+        if (_mouse != null && _mouseBindings.TryGetValue(action, out MouseButton button))
+        {
+            if (_mouse.IsButtonPressed(button)) return true;
+        }
+        
         return false;
     }
     //==========================================================
@@ -151,5 +175,42 @@ public class InputManager
     private static unsafe void OnMouseWheel(IMouse mouse, ScrollWheel scrollWheel)
     {
         
+    }
+    
+    private static void OnMouseClick(IMouse mouse, MouseButton button, Vector2 pos)
+    {
+        // Check if the clicked button is bound to an action
+        foreach (var binding in _mouseBindings)
+        {
+            if (binding.Value == button)
+            {
+                // If yes, invoke the corresponding logic
+                if (_actionBindings.TryGetValue(binding.Key, out Action callback))
+                {
+                    callback?.Invoke();
+                }
+            }
+        }
+    }
+    
+    private static void ToggleMouseLock()
+    {
+        if (_mouse == null) return;
+        
+        if (_isMouseLocked)
+        {
+            _mouse.Cursor.CursorMode = CursorMode.Normal; //Mauszeiger sichtbar und begrenzt
+            _isMouseLocked = false;
+        }
+        else
+        {
+            _mouse.Cursor.CursorMode = CursorMode.Raw; //Mauszeiger unsichtbar und unbegrenzt
+            _isMouseLocked = true;
+        }
+    }
+
+    private static void MouseClickTest()
+    {
+        Console.WriteLine("Mouse Clicked!");
     }
 }

@@ -1,15 +1,19 @@
 ﻿using System;
 using System.Numerics;
+using System.Reflection;
 using Basics.Configurations;
 using Basics.Game;
 using Basics.Game.TerrainManaging;
 using Basics.Game.TerrainManaging.Generation;
 using Silk.NET.Input; //Für die Tastatureingabe
 using Silk.NET.Maths; //Für die Vector2D Klasse
+using Egui.Silk.NET; // Für die Egui-Integration mit Silk.NET
+using Egui;          // Für die Egui-UI-Komponenten
 using Basics.Graphics;
 using Basics.Setup;
 using Basics.Input;
 using Basics.Utilities;
+using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 
 namespace Basics;
@@ -20,14 +24,22 @@ namespace Basics;
  */
 public class MainClass
 {
+    //Spielwelt und Renderer
     private static Renderer _playerRenderer = null!;
     private static TerrainGenerator _terrainGenerator  = null!;
     private static ChunkProvider _chunkProvider = null!;
     private static ChunkRequestor _chunkRequestor = null!;
-
+    private static GL _gl = null!;
+    
+    // Spieler
     public static Camera PlayerCamera  = null!;
     public static Camera? DebugCamera  = null!; // Zweite Freecam 
     private static readonly Vector3 PlayerStartPosition = new Vector3(0, 40, 0);
+    
+    //Ingame UI
+    private static UIManager _uiManager = null!; // Das was die UI elemte definiert
+    private static Context _uiContext = null!; // IDK was das bedeuten soll
+    private static EdwinSilkIntegration _uiIntegration = null!; // Verbindet Egui mit dem Silk.NET Fenster und zieht sich alle events
     
     /**
      * Startpunkt des Programms
@@ -54,21 +66,30 @@ public class MainClass
      */
     private unsafe void OnLoad()
     {   
+        //OpenGl erstellen
+        _gl = WindowSetup.Window.CreateOpenGL();
+        
         //Kerne aufteilen und reservieren
         CoreAvailability.Initialize();
         
         //Main Camera und Renderer erstellen
         _playerRenderer = new Renderer();
         PlayerCamera = new Camera(PlayerStartPosition);
-        _playerRenderer.Setup(PlayerCamera);
+        _playerRenderer.Setup(PlayerCamera, _gl);
         
         //Main Camera an die Movement Klasse geben
         Movement.SetPlayerCamera(PlayerCamera);
         
-        //Die Inputs vom Fenster an den InputManager weitergeben
+        //Creating Input Context
         IInputContext input = WindowSetup.Window.CreateInput();
-        InputManager.Initialize(input);
         
+        //Egui.NET
+        _uiContext = new Context();
+        _uiIntegration = new EdwinSilkGlIntegration(_uiContext, WindowSetup.Window, input);
+        
+        //My own Input Manager
+        InputManager.Initialize(input);   
+            
         //Aktion -> Methode Mappen
         InputManager.SetActionBindings(Actions.Close, () => WindowSetup.Window.Close());
         InputManager.SetActionBindings(Actions.Fullscreen, ToggleFullscreen);
@@ -93,6 +114,9 @@ public class MainClass
         int generationCores = CoreAvailability.GetTerrainGenerationCores();
         _chunkRequestor = new ChunkRequestor(PlayerCamera, _chunkProvider, generationCores);
         
+        //UI erstellen
+        _uiManager = new UIManager(_chunkRequestor);
+        
         // Initiales Laden der Chunks um die Startposition
         PlayerCamera.ForceChunkUpdate();
         
@@ -102,8 +126,13 @@ public class MainClass
 //Wird jeden Frame aufgerufen, hier wird alles gerendert.
     private static unsafe void OnRender(double deltaTime)
     {
+        //SpieleWelt rendern
         _playerRenderer.Clear();//Vorherigen Frame löschen
         _playerRenderer.Render();
+        
+        //UI rendern
+        _gl.Disable(EnableCap.DepthTest);// Die UI soll immer sichtbar sein. wird in shader.Use() wieder aktiviert
+        _uiIntegration.Run(ctx => _uiManager.Draw(ctx));
     }
     
     //Wird jeden Frame aufgerufen, hier wird alles außer dem Rendering gemacht.

@@ -47,9 +47,7 @@ public struct Frustum
     {
         // Wir projizieren die halbe Größe der Box auf die Normale der Ebene.
         // Das ergibt den "Radius" der Box aus Sicht der Ebene.
-        float r = extents.X * System.Math.Abs(plane.Normal.X) +
-                  extents.Y * System.Math.Abs(plane.Normal.Y) +
-                  extents.Z * System.Math.Abs(plane.Normal.Z);
+        float r = Vector3.Dot(extents, Vector3.Abs(plane.Normal));
 
         // Abstand vom Zentrum zur Ebene (+ = vor der Ebene, - = hinter)
         float distance = plane.GetDistanceToPoint(center);

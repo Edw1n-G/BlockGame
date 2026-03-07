@@ -5,6 +5,8 @@ using System.Diagnostics;// Für Upload Limits
 using Basics.Game;
 using Basics.Game.TerrainManaging;
 using Basics.Game.TerrainManaging.Meshing;
+using Egui;
+using Egui.Silk.NET;
 using Silk.NET.Maths;
 
 namespace Basics.Graphics;
@@ -23,13 +25,12 @@ public class Renderer
      * Setup Methode, alles was man fürs Rendern braucht.
      * Window, Camera, Shader und testchunks
      */
-    public unsafe void Setup(Camera camera)
+    public unsafe void Setup(Camera camera, GL gl)
     {
-        _gl = WindowSetup.Window.CreateOpenGL();
+        _gl = gl;
         _gl.ClearColor(Color.CornflowerBlue);
         
         _camera = camera;
-        
         _terrainshader = new ShaderManager(_gl, "shader.vert", "shader.frag");
         _terrainTexture = new TextureArray(_gl, "texture/example.png");
     }

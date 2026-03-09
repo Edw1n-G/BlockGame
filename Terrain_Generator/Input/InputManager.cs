@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Numerics;
 using Silk.NET.Windowing;
+using Basics.Game.Player;
 
 namespace Basics.Input;
 
@@ -23,16 +24,23 @@ public enum Actions
     Forward,
     Backward,
     ToggleMouseLock,
-    MouseClickTest
+    DestroyBlock,
+    PlaceBlock
 }
 
 public class InputManager
 {
     private static IKeyboard _keyboard;
-    
     private static IMouse _mouse;
     private static Boolean _isMouseLocked = false;
+    private static PlayerMovement? _playerMovement;
     
+    //TODO: InputManager komplett vom SPieler trennen damit es nur als Translation von Input zu Aktionen dient.
+    public static void SetPlayerMovement(PlayerMovement playerMovement)
+    {
+        _playerMovement = playerMovement;
+    }
+
     public static void Initialize(IInputContext input)
     {
         _keyboard = input.Keyboards.FirstOrDefault();
@@ -56,7 +64,6 @@ public class InputManager
         DefaultMouseBindings();
         
         SetActionBindings(Actions.ToggleMouseLock, ToggleMouseLock);
-        SetActionBindings(Actions.MouseClickTest, MouseClickTest);
     }
     
     //Funktionen zum Verwalten der Tastenbelegung Mapping Key -> Aktion
@@ -95,7 +102,8 @@ public class InputManager
     
     private static void DefaultMouseBindings()
     {
-        _mouseBindings.Add(Actions.MouseClickTest, MouseButton.Left);
+        _mouseBindings.Add(Actions.DestroyBlock, MouseButton.Left);
+        _mouseBindings.Add(Actions.PlaceBlock, MouseButton.Right);
     }
     //==========================================================
     
@@ -169,8 +177,8 @@ public class InputManager
     //Funktionen zum Verarbeiten von Mausbewegungen
     private static void OnMouseMove(IMouse mouse, Vector2 position)
     {
-        // Updating instantly. Nicht ideal sollte per Frame passieren.
-        Movement.LookUpdate(position);
+        //TODO: Herausfinden ob ich das hier haben will
+        _playerMovement?.LookUpdate(position);
     }
 
     private static unsafe void OnMouseWheel(IMouse mouse, ScrollWheel scrollWheel)
@@ -208,10 +216,5 @@ public class InputManager
             _mouse.Cursor.CursorMode = CursorMode.Raw; //Mauszeiger unsichtbar und unbegrenzt
             _isMouseLocked = true;
         }
-    }
-
-    private static void MouseClickTest()
-    {
-        Console.WriteLine("Mouse Clicked!");
     }
 }

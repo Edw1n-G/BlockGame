@@ -20,12 +20,13 @@ public class BaseMesher : IDisposable
     protected uint _indicesCount;
 
     // Die OpenGL Handles für diesen spezifischen Chunk
-    private BufferObject<byte> _vbo;
-    private BufferObject<uint> _ebo;
-    private VertexArrayObject<byte, uint> _vao;
-    private GL _gl;
+    private BufferObject<byte>? _vbo;
+    private BufferObject<uint>? _ebo;
+    private VertexArrayObject<byte, uint>? _vao;
+    private GL? _gl;
     
     private bool _uploaded = false;
+    private bool _disposed = false;
     public bool IsEmpty => _indicesCount == 0;
     
     // Für Chunks die keine AO benutzten
@@ -88,8 +89,8 @@ public class BaseMesher : IDisposable
         {
             this._vertices?.Clear();
             this._indices?.Clear();
-            this._vertices = null;
-            this._indices = null;
+            this._vertices = null!;
+            this._indices = null!;
             _uploaded = true;
             return; 
         }
@@ -114,14 +115,15 @@ public class BaseMesher : IDisposable
         
         this._vertices.Clear();
         this._indices.Clear();
-        this._vertices = null;
-        this._indices = null;
+        this._vertices = null!;
+        this._indices = null!;
         _uploaded = true;
     }
     
     public unsafe void Render(ShaderManager shaderManager)
     {
-        if (!_uploaded) return; // Noch nicht auf der GPU
+        //Wenn chunks nicht hochgeladen sind oder schon ein empty chunk ohne vertexe disposen soll gibt es errors
+        if (!_uploaded || _disposed || _vao is null || _ebo is null || _gl is null) return;
         
         //Dem Shader sagen, wo dieser Chunk liegt
         shaderManager.SetModelMatrix(model);
@@ -135,8 +137,14 @@ public class BaseMesher : IDisposable
     // Unloading
     public void Dispose()
     {
-        _vbo.Dispose();
-        _ebo.Dispose();
-        _vao.Dispose();
+        if (_disposed) return;
+        _vbo?.Dispose();
+        _ebo?.Dispose();
+        _vao?.Dispose();
+        
+        _vbo = null;
+        _ebo = null;
+        _vao = null;
+        _disposed = true;
     }
 }

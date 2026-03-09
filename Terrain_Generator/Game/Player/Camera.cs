@@ -22,19 +22,6 @@ public class Camera(Vector3 position)
     public float fovY = 45f;
     public float AspectRatio = 16f / 9f; // Default-Wert, wird aber in Renderer gesetzt beim start
     
-    // Event das gefeuert wird, wenn der Spieler einen neuen Chunk betritt
-    public event Action<ChunkCoord>? OnChunkChanged;
-    public ChunkCoord currentChunkCoord;
-
-    /// <summary>
-    /// Feuert das OnChunkChanged Event manuell, z.B. beim Spielstart
-    /// </summary>
-    public void ForceChunkUpdate()
-    {
-        currentChunkCoord = GetChunkCoord(Position);
-        OnChunkChanged?.Invoke(currentChunkCoord);
-    }
-    
     public ChunkCoord GetChunkCoord(Vector3 pos)
     {
         // Integer-Division die auch für negative Koordinaten korrekt funktioniert
@@ -47,25 +34,6 @@ public class Camera(Vector3 position)
     public Matrix4x4 GetViewMatrix()
     {
         return Matrix4x4.CreateLookAt(Position, Position + Front, GlobalUp);
-    }
-    
-    public void Move(Vector3 direction)
-    {
-        // Y aus dem Frontvektor entfernen, um auf den Boden zu bleiben
-        Vector3 groundedFront = Vector3.Normalize(new Vector3(Front.X, 0, Front.Z));
-        // Wir bewegen uns relativ zur Blickrichtung
-        // direction.X ist Strafing (Seitwärts), direction.Z ist Vor/Zurück
-        Position += groundedFront * direction.Z;
-        Position += Right * direction.X;
-        Position += GlobalUp * direction.Y; // Optional: Fliegen
-        
-        // Prüfen ob wir in einen neuen Chunk gewechselt haben
-        ChunkCoord newChunk = GetChunkCoord(Position);
-        if (newChunk != currentChunkCoord)
-        {
-            currentChunkCoord = newChunk;
-            OnChunkChanged?.Invoke(currentChunkCoord);
-        }
     }
     
     public void Rotate(float deltayaw, float deltapitch)

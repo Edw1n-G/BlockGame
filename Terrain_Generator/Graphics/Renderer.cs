@@ -1,4 +1,4 @@
-﻿using Silk.NET.OpenGL; //Für die OpenGL Funktionen
+﻿﻿using Silk.NET.OpenGL; //Für die OpenGL Funktionen
 //Für die Color Klasse
 using System.Drawing;
 using System.Diagnostics;// Für Upload Limits
@@ -35,9 +35,14 @@ public class Renderer
         _terrainTexture = new TextureArray(_gl, "texture/example.png");
     }
 
+    public void SetCamera(Camera camera)
+    {
+        _camera = camera;
+    }
+
 
     long startTimestamp = Stopwatch.GetTimestamp();
-    long maxTicks = (long)(16.0 / 1000.0 * Stopwatch.Frequency);
+    long maxTicks = (long)(5.0 / 1000.0 * Stopwatch.Frequency);
     private int totalchunks;
     private int shownchunks;
     

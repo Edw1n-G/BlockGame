@@ -1,10 +1,9 @@
 using System.Numerics;
-using Basics.Configurations;
-using Basics.Game.TerrainManaging.Meshing;
-using Basics.Utilities;
 using System.Runtime.CompilerServices;
+using Basics.Configurations;
+using Basics.Utilities;
 
-namespace Basics.Game.TerrainManaging;
+namespace Basics.Game.TerrainManaging.Meshing;
 
 public class Lod0Mesher : BaseMesher
 {
@@ -13,11 +12,11 @@ public class Lod0Mesher : BaseMesher
     
     // AO Level (0–3) wird als int an den Shader gesendet, Konvertierung in float passiert dort
     
-    public Lod0Mesher(ChunkCoord position, byte[] blockData)
+    public Lod0Mesher(ChunkCoord position, ChunkData chunkData)
     {
-        if (blockData == null) return;
+        if (chunkData == null) return;
         this.ChunkPosition = position;
-        this._blockData = blockData;
+        this._blockData = chunkData.Blocks;
         CreateNeighborCache();
         BuildMeshData();
     }
@@ -49,9 +48,9 @@ public class Lod0Mesher : BaseMesher
                     );
 
                     
-                    if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out byte[] neighborData))
+                    if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out ChunkData neighborChunk))
                     {
-                        _neighborCache[cacheIndex] = neighborData;
+                        _neighborCache[cacheIndex] = neighborChunk.Blocks;
                     }
                     else
                     {

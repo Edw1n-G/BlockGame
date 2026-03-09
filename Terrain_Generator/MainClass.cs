@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Numerics;
-using System.Reflection;
 using Basics.Configurations;
 using Basics.Game;
+using Basics.Game.Player;
 using Basics.Game.TerrainManaging;
 using Basics.Game.TerrainManaging.Generation;
 using Basics.Game.UI;
@@ -12,10 +12,10 @@ using Egui.Silk.NET; // Für die Egui-Integration mit Silk.NET
 using Egui;          // Für die Egui-UI-Komponenten
 using Basics.Graphics;
 using Basics.Input;
+using Basics.PhysicsSystem;
 using Basics.Utilities;
 using Basics.Window;
 using Silk.NET.OpenGL;
-using Silk.NET.Windowing;
 
 namespace Basics;
 
@@ -31,10 +31,12 @@ public class MainClass
     private static ChunkProvider _chunkProvider = null!;
     private static ChunkRequestor _chunkRequestor = null!;
     private static GL _gl = null!;
-    
+
     // Spieler
+    private static PlayerCharacter _player = null!;
+    private static PlayerMovement _playerMovement = null!;
     public static Camera PlayerCamera  = null!;
-    public static Camera? DebugCamera  = null!; // Zweite Freecam 
+    public static Camera? DebugCamera  = null!; // Zweite Freecam
     private static readonly Vector3 PlayerStartPosition = new Vector3(0, 40, 0);
     
     //Ingame UI
@@ -73,14 +75,17 @@ public class MainClass
         //Kerne aufteilen und reservieren
         CoreAvailability.Initialize();
         
+        // Player mit eigener Kamera erstellen
+        _player = new PlayerCharacter(PlayerStartPosition);
+        PlayerCamera = _player.Camera;
+
         //Main Camera und Renderer erstellen
         _playerRenderer = new Renderer();
-        PlayerCamera = new Camera(PlayerStartPosition);
         _playerRenderer.Setup(PlayerCamera, _gl);
-        
-        //Main Camera an die Movement Klasse geben
-        Movement.SetPlayerCamera(PlayerCamera);
-        
+
+        //Movement-Controller für Player/Debug Kamera
+        _playerMovement = new PlayerMovement(_player);
+
         //Creating Input Context
         IInputContext input = WindowSetup.Window.CreateInput();
         
@@ -88,10 +93,10 @@ public class MainClass
         _uiContext = new Context();
         _uiIntegration = new EdwinSilkGlIntegration(_uiContext, WindowSetup.Window, input);
         
-        //My own Input Manager
-        InputManager.Initialize(input);   
-            
-        
+        //Input Manager
+        InputManager.Initialize(input);
+        InputManager.SetPlayerMovement(_playerMovement); //TODO: InputManager vom Player trennen
+
         InputManager.SetActionBindings(Actions.ToogleDebugCamera, ToggleDebugCamera);
         
         // Texture Mapping lesen und in den speicher legen
@@ -106,17 +111,23 @@ public class MainClass
         _chunkProvider = new ChunkProvider(_terrainGenerator, meshingThreads );
         Renderer.ChunkProvider = _chunkProvider;
         
-        // ChunkRequestor abonniert das Camera-Event und berechnet welche Chunks geladen werden
-        // Die Chunks werden dann vom Provider parallel bereitgestellt
+        // ChunkRequestor abonniert das Player-Event und berechnet welche Chunks geladen werden
+        // Die Chunks werden dann vom Provider parallel erstellt und verwaltet
         int generationCores = CoreAvailability.GetTerrainGenerationCores();
-        _chunkRequestor = new ChunkRequestor(PlayerCamera, _chunkProvider, generationCores);
+        _chunkRequestor = new ChunkRequestor(_player, _chunkProvider, generationCores);
         
         //UI erstellen
         _uiManager = new UIManager(_chunkRequestor);
         
+        //====================================================================
+        //Nachdem Alle Objekte Da sind globale ReferenzPunkte setzen wo nötig
+        World.Initialize(_chunkProvider);
+        Physics.Initialize(new Raycaster(_chunkProvider));
+        //====================================================================
+
         // Initiales Laden der Chunks um die Startposition
-        PlayerCamera.ForceChunkUpdate();
-        
+        _player.ForceChunkUpdate();
+
         //_terrainGenerator.DebugExportNoiseMap();
     }
 
@@ -135,7 +146,7 @@ public class MainClass
     //Wird jeden Frame aufgerufen, hier wird alles außer dem Rendering gemacht.
     private static void OnUpdate(double deltaTime)
     {
-        Movement.MovementUpdate(deltaTime);
+        _playerMovement.MovementUpdate(deltaTime);
     }
     
     //Wird aufgerufen, wenn die Fenstergröße geändert wird.
@@ -156,13 +167,15 @@ public class MainClass
                 Pitch = PlayerCamera.Pitch,
                 Yaw = PlayerCamera.Yaw
             };
-            Movement.SetPlayerCamera(DebugCamera);
+            _playerMovement.SetActiveCamera(DebugCamera);
+            _playerRenderer.SetCamera(DebugCamera);
             Console.WriteLine("Debug Camera aktiviert");
         }
         else
         {
             // Zurück zur Player-Camera wechseln und Debug-Camera löschen
-            Movement.SetPlayerCamera(PlayerCamera);
+            _playerMovement.UsePlayerCamera();
+            _playerRenderer.SetCamera(PlayerCamera);
             DebugCamera = null;
             Console.WriteLine("Debug Camera deaktiviert");
         }

@@ -1,3 +1,5 @@
+using Basics.Game.TerrainManaging;
+using Basics.Utilities;
 using Basics.Window;
 using Egui;
 
@@ -69,7 +71,8 @@ namespace Basics.Game.UI
                         " X: " + MainClass.PlayerCamera.Position.X +
                                 " Y: " + MainClass.PlayerCamera.Position.Y +
                                 " Z: " + MainClass.PlayerCamera.Position.Z);
-                    ui.Label("Current Chunk:" + MainClass.PlayerCamera.currentChunkCoord);
+                    ChunkCoord currentChunk = MainClass.PlayerCamera.GetChunkCoord(MainClass.PlayerCamera.Position);
+                    ui.Label("Current Chunk:" + currentChunk);
                     ui.Label("FPS: " + (WindowSetup.Window.FramesPerSecond).ToString("F2"));
                 });
         }

@@ -1,0 +1,79 @@
+using System.Numerics;
+using Basics.Game.TerrainManaging;
+using Basics.Input;
+using Basics.PhysicsSystem;
+using Basics.PhysicsSystem.Structs;
+using Basics.Utilities;
+using Silk.NET.Maths;
+
+namespace Basics.Game.Player;
+
+public class PlayerCharacter
+{
+    public Camera Camera { get; }
+
+    public event Action<ChunkCoord>? OnChunkChanged;
+    private ChunkCoord _currentChunkCoord;
+
+    public PlayerCharacter(Vector3 spawnPosition)
+    {
+        Camera = new Camera(spawnPosition);
+        _currentChunkCoord = Camera.GetChunkCoord(Camera.Position);
+        BindActions();
+    }
+
+    public void ForceChunkUpdate()
+    {
+        _currentChunkCoord = Camera.GetChunkCoord(Camera.Position);
+        OnChunkChanged?.Invoke(_currentChunkCoord);
+    }
+
+    public void Move(Vector3 direction)
+    {
+        // Y aus dem Frontvektor entfernen, um auf den Boden zu bleiben.
+        Vector3 groundedFront = Vector3.Normalize(new Vector3(Camera.Front.X, 0, Camera.Front.Z));
+
+        // Relativ zur Blickrichtung bewegen.
+        Camera.Position += groundedFront * direction.Z;
+        Camera.Position += Camera.Right * direction.X;
+        Camera.Position += Camera.GlobalUp * direction.Y;
+
+        ChunkCoord newChunk = Camera.GetChunkCoord(Camera.Position);
+        if (newChunk != _currentChunkCoord)
+        {
+            _currentChunkCoord = newChunk;
+            OnChunkChanged?.Invoke(_currentChunkCoord);
+        }
+    }
+
+    private void BindActions()
+    {
+        InputManager.SetActionBindings(Actions.DestroyBlock, DestroyBlock);
+        InputManager.SetActionBindings(Actions.PlaceBlock, PlaceBlock);
+    }
+
+    private void DestroyBlock()
+    {
+        BlockResult hit = Physics.Raycast(MathHelper.ToGeneric(Camera.Position), MathHelper.ToGeneric(Camera.Front), 5.0f);
+
+        if (hit.Hit)
+        {
+            World.ModifyBlock(hit.HitPosition.X, hit.HitPosition.Y, hit.HitPosition.Z, 0);
+        }
+    }
+
+    private void PlaceBlock()
+    {
+        BlockResult hit = Physics.Raycast(MathHelper.ToGeneric(Camera.Position), MathHelper.ToGeneric(Camera.Front), 5.0f);
+
+        if (hit.Hit)
+        {
+            // Block neben die getroffene Fläche setzen
+            int placeX = hit.HitPosition.X + hit.HitNormal.X;
+            int placeY = hit.HitPosition.Y + hit.HitNormal.Y;
+            int placeZ = hit.HitPosition.Z + hit.HitNormal.Z;
+
+            World.ModifyBlock(placeX, placeY, placeZ, 1); // 1 = Erde
+        }
+    }
+}

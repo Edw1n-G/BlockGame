@@ -1,16 +1,16 @@
-﻿using Basics.Game.TerrainManaging;
+﻿using Basics.Game.Player;
 using Basics.Utilities;
 
-namespace Basics.Game;
+namespace Basics.Game.TerrainManaging;
 
 /// <summary>
 /// Berechnet basierend auf der Spielerposition welche Chunks geladen/entladen werden sollen.
-/// Abonniert das OnChunkChanged Event der Kamera.
+/// Abonniert das OnChunkChanged Event des Players.
 /// </summary>
 public class ChunkRequestor
 {
     private readonly ChunkProvider _chunkProvider;
-    private readonly Camera _camera;
+    private readonly PlayerCharacter _player;
     private readonly ParallelOptions _parallelOptions;
     private int _renderDistance = GameSettings.RenderDistance;
     private int _lod1Distance = GameSettings.Lod1Distance;
@@ -25,14 +25,14 @@ public class ChunkRequestor
         set => _renderDistance = Math.Max(1, value);
     }
 
-    public ChunkRequestor(Camera camera, ChunkProvider chunkProvider, int availableCores)
+    public ChunkRequestor(PlayerCharacter player, ChunkProvider chunkProvider, int availableCores)
     {
-        _camera = camera;
+        _player = player;
         _chunkProvider = chunkProvider;
         _parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, availableCores) };
 
         // Event abonnieren: wird gefeuert, wenn der Spieler einen neuen Chunk betritt
-        _camera.OnChunkChanged += OnPlayerChunkChanged;
+        _player.OnChunkChanged += OnPlayerChunkChanged;
     }
 
     /// <summary>

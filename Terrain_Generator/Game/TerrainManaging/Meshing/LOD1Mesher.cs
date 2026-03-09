@@ -1,21 +1,20 @@
 using System.Numerics;
-using Basics.Configurations;
-using Basics.Game.TerrainManaging.Meshing;
-using Basics.Utilities;
 using System.Runtime.CompilerServices;
+using Basics.Configurations;
+using Basics.Utilities;
 
-namespace Basics.Game.TerrainManaging;
+namespace Basics.Game.TerrainManaging.Meshing;
 
 public class Lod1Mesher : BaseMesher
 {
     private byte[] _blockData;
     private byte[][] _neighborCache = new byte[27][];
     
-    public Lod1Mesher(ChunkCoord position, byte[] blockData)
+    public Lod1Mesher(ChunkCoord position, ChunkData chunkData)
     {
-        if (blockData == null) return;
+        if (chunkData == null) return;
         this.ChunkPosition = position;
-        this._blockData = blockData;
+        this._blockData = chunkData.Blocks;
         CreateNeighborCache();
         BuildMeshData();
     }
@@ -47,9 +46,9 @@ public class Lod1Mesher : BaseMesher
                     );
 
                     
-                    if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out byte[] neighborData))
+                    if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out ChunkData neighborChunk))
                     {
-                        _neighborCache[cacheIndex] = neighborData;
+                        _neighborCache[cacheIndex] = neighborChunk.Blocks;
                     }
                     else
                     {

@@ -17,7 +17,7 @@ namespace Basics.Game.TerrainManaging;
 public class ChunkProvider
 {
     public static readonly ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
-    public static ConcurrentDictionary<ChunkCoord, byte[]> Chunkdata = new();//Die Blockdaten
+    public static ConcurrentDictionary<ChunkCoord, ChunkData> Chunkdata = new();//Die Blockdaten
     private ConcurrentDictionary<ChunkCoord, byte> _queuedForMeshing = new();// Nur damit nicht mehrere Threads den selben Chunk meshen
     
     // Chunks die bereit für das Meshing sind (haben alle Nachbarn und ihre Blockdaten)
@@ -79,14 +79,19 @@ public class ChunkProvider
         // Wenn der Chunkgenerator null zurückgibt ist der Chunk nur Luft oder
         // nicht in der Welt. Trotzdem als leere Daten speichern, damit Nachbar-Chunks
         // ihre HasAllNeighbors-Prüfung bestehen und gemesht werden können!
+        ChunkData chunkData;
         if (chunkBlocks == null)
         {
-            chunkBlocks = new byte[32768]; // Alles 0 = Luft
+            chunkData = new ChunkData(coord); // Alles 0 = Luft
         }
-        OnChunkDataGenerated(coord, chunkBlocks);
+        else
+        {
+            chunkData = new ChunkData(coord, chunkBlocks);
+        }
+        OnChunkDataGenerated(coord, chunkData);
     }
     
-    public void OnChunkDataGenerated(ChunkCoord coord, byte[] data)
+    public void OnChunkDataGenerated(ChunkCoord coord, ChunkData data)
     {
         // Daten im Dictionary ablegen
         Chunkdata.TryAdd(coord, data);
@@ -151,22 +156,22 @@ public class ChunkProvider
         {
             if (!_isRunning) break;
 
-            if (Chunkdata.TryGetValue(coord, out byte[] BlockData))
+            if (Chunkdata.TryGetValue(coord, out ChunkData chunkData))
             {
                 BaseMesher newMesh;
                 
                 switch (coord.LodLevel)
                 {
                     case 0:
-                        newMesh = new Lod0Mesher(coord, BlockData);
+                        newMesh = new Lod0Mesher(coord, chunkData);
                         break;
                     
                     case 1:
-                        newMesh = new Lod1Mesher(coord, BlockData);
+                        newMesh = new Lod1Mesher(coord, chunkData);
                         break;
                     
                     case 2:
-                        newMesh = new Lod2Mesher(coord, BlockData);
+                        newMesh = new Lod2Mesher(coord, chunkData);
                         break;
                     
                     default:
@@ -214,6 +219,81 @@ public class ChunkProvider
         if (!Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y - 1, c.Z - 1, c.LodLevel))) return false;
 
         return true;
+    }
+
+    /// <summary>
+    /// Ändert einen Block an einer Weltposition und löst Re-Meshing aus.
+    /// Gibt true zurück wenn der Block erfolgreich geändert wurde.
+    /// </summary>
+    public bool ModifyBlock(int worldX, int worldY, int worldZ, byte newBlockId)
+    {
+        // Weltkoordinaten → ChunkCoord + lokale Koordinaten
+        ChunkCoord chunkCoord = ChunkData.WorldToChunkCoord(worldX, worldY, worldZ);
+        var (localX, localY, localZ) = ChunkData.WorldToLocal(worldX, worldY, worldZ);
+
+        if (!Chunkdata.TryGetValue(chunkCoord, out ChunkData? chunkData))
+            return false; // Chunk nicht geladen
+
+        // Block ändern
+        chunkData.SetBlock(localX, localY, localZ, newBlockId);
+
+        // Diesen Chunk neu meshen
+        RemeshChunk(chunkCoord);
+
+        // Wenn der Block am Rand des Chunks liegt, müssen auch Nachbar-Chunks neu gemesht werden
+        if (localX == 0)  RemeshChunk(new ChunkCoord(chunkCoord.X - 1, chunkCoord.Y, chunkCoord.Z, chunkCoord.LodLevel));
+        if (localX == 31) RemeshChunk(new ChunkCoord(chunkCoord.X + 1, chunkCoord.Y, chunkCoord.Z, chunkCoord.LodLevel));
+        if (localY == 0)  RemeshChunk(new ChunkCoord(chunkCoord.X, chunkCoord.Y - 1, chunkCoord.Z, chunkCoord.LodLevel));
+        if (localY == 31) RemeshChunk(new ChunkCoord(chunkCoord.X, chunkCoord.Y + 1, chunkCoord.Z, chunkCoord.LodLevel));
+        if (localZ == 0)  RemeshChunk(new ChunkCoord(chunkCoord.X, chunkCoord.Y, chunkCoord.Z - 1, chunkCoord.LodLevel));
+        if (localZ == 31) RemeshChunk(new ChunkCoord(chunkCoord.X, chunkCoord.Y, chunkCoord.Z + 1, chunkCoord.LodLevel));
+
+        return true;
+    }
+
+    /// <summary>
+    /// Schickt einen Chunk zum Re-Meshing. Das alte Mesh wird nach dem Upload des neuen entladen.
+    /// </summary>
+    public void RemeshChunk(ChunkCoord coord)
+    {
+        if (!Chunkdata.ContainsKey(coord)) return;
+        if (!HasAllNeighbors(coord)) return;
+
+        // Altes Mesh zum Entladen markieren
+        if (LoadedChunks.TryRemove(coord, out BaseMesher? oldMesh))
+        {
+            UnloadQueue.Enqueue(oldMesh);
+        }
+
+        // Erlaubt Re-Queue
+        _queuedForMeshing.TryRemove(coord, out _);
+
+        // Neu in die Meshing-Queue
+        if (_queuedForMeshing.TryAdd(coord, 0))
+        {
+            MeshingQueue.Writer.TryWrite(coord);
+        }
+    }
+
+    /// <summary>
+    /// Gibt die ChunkData an einer Weltposition zurück, oder null wenn nicht geladen.
+    /// </summary>
+    public ChunkData? GetChunkData(ChunkCoord coord)
+    {
+        Chunkdata.TryGetValue(coord, out ChunkData? data);
+        return data;
+    }
+
+    /// <summary>
+    /// Gibt die Block-ID an einer Weltposition zurück (0 = Luft/nicht geladen).
+    /// </summary>
+    public byte GetBlockAt(int worldX, int worldY, int worldZ)
+    {
+        ChunkCoord chunkCoord = ChunkData.WorldToChunkCoord(worldX, worldY, worldZ);
+        if (!Chunkdata.TryGetValue(chunkCoord, out ChunkData? chunkData))
+            return 0;
+        var (localX, localY, localZ) = ChunkData.WorldToLocal(worldX, worldY, worldZ);
+        return chunkData.GetBlock(localX, localY, localZ);
     }
 
     /// <summary>

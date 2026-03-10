@@ -5,6 +5,7 @@ using Egui;
 
 namespace Basics.Game.UI
 {
+    
     public class UIManager
     {
         private ChunkRequestor _chunkRequestor;
@@ -17,25 +18,30 @@ namespace Basics.Game.UI
         // Diese Methode wird aus dem Integration.Run() aufgerufen
         public void Draw(Context ctx)
         {
+            // Globale Settings. style und ctx sind bitches die man nicht direkt bearbeiten kann
+            var style = ctx.Style;
+            var visuals = style.Visuals;
+            visuals.WindowShadow = Shadow.None;
+            visuals.PopupShadow = Shadow.None;
+            style.Visuals = visuals;
+            ctx.SetStyle(style);
             
+            //Normal Ohne alles
             new Egui.Containers.Area("crosshair")
                 .Anchor(Align2.CenterCenter, new EVec2(0, 0))
                 .Show(ctx, ui => { ui.Label("+"); });
-
+        
             
+            // Window haben ctx default settings aber mit schatten overwritten
             new Egui.Containers.Window("Engine Settings")
-                .Resizable((true, true)) // Du kannst hier vorher noch Optionen setzen!
+                .Resizable((false, false))
                 .Show(ctx, ui =>
                 {
-                    ui.Heading("EdwinCraft Debug");
-
                     int dist = GameSettings.RenderDistance;
-                    
-                    if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, 1, 256).Text("Render Distance")).Changed)
+                    if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, 1, 40).Text("Render Distance")).Changed)
                     {
                         GameSettings.SetRenderDistance(dist);
                     }
-
                     if (ui.Button("Unload All Chunks").Clicked)
                     {
                         _chunkRequestor.UnloadAllChunks();
@@ -43,13 +49,11 @@ namespace Basics.Game.UI
                 });
             
             new Egui.Containers.Window("PlayerSettings")
-                .Resizable((true, true))
+                .Resizable((false, false))
                 .Show(ctx, ui =>
                 {
                     ui.Heading("Player Settings");
-
                     float speed = GameSettings.PlayerMoveSpeed;
-                    
                     if (ui.Add(new Egui.Widgets.Slider<float>(ref speed, 1f, 100f).Text("Player Speed")).Changed)
                     {
                         GameSettings.SetPlayerMoveSpeed(speed);
@@ -62,18 +66,56 @@ namespace Basics.Game.UI
                     }
                 });
             
-            new Egui.Containers.Window("PlayerInformation")
-                .Resizable((true, true))
+            // Hier ist mit einem Frame wo dann lokal extra Sachen gesezt werden
+            new Egui.Containers.Area("PlayerInformation")
+                .Anchor(Align2.RightTop, new EVec2(-10, 10))
                 .Show(ctx, ui =>
                 {
-                    ui.Heading("Player Information");
-                    ui.Label(
-                        " X: " + MainClass.PlayerCamera.Position.X +
-                                " Y: " + MainClass.PlayerCamera.Position.Y +
-                                " Z: " + MainClass.PlayerCamera.Position.Z);
-                    ChunkCoord currentChunk = MainClass.PlayerCamera.GetChunkCoord(MainClass.PlayerCamera.Position);
-                    ui.Label("Current Chunk:" + currentChunk);
-                    ui.Label("FPS: " + (WindowSetup.Window.FramesPerSecond).ToString("F2"));
+                    // Einen Frame definieren. Hier kannst du Farbe, Rundungen und Abstände (Margin) anpassen.
+                    var backgroundFrame = new Egui.Containers.Frame
+                    {
+                        Fill = Color32.Black,
+                        CornerRadius = new CornerRadius { Nw = 5, Ne = 5, Sw = 5, Se = 5 }
+                    };
+
+                    // Den Frame in das 'ui' der Area zeichnen. 
+                    backgroundFrame.Show(ui, frameUi =>
+                    {
+                        frameUi.Heading("Player Information");
+
+                        // Ein Grid für tabellarische Ausrichtung erstellen
+                        new Egui.Grid("player_info_grid")
+                            .Striped(true) // Optional: Fügt einen leichten Hintergrund für jede zweite Zeile hinzu
+                            .Show(frameUi, gridUi =>
+                            {
+                                // Zeile 1: X-Koordinate
+                                gridUi.Label("X:");
+                                gridUi.Label(MainClass.PlayerCamera.Position.X.ToString("0.00"));
+                                gridUi.EndRow(); // Beendet die aktuelle Zeile im Raster
+
+                                // Zeile 2: Y-Koordinate
+                                gridUi.Label("Y:");
+                                gridUi.Label(MainClass.PlayerCamera.Position.Y.ToString("0.00"));
+                                gridUi.EndRow();
+
+                                // Zeile 3: Z-Koordinate
+                                gridUi.Label("Z:");
+                                gridUi.Label(MainClass.PlayerCamera.Position.Z.ToString("0.00"));
+                                gridUi.EndRow();
+
+                                // Zeile 4: Chunk
+                                gridUi.Label("Chunk:");
+                                ChunkCoord currentChunk =
+                                    MainClass.PlayerCamera.GetChunkCoord(MainClass.PlayerCamera.Position);
+                                gridUi.Label(currentChunk.ToString());
+                                gridUi.EndRow();
+
+                                // Zeile 5: FPS
+                                gridUi.Label("FPS:");
+                                gridUi.Label(WindowSetup.Window.FramesPerSecond.ToString("F2"));
+                                gridUi.EndRow();
+                            });
+                    });
                 });
         }
     }

@@ -140,6 +140,7 @@ public class MainClass
         
         //UI rendern
         _gl.Disable(EnableCap.DepthTest);// Die UI soll immer sichtbar sein. wird in shader.Use() wieder aktiviert
+        
         _uiIntegration.Run(ctx => _uiManager.Draw(ctx));
     }
     

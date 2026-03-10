@@ -4,7 +4,6 @@ using Basics.Input;
 using Basics.PhysicsSystem;
 using Basics.PhysicsSystem.Structs;
 using Basics.Utilities;
-using Silk.NET.Maths;
 
 namespace Basics.Game.Player;
 

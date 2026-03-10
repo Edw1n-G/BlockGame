@@ -4,10 +4,6 @@ using Basics.Game.TerrainManaging.Generation;
 using Basics.Game.TerrainManaging.Meshing;
 using Basics.Utilities;
 
-
-//=============================================
-// THIS CODE IS BASED ON AI - USE WITH CAUTION
-//=============================================
 namespace Basics.Game.TerrainManaging;
 
 /// <summary>
@@ -18,7 +14,7 @@ public class ChunkProvider
 {
     public static readonly ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
     public static ConcurrentDictionary<ChunkCoord, ChunkData> Chunkdata = new();//Die Blockdaten
-    private ConcurrentDictionary<ChunkCoord, byte> _queuedForMeshing = new();// Nur damit nicht mehrere Threads den selben Chunk meshen
+    private ConcurrentDictionary<ChunkCoord, byte> _queuedForMeshing = new();// Nur damit nicht mehrere Threads denselben Chunk meshen
     
     // Chunks die bereit für das Meshing sind (haben alle Nachbarn und ihre Blockdaten)
     public Channel<ChunkCoord> MeshingQueue = Channel.CreateUnbounded<ChunkCoord>(new UnboundedChannelOptions { 
@@ -252,18 +248,12 @@ public class ChunkProvider
     }
 
     /// <summary>
-    /// Schickt einen Chunk zum Re-Meshing. Das alte Mesh wird nach dem Upload des neuen entladen.
+    /// Schickt einen Chunk zum Re-Meshing. Das alte Mesh wird erst entladen, wenn das neue fertig ist
     /// </summary>
     public void RemeshChunk(ChunkCoord coord)
     {
         if (!Chunkdata.ContainsKey(coord)) return;
         if (!HasAllNeighbors(coord)) return;
-
-        // Altes Mesh zum Entladen markieren
-        if (LoadedChunks.TryRemove(coord, out BaseMesher? oldMesh))
-        {
-            UnloadQueue.Enqueue(oldMesh);
-        }
 
         // Erlaubt Re-Queue
         _queuedForMeshing.TryRemove(coord, out _);
@@ -273,10 +263,12 @@ public class ChunkProvider
         {
             MeshingQueue.Writer.TryWrite(coord);
         }
+        
+        //Altes Mesh wird im Renderer ersetzt
     }
 
     /// <summary>
-    /// Gibt die ChunkData an einer Weltposition zurück, oder null wenn nicht geladen.
+    /// Gibt die ChunkData an einer Weltposition zurück oder null, wenn nicht geladen.
     /// </summary>
     public ChunkData? GetChunkData(ChunkCoord coord)
     {

@@ -1,4 +1,4 @@
-﻿﻿using Silk.NET.OpenGL; //Für die OpenGL Funktionen
+﻿using Silk.NET.OpenGL; //Für die OpenGL Funktionen
 //Für die Color Klasse
 using System.Drawing;
 using System.Diagnostics;// Für Upload Limits
@@ -23,7 +23,7 @@ public class Renderer
     
     /**
      * Setup Methode, alles was man fürs Rendern braucht.
-     * Window, Camera, Shader und testchunks
+     * Window, Camera, Shader und test chunks
      */
     public unsafe void Setup(Camera camera, GL gl)
     {
@@ -51,7 +51,7 @@ public class Renderer
     /// jeder Chunk aus dem ChunkProvider wird durchgegangen und auf IsUploaded geprüft
     /// damit der Main-Thread die Daten an die GPU bringen kann,
     /// wenn PCIe Uploads zu lange dauern wird der nächste Frame gerendert und der Upload wird im nächsten Frame fortgesetzt
-    /// da ich gerade 16.6ms insgesammt habe benutze ich 5ms aber für schnelle gpus braucht man ein smarten upload timer
+    /// da ich gerade 16.6ms insgesamt habe benutze ich 5ms aber für schnelle gpus braucht man ein smarten upload timer
     ///</summary>
     public unsafe void Render()
     {
@@ -63,23 +63,28 @@ public class Renderer
 
         while (ChunkProvider.UploadQueue.Reader.TryRead(out BaseMesher? chunk))
         {
-            // Wenn der Chunk nicht mehr in Chunkdata ist, wurde er schon entladen
+            // Wenn der Chunk nicht mehr in Chunk data ist, wurde er schon entladen
             if (!ChunkProvider.Chunkdata.ContainsKey(chunk.ChunkPosition))
             {
                 continue;
             }
             
-            if (chunk.IsEmpty)
+            // Alles außer Luft hochladen
+            if (!chunk.IsEmpty)
             {
-                //Leere chunks werden nicht hochgeladen aber trtzdem als fertig markiert
-                ChunkProvider.LoadedChunks.TryAdd(chunk.ChunkPosition, chunk);
-                //Wenn chunk leer war schleife weitermachen
-                continue;
+                chunk.UploadToGpu(_gl);
             }
-            
-            chunk.UploadToGpu(_gl);
 
-            ChunkProvider.LoadedChunks.TryAdd(chunk.ChunkPosition, chunk);
+            // Wenn der Chunk schon geladen ist ersetzen, sonst hinzufügen
+            if (ChunkProvider.LoadedChunks.TryGetValue(chunk.ChunkPosition, out BaseMesher? oldMesh))
+            {
+                // Neues Mesh an alte Position setzen
+                ChunkProvider.LoadedChunks[chunk.ChunkPosition] = chunk;
+            }
+            else
+            {
+                ChunkProvider.LoadedChunks.TryAdd(chunk.ChunkPosition, chunk);
+            }
             
             if (Stopwatch.GetTimestamp() - startTimestamp >= maxTicks)
             {

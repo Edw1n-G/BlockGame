@@ -42,7 +42,7 @@ public class MainClass
     //Ingame UI
     private static UIManager _uiManager = null!; // Das was die UI elemte definiert
     private static Context _uiContext = null!; // IDK was das bedeuten soll
-    private static EdwinSilkIntegration _uiIntegration = null!; // Verbindet Egui mit dem Silk.NET Fenster und zieht sich alle events
+    private static SilkIntegration _uiIntegration = null!; // Verbindet Egui mit dem Silk.NET Fenster und zieht sich alle events
     
     /**
      * Startpunkt des Programms
@@ -91,7 +91,7 @@ public class MainClass
         
         //Egui.NET
         _uiContext = new Context();
-        _uiIntegration = new EdwinSilkGlIntegration(_uiContext, WindowSetup.Window, input);
+        _uiIntegration = new SilkGlIntegration(_uiContext, WindowSetup.Window, input);
         
         //Input Manager
         InputManager.Initialize(input);

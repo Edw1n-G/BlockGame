@@ -1,29 +1,33 @@
-﻿using System;
-using System.Numerics;
+﻿using System.Numerics;
 using Basics.Configurations;
 using Basics.Game;
+using Basics.Game.Graphics;
 using Basics.Game.Player;
 using Basics.Game.TerrainManaging;
 using Basics.Game.TerrainManaging.Generation;
-using Basics.Game.UI;
-using Silk.NET.Input; //Für die Tastatureingabe
-using Silk.NET.Maths; //Für die Vector2D Klasse
-using Egui.Silk.NET; // Für die Egui-Integration mit Silk.NET
-using Egui;          // Für die Egui-UI-Komponenten
 using Basics.Graphics;
+using Basics.Graphics.UI;
 using Basics.Input;
 using Basics.PhysicsSystem;
 using Basics.Utilities;
 using Basics.Window;
+using Egui;
+using Egui.Silk.NET;
+using Silk.NET.Input;
+using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+//Für die Tastatureingabe
+//Für die Vector2D Klasse
+// Für die Egui-Integration mit Silk.NET
+// Für die Egui-UI-Komponenten
 
-namespace Basics;
+namespace Basics.EngineStates;
 
 /**
  * Verwaltung der Logic und Render Loops
  * vorerst auch Fenster Skalierung
  */
-public class MainClass
+public class Game
 {
     //Spielwelt und Renderer
     private static Renderer _playerRenderer = null!;
@@ -100,7 +104,7 @@ public class MainClass
         InputManager.SetActionBindings(Actions.ToogleDebugCamera, ToggleDebugCamera);
         
         // Texture Mapping lesen und in den speicher legen
-        BlockTextures.Initialize("Configurations/TextureConfig.json");
+        BlockTextures.Initialize("Game/Configurations/TextureConfig.json");
         
         // Terrain-Pipeline aufbauen:
         // TerrainGenerator erzeugt Chunk-Daten

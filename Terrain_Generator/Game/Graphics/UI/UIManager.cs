@@ -1,9 +1,10 @@
+using Basics.Game;
 using Basics.Game.TerrainManaging;
 using Basics.Utilities;
 using Basics.Window;
 using Egui;
 
-namespace Basics.Game.UI
+namespace Basics.Graphics.UI
 {
     
     public class UIManager
@@ -91,23 +92,23 @@ namespace Basics.Game.UI
                             {
                                 // Zeile 1: X-Koordinate
                                 gridUi.Label("X:");
-                                gridUi.Label(MainClass.PlayerCamera.Position.X.ToString("0.00"));
+                                gridUi.Label(EngineStates.Game.PlayerCamera.Position.X.ToString("0.00"));
                                 gridUi.EndRow(); // Beendet die aktuelle Zeile im Raster
 
                                 // Zeile 2: Y-Koordinate
                                 gridUi.Label("Y:");
-                                gridUi.Label(MainClass.PlayerCamera.Position.Y.ToString("0.00"));
+                                gridUi.Label(EngineStates.Game.PlayerCamera.Position.Y.ToString("0.00"));
                                 gridUi.EndRow();
 
                                 // Zeile 3: Z-Koordinate
                                 gridUi.Label("Z:");
-                                gridUi.Label(MainClass.PlayerCamera.Position.Z.ToString("0.00"));
+                                gridUi.Label(EngineStates.Game.PlayerCamera.Position.Z.ToString("0.00"));
                                 gridUi.EndRow();
 
                                 // Zeile 4: Chunk
                                 gridUi.Label("Chunk:");
                                 ChunkCoord currentChunk =
-                                    MainClass.PlayerCamera.GetChunkCoord(MainClass.PlayerCamera.Position);
+                                    EngineStates.Game.PlayerCamera.GetChunkCoord(EngineStates.Game.PlayerCamera.Position);
                                 gridUi.Label(currentChunk.ToString());
                                 gridUi.EndRow();
 

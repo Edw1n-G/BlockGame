@@ -1,15 +1,15 @@
-﻿using Silk.NET.OpenGL; //Für die OpenGL Funktionen
-//Für die Color Klasse
+﻿using System.Diagnostics;
 using System.Drawing;
-using System.Diagnostics;// Für Upload Limits
-using Basics.Game;
 using Basics.Game.TerrainManaging;
 using Basics.Game.TerrainManaging.Meshing;
-using Egui;
-using Egui.Silk.NET;
+using Basics.Graphics;
 using Silk.NET.Maths;
+using Silk.NET.OpenGL;
+//Für die OpenGL Funktionen
+//Für die Color Klasse
+// Für Upload Limits
 
-namespace Basics.Graphics;
+namespace Basics.Game.Graphics;
 
 public class Renderer
 {
@@ -32,7 +32,7 @@ public class Renderer
         
         _camera = camera;
         _terrainshader = new ShaderManager(_gl, "shader.vert", "shader.frag");
-        _terrainTexture = new TextureArray(_gl, "texture/example.png");
+        _terrainTexture = new TextureArray(_gl, "Game/texture/example.png");
     }
 
     public void SetCamera(Camera camera)

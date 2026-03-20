@@ -3,6 +3,7 @@ using StbImageSharp;
 using System;
 using System.IO;
 using System.Numerics;
+using Basics.EngineStates;
 using Basics.Game;
 using Basics.Utilities;
 using Basics.Window;
@@ -29,8 +30,8 @@ public class ShaderManager : IDisposable
 
         // 1. Shader laden
         // Pfad anpassen, da deine Dateien im Graphics/Shader Ordner liegen könnten
-        string vertPath = "Graphics/Shader/" + vertexShaderFile;
-        string fragPath = "Graphics/Shader/" + fragmentShaderFile;
+        string vertPath = "Game/Graphics/Shader/" + vertexShaderFile;
+        string fragPath = "Game/Graphics/Shader/" + fragmentShaderFile;
         
         _shader = new Shader(gl, vertPath, fragPath);
     }
@@ -56,11 +57,11 @@ public class ShaderManager : IDisposable
         Frustum frustum = camera.CreateFrustum(view, projection);
         
         //Wenn eine Debugkamera existiert, soll aus ihrer Sicht gerendert
-        if (MainClass.DebugCamera != null)
+        if (EngineStates.Game.DebugCamera != null)
         {
-            MainClass.DebugCamera.AspectRatio = (float)size.X / size.Y;
-            var debugView = MainClass.DebugCamera.GetViewMatrix();
-            var debugProjection = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), MainClass.DebugCamera.AspectRatio, MainClass.DebugCamera.nearPlane, MainClass.DebugCamera.farPlane);
+            EngineStates.Game.DebugCamera.AspectRatio = (float)size.X / size.Y;
+            var debugView = EngineStates.Game.DebugCamera.GetViewMatrix();
+            var debugProjection = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), EngineStates.Game.DebugCamera.AspectRatio, EngineStates.Game.DebugCamera.nearPlane, EngineStates.Game.DebugCamera.farPlane);
             _shader.SetUniform("uView", debugView);
             _shader.SetUniform("uProjection", debugProjection);
         }

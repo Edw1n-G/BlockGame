@@ -22,13 +22,13 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="Graphics\Shader\shader.frag">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-      <None Update="Graphics\Shader\shader.vert">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
       <None Update="Configurations\TextureConfig.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="Game\Graphics\Shader\shader.frag">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="Game\Graphics\Shader\shader.vert">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
       <None Update="FastNoise.dll">
@@ -41,13 +41,22 @@
 
     <ItemGroup>
       <None Remove="texture\example.png" />
-      <Content Include="texture\example.png">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Menu\UI\" />
       <Folder Include="Setup\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Game\texture\example.png" />
+      <Content Include="Game\texture\example.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Game\Configurations\TextureConfig.json" />
+      <Content Include="Game\Configurations\TextureConfig.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>

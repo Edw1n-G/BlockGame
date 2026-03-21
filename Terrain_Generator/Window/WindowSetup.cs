@@ -12,7 +12,7 @@ public class WindowSetup
     {
         WindowOptions options = WindowOptions.Default;
         options.Size = new Vector2D<int>(800, 600);
-        options.Title = "Terrain Generator";
+        options.Title = "Game";
         
         //options.FramesPerSecond = 60.0;
         //options.UpdatesPerSecond = 60.0;

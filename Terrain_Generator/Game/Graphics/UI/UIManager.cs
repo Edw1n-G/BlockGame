@@ -114,7 +114,7 @@ namespace Basics.Graphics.UI
 
                                 // Zeile 5: FPS
                                 gridUi.Label("FPS:");
-                                gridUi.Label(WindowSetup.Window.FramesPerSecond.ToString("F2"));
+                                gridUi.Label(EngineStates.Game.Fps.ToString("0.00"));
                                 gridUi.EndRow();
                             });
                     });

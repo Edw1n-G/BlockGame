@@ -46,12 +46,12 @@ public class ChunkRequestor
             
             HashSet<ChunkCoord> newActiveChunks = new();
             List<ChunkCoord> chunksToLoad = new();
-            for (int x = -_renderDistance; x <= _renderDistance; x++)
+            for (int x = -GameSettings.RenderDistance; x <=GameSettings.RenderDistance; x++)
             {
-                for (int z = -_renderDistance; z <= _renderDistance; z++)
+                for (int z = -GameSettings.RenderDistance; z <= GameSettings.RenderDistance; z++)
                 {
-                    if (x * x + z * z > _renderDistance * _renderDistance) continue;
-                    for (int y = -_verticalRenderDistance; y <= _verticalRenderDistance; y++)
+                    if (x * x + z * z > GameSettings.RenderDistance * GameSettings.RenderDistance) continue;
+                    for (int y = -GameSettings.RenderDistance; y <= GameSettings.RenderDistance; y++)
                     {
                         ChunkCoord coord = new ChunkCoord(playerChunk.X + x, playerChunk.Y + y, playerChunk.Z + z, 0);
                         chunksToLoad.Add(coord);

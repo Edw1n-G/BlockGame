@@ -11,12 +11,17 @@ public class BaseMesher : IDisposable
     protected const int VertexStride = 14;
     
     public ChunkCoord ChunkPosition; // Position des Chunks in Chunk-Koordinaten (z.B. 0/0, 1/0, -1/0, etc.)
+    
+    //Listen → nur so groß wie man braucht + base space allocation kann vergößerung bei simplen sachen vermeiden
+    //Span → 
     protected List<uint> _indices = new List<uint>();
     protected List<byte> _vertices = new List<byte>();
+    
     protected int _vertexCount; // Anzahl der Vertices (nicht Bytes!)
-    protected Matrix4x4 model;
     protected uint _indicesCount;
-
+    
+    protected Matrix4x4 model;
+    
     // Die OpenGL Handles für diesen spezifischen Chunk
     private BufferObject<byte>? _vbo;
     private BufferObject<uint>? _ebo;

@@ -27,13 +27,15 @@ namespace Basics.EngineStates;
  * Verwaltung der Logic und Render Loops
  * vorerst auch Fenster Skalierung
  */
-public class Game
+public class Game : IStates
 {
     //Spielwelt und Renderer
     private static Renderer _playerRenderer = null!;
     private static TerrainGenerator _terrainGenerator  = null!;
     private static ChunkProvider _chunkProvider = null!;
     private static ChunkRequestor _chunkRequestor = null!;
+    public static float Fps = 0;
+    
     private static GL _gl = null!;
 
     // Spieler
@@ -48,33 +50,15 @@ public class Game
     private static Context _uiContext = null!; // IDK was das bedeuten soll
     private static SilkIntegration _uiIntegration = null!; // Verbindet Egui mit dem Silk.NET Fenster und zieht sich alle events
     
-    /**
-     * Startpunkt des Programms
-     * Fenster erstellen und Events registrieren
-     */
-    public void Run()
-    {
-        //Fenster erstellen und die Event-Handler registrieren
-        WindowSetup.CreateWindow();
-        
-        WindowSetup.Window.Load += OnLoad;
-        WindowSetup.Window.Render += OnRender;
-        WindowSetup.Window.Update += OnUpdate;
-        WindowSetup.Window.FramebufferResize += OnFramebufferResize;
-        
-        //Fenster starten und Haupt-thread
-        WindowSetup.Run();
-        
-        WindowSetup.Window.Dispose();
-    }
     
     /**
      * Nach Erstellen des Fensters Renderer und InputManager initialisieren
      */
-    private unsafe void OnLoad()
+    public unsafe void Enter(GL gl, IInputContext inputContext)
     {   
-        //OpenGl erstellen
-        _gl = WindowSetup.Window.CreateOpenGL();
+        //OpenGl local speichern
+        _gl = gl;
+        
         
         //Kerne aufteilen und reservieren
         CoreAvailability.Initialize();
@@ -91,7 +75,7 @@ public class Game
         _playerMovement = new PlayerMovement(_player);
 
         //Creating Input Context
-        IInputContext input = WindowSetup.Window.CreateInput();
+        IInputContext input = inputContext;
         
         //Egui.NET
         _uiContext = new Context();
@@ -135,9 +119,10 @@ public class Game
         //_terrainGenerator.DebugExportNoiseMap();
     }
 
-//Wird jeden Frame aufgerufen, hier wird alles gerendert.
-    private static unsafe void OnRender(double deltaTime)
+    //Wird jeden Frame aufgerufen, hier wird alles gerendert.
+    public unsafe void Render(double deltaTime)
     {
+        Fps = (float)(1.0 / deltaTime);
         //SpieleWelt rendern
         _playerRenderer.Clear();//Vorherigen Frame löschen
         _playerRenderer.Render();
@@ -149,16 +134,23 @@ public class Game
     }
     
     //Wird jeden Frame aufgerufen, hier wird alles außer dem Rendering gemacht.
-    private static void OnUpdate(double deltaTime)
+    public void Update(double deltaTime)
     {
         _playerMovement.MovementUpdate(deltaTime);
     }
     
     //Wird aufgerufen, wenn die Fenstergröße geändert wird.
-    private static void OnFramebufferResize(Vector2D<int> newSize)
+    public void FramebufferResize(Vector2D<int> newSize)
     {
         _playerRenderer.FramebufferResize(newSize);
     }
+
+    public void Exit()
+    {
+        //TODO: alles aus dem vram und ram löschen
+        // ChunkProvidorlisten und texturen
+    }
+    
     
     // Debug-Camera toggeln
     private static void ToggleDebugCamera()

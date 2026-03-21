@@ -32,10 +32,13 @@ public class InputManager
 {
     private static IKeyboard _keyboard;
     private static IMouse _mouse;
+    
     private static Boolean _isMouseLocked = false;
+    public static bool IsMouseLocked => _isMouseLocked; //getter um ui interaktion zu locken
+    
     private static PlayerMovement? _playerMovement;
     
-    //TODO: InputManager komplett vom SPieler trennen damit es nur als Translation von Input zu Aktionen dient.
+    //TODO: InputManager komplett vom Spieler trennen damit es nur als Translation von Input zu Aktionen dient.
     public static void SetPlayerMovement(PlayerMovement playerMovement)
     {
         _playerMovement = playerMovement;

@@ -5,7 +5,6 @@ using Basics.Game.Graphics;
 using Basics.Game.Player;
 using Basics.Game.TerrainManaging;
 using Basics.Game.TerrainManaging.Generation;
-using Basics.Graphics;
 using Basics.Graphics.UI;
 using Basics.Input;
 using Basics.PhysicsSystem;
@@ -16,10 +15,6 @@ using Egui.Silk.NET;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-//Für die Tastatureingabe
-//Für die Vector2D Klasse
-// Für die Egui-Integration mit Silk.NET
-// Für die Egui-UI-Komponenten
 
 namespace Basics.EngineStates;
 
@@ -29,6 +24,8 @@ namespace Basics.EngineStates;
  */
 public class Game : IStates
 {
+    StateManager _manager;
+    
     //Spielwelt und Renderer
     private static Renderer _playerRenderer = null!;
     private static TerrainGenerator _terrainGenerator  = null!;
@@ -42,23 +39,23 @@ public class Game : IStates
     private static PlayerCharacter _player = null!;
     private static PlayerMovement _playerMovement = null!;
     public static Camera PlayerCamera  = null!;
-    public static Camera? DebugCamera  = null!; // Zweite Freecam
+    public static Camera? DebugCamera  = null!; // Zweite Free cam
     private static readonly Vector3 PlayerStartPosition = new Vector3(0, 40, 0);
     
     //Ingame UI
-    private static UIManager _uiManager = null!; // Das was die UI elemte definiert
-    private static Context _uiContext = null!; // IDK was das bedeuten soll
+    private static UIManager _uiManager = null!; // Das was die UI elemente definiert
+    private static Context _uiContext = null!;
     private static SilkIntegration _uiIntegration = null!; // Verbindet Egui mit dem Silk.NET Fenster und zieht sich alle events
     
     
     /**
      * Nach Erstellen des Fensters Renderer und InputManager initialisieren
      */
-    public unsafe void Enter(GL gl, IInputContext inputContext)
+    public unsafe void Enter(GL gl, IInputContext inputContext, StateManager manager)
     {   
         //OpenGl local speichern
         _gl = gl;
-        
+        _manager = manager;
         
         //Kerne aufteilen und reservieren
         CoreAvailability.Initialize();
@@ -74,15 +71,12 @@ public class Game : IStates
         //Movement-Controller für Player/Debug Kamera
         _playerMovement = new PlayerMovement(_player);
 
-        //Creating Input Context
-        IInputContext input = inputContext;
-        
         //Egui.NET
         _uiContext = new Context();
-        _uiIntegration = new SilkGlIntegration(_uiContext, WindowSetup.Window, input);
+        _uiIntegration = new SilkGlIntegration(_uiContext, WindowSetup.Window, inputContext);
         
         //Input Manager
-        InputManager.Initialize(input);
+        InputManager.Initialize(inputContext);
         InputManager.SetPlayerMovement(_playerMovement); //TODO: InputManager vom Player trennen
 
         InputManager.SetActionBindings(Actions.ToogleDebugCamera, ToggleDebugCamera);
@@ -100,7 +94,7 @@ public class Game : IStates
         Renderer.ChunkProvider = _chunkProvider;
         
         // ChunkRequestor abonniert das Player-Event und berechnet welche Chunks geladen werden
-        // Die Chunks werden dann vom Provider parallel erstellt und verwaltet
+        // die Chunks werden dann vom Provider parallel erstellt und verwaltet
         int generationCores = CoreAvailability.GetTerrainGenerationCores();
         _chunkRequestor = new ChunkRequestor(_player, _chunkProvider, generationCores);
         
@@ -108,7 +102,7 @@ public class Game : IStates
         _uiManager = new UIManager(_chunkRequestor);
         
         //====================================================================
-        //Nachdem Alle Objekte Da sind globale ReferenzPunkte setzen wo nötig
+        //Nachdem Alle Objekte da sind globale ReferenzPunkte setzen, wo nötig
         World.Initialize(_chunkProvider);
         Physics.Initialize(new Raycaster(_chunkProvider));
         //====================================================================

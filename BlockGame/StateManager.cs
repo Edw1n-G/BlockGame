@@ -9,26 +9,21 @@ namespace Basics
     /**
      * Entry Point des Programms
      */
-    public class Programm
+    public class StateManager
     {
-        private static EngineStates.Game _game;
+        private EngineStates.Game _game;
         
-        private static IStates _nextState;
-        private static IStates _currentState;
+        private IStates _nextState;
+        private IStates _currentState;
         
-        private static GL _gl = null!;
-        private static IInputContext _inputContext = null!;
-
-        private static void Main(string[] args)
-        {
-            Run();
-        }
+        private GL _gl = null!;
+        private IInputContext _inputContext = null!;
         
         /**
         * Startpunkt des Programms
         * Fenster erstellen und Events registrieren
         */
-        public static void Run()
+        public void Run()
         {
             //Fenster erstellen und die Event-Handler registrieren
             WindowSetup.CreateWindow();
@@ -44,28 +39,47 @@ namespace Basics
             WindowSetup.Window.Dispose();
         }
 
-        private static void onLoad()
+        private void onLoad()
         {
             _gl = WindowSetup.Window.CreateOpenGL();
             _inputContext = WindowSetup.Window.CreateInput();
             
-            _currentState = new EngineStates.Game();
-            _currentState.Enter(_gl, _inputContext);
+            _currentState = new EngineStates.Menu();
+            _currentState.Enter(_gl, _inputContext, this);
         }
 
-        private static void onRender(double delta)
+        private void onRender(double delta)
         {
             _currentState.Render(delta);
         }
 
-        private static void onUpdate(double delta)
+        private void onUpdate(double delta)
         {
             _currentState.Update(delta);
+            
+            // Der verzögerte State-Wechsel, den wir vorhin besprochen haben
+            if (_nextState != null)
+            {
+                _currentState.Exit();
+                _currentState = _nextState;
+                _currentState.Enter(_gl, _inputContext, this); // Neuen State initialisieren
+                _nextState = null;
+            }
         }
 
-        private static void onFramebufferResize(Vector2D<int> newSize)
+        private void onFramebufferResize(Vector2D<int> newSize)
         {
             _currentState.FramebufferResize(newSize);
+        }
+
+        public void StateChange(IStates newState)
+        {
+            _nextState = newState;
+        }
+        
+        public void CloseEngine()
+        {
+            _gl.Dispose();
         }
     }
 }

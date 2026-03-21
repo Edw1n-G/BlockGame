@@ -5,9 +5,6 @@ using Basics.Game.TerrainManaging.Meshing;
 using Basics.Graphics;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-//Für die OpenGL Funktionen
-//Für die Color Klasse
-// Für Upload Limits
 
 namespace Basics.Game.Graphics;
 
@@ -19,7 +16,7 @@ public class Renderer
     private static TextureArray _terrainTexture = null!;
     private static Camera _camera = null!;
     
-    public static ChunkProvider ChunkProvider = null!; // Referenz auf den Chunk-Verwalter
+    public static ChunkProvider ChunkProvider = null!;
     
     /**
      * Setup Methode, alles was man fürs Rendern braucht.

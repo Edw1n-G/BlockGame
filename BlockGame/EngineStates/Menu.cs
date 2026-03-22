@@ -5,6 +5,7 @@ using Silk.NET.OpenGL;
 using Basics.Utilities;
 using Basics.Window;
 using Egui;
+using Basics;
 using Egui.Containers;
 using Egui.Silk.NET;
 
@@ -16,8 +17,8 @@ public class Menu : IStates
     private IInputContext  _inputContext;
     private StateManager _manager;
     
-    private static Context _uiContext = null!;
-    private static SilkIntegration _uiIntegration = null!;
+    private Context _uiContext = null!;
+    private Basics.SilkGlIntegration _uiIntegration = null!;
     
     private bool _showSettings = false;
     
@@ -35,7 +36,7 @@ public class Menu : IStates
         
         //Egui.NET
         _uiContext = new Context();
-        _uiIntegration = new SilkGlIntegration(_uiContext, WindowSetup.Window, _inputContext);
+        _uiIntegration = new Basics.SilkGlIntegration(_uiContext, WindowSetup.Window, _inputContext);
     }
 
     public void Update(double delta)
@@ -58,7 +59,10 @@ public class Menu : IStates
 
     public void Exit()
     {
-        
+        Console.WriteLine("Exiting Menu State");
+        _uiIntegration?.Dispose();
+        _uiIntegration = null;
+        _uiContext = null;
     }
     
     

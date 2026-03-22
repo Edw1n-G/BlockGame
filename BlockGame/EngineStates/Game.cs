@@ -72,8 +72,8 @@ public class Game : IStates
         _playerMovement = new PlayerMovement(_player);
 
         //Egui.NET
-        _uiContext = new Context();
-        _uiIntegration = new SilkGlIntegration(_uiContext, WindowSetup.Window, inputContext);
+        //_uiContext = new Context();
+        //_uiIntegration = new SilkGlIntegration(_uiContext, WindowSetup.Window, inputContext);
         
         //Input Manager
         InputManager.Initialize(inputContext);
@@ -99,7 +99,7 @@ public class Game : IStates
         _chunkRequestor = new ChunkRequestor(_player, _chunkProvider, generationCores);
         
         //UI erstellen
-        _uiManager = new UIManager(_chunkRequestor);
+        //_uiManager = new UIManager(_chunkRequestor);
         
         //====================================================================
         //Nachdem Alle Objekte da sind globale ReferenzPunkte setzen, wo nötig
@@ -122,9 +122,9 @@ public class Game : IStates
         _playerRenderer.Render();
         
         //UI rendern
-        _gl.Disable(EnableCap.DepthTest);// Die UI soll immer sichtbar sein. wird in shader.Use() wieder aktiviert
-        
-        _uiIntegration.Run(ctx => _uiManager.Draw(ctx));
+        //_gl.Disable(EnableCap.DepthTest);// Die UI soll immer sichtbar sein. wird in shader.Use() wieder aktiviert
+        //
+        //_uiIntegration.Run(ctx => _uiManager.Draw(ctx));
     }
     
     //Wird jeden Frame aufgerufen, hier wird alles außer dem Rendering gemacht.

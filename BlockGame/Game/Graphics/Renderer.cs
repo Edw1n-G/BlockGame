@@ -38,8 +38,7 @@ public class Renderer
     }
 
 
-    long startTimestamp = Stopwatch.GetTimestamp();
-    long maxTicks = (long)(5.0 / 1000.0 * Stopwatch.Frequency);
+    
     private int totalchunks;
     private int shownchunks;
     
@@ -52,8 +51,9 @@ public class Renderer
     ///</summary>
     public unsafe void Render()
     {
-        totalchunks = 0;
-        shownchunks = 0;
+        long startTimestamp = Stopwatch.GetTimestamp();
+        long maxTicks = (long)(5.0 / 1000.0 * Stopwatch.Frequency);
+        
         
         Frustum frustum = _terrainshader.Use(_gl, _camera);
         _terrainshader.BindTexture(_terrainTexture);
@@ -94,9 +94,7 @@ public class Renderer
             BaseMesher chunk = kvp.Value;
             
             if (chunk.IsEmpty) continue;
-            //totalchunks++;
             if (!frustum.isInFrustum(chunk.ChunkPosition)) continue;
-            //shownchunks++;
             chunk.Render(_terrainshader);
         }
         
@@ -104,8 +102,6 @@ public class Renderer
         {
             chunk.Dispose();
         }
-        
-        //Console.WriteLine($"Total Chunks: {totalchunks}, Shown Chunks: {shownchunks}");
 
     }
     

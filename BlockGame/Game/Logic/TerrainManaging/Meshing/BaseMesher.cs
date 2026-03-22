@@ -2,6 +2,7 @@ using System.Numerics;
 using Basics.Graphics;
 using Basics.Utilities;
 using Silk.NET.OpenGL;
+using System.Runtime.InteropServices;
 
 namespace Basics.Game.TerrainManaging.Meshing;
 
@@ -98,9 +99,15 @@ public class BaseMesher : IDisposable
             return; 
         }
         
+        // Anstatt mit ToArray() die ganze liste in ein array zu kopieren
+        // nimmt man das array der Liste. listen sind ja eh arrays 
+        // idk wer den typen der ToArray() schrieb verarscht hat
+        Span<uint> indexSpan = CollectionsMarshal.AsSpan(_indices);
+        Span<byte> vertexSpan = CollectionsMarshal.AsSpan(_vertices);
+        
         // Buffer erstellen 
-        _ebo = new BufferObject<uint>(_gl, _indices.ToArray(), BufferTargetARB.ElementArrayBuffer);
-        _vbo = new BufferObject<byte>(_gl, _vertices.ToArray(), BufferTargetARB.ArrayBuffer);
+        _ebo = new BufferObject<uint>(_gl, indexSpan, BufferTargetARB.ElementArrayBuffer);
+        _vbo = new BufferObject<byte>(_gl, vertexSpan, BufferTargetARB.ArrayBuffer);
         _vao = new VertexArrayObject<byte, uint>(_gl, _vbo, _ebo);
 
         // Layout: Stride = 14 Bytes (3 floats + 1 byte layer + 1 byte ao)

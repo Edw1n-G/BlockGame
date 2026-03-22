@@ -69,8 +69,8 @@ public class Lod0Mesher : BaseMesher
         _vertices.Clear();
         _indices.Clear();
         _vertexCount = 0;
-        _vertices.Capacity = 450_000;
-        _indices.Capacity = 48_000;
+        _vertices.Capacity = 60_000;
+        _indices.Capacity = 10_000;
         
         byte[] data = _blockData; 
 
@@ -95,8 +95,7 @@ public class Lod0Mesher : BaseMesher
         }
         
         _indicesCount = (uint)_indices.Count;
-        _vertices.TrimExcess();
-        _indices.TrimExcess();
+        
         // Model Matrix initialisieren (basierend auf Chunk Position)
         model = Matrix4x4.CreateTranslation(new Vector3(ChunkPosition.X*32, ChunkPosition.Y*32, ChunkPosition.Z*32));
         // Der Nachbar Cache ist jetzt nicht mehr nötig

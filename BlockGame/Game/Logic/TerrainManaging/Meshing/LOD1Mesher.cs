@@ -65,8 +65,8 @@ public class Lod1Mesher : BaseMesher
         _vertices.Clear();
         _indices.Clear();
         _vertexCount = 0;
-        _vertices.Capacity = 450_000;
-        _indices.Capacity = 48_000;
+        _vertices.Capacity = 40_000;
+        _indices.Capacity = 8_000;
         
         byte[] data = _blockData; 
 

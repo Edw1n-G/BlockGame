@@ -13,7 +13,7 @@ namespace Basics.Graphics
         private BufferTargetARB _bufferType;
         private GL _gl;
 
-        public unsafe BufferObject(GL gl, Span<TDataType> data, BufferTargetARB bufferType)
+        public unsafe BufferObject(GL gl, ReadOnlySpan<TDataType> data, BufferTargetARB bufferType)
         {
             //Setting the gl instance and storing our buffer type.
             _gl = gl;

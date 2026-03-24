@@ -13,7 +13,7 @@ public class ChunkData
     public const int BlockCount = ChunkSize * ChunkSize * ChunkSize;
     
     
-    public readonly byte[] Blocks;
+    public byte[]? Blocks;
     
     public readonly ChunkCoord Coord;
     
@@ -25,7 +25,7 @@ public class ChunkData
     public ChunkData(ChunkCoord coord, byte[] blocks)
     {
         Coord = coord;
-        Blocks = blocks ?? new byte[BlockCount];
+        Blocks = blocks;
     }
     
     /// <summary>
@@ -34,7 +34,7 @@ public class ChunkData
     public ChunkData(ChunkCoord coord)
     {
         Coord = coord;
-        Blocks = new byte[BlockCount];
+        Blocks = null;
     }
 
     /// <summary>
@@ -52,6 +52,7 @@ public class ChunkData
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public byte GetBlock(int x, int y, int z)
     {
+        if (Blocks == null) return 0;
         return Blocks[x * 1024 + y * 32 + z];
     }
 
@@ -63,6 +64,11 @@ public class ChunkData
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void SetBlock(int x, int y, int z, byte blockId)
     {
+        if (Blocks == null)
+        {
+            if (blockId == 0) return; // Falls ein genie luft in luft setzten will
+            Blocks =  new byte[BlockCount];
+        }
         Blocks[x * 1024 + y * 32 + z] = blockId;
         IsDirty = true;
     }

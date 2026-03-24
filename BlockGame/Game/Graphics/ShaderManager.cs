@@ -52,7 +52,7 @@ public class ShaderManager : IDisposable
         camera.AspectRatio = (float)size.X / size.Y; 
         
         // Culling aus der Sicht der Hauptkamera behalten
-        var view = camera.GetViewMatrix();
+        var view = camera.GetViewMatrix(); // die debug camera wird jetzt auch als parameter übergeben es wird immer die gleiche matrix erstellt
         var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), camera.AspectRatio, camera.nearPlane, camera.farPlane);
         Frustum frustum = camera.CreateFrustum(view, projection);
         

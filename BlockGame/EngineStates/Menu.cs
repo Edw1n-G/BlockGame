@@ -82,7 +82,7 @@ public class Menu : IStates
                 {
                     // Titel
                     frameUi.Heading("MeinKraft");
-                    frameUi.Label("Version 0.9 Alpha");
+                    frameUi.Label("Version 0.9.1 Alpha");
                     
                     // Einen kleinen Strich als Trenner
                     frameUi.Separator();

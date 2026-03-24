@@ -3,6 +3,7 @@ using Basics.Graphics;
 using Basics.Utilities;
 using Silk.NET.OpenGL;
 using System.Runtime.InteropServices;
+using Basics.Game.Logic.TerrainManaging;
 
 namespace Basics.Game.TerrainManaging.Meshing;
 
@@ -13,25 +14,46 @@ public class BaseMesher : IDisposable
     
     public ChunkCoord ChunkPosition; // Position des Chunks in Chunk-Koordinaten (z.B. 0/0, 1/0, -1/0, etc.)
     
-    //Listen → nur so groß wie man braucht + base space allocation kann vergößerung bei simplen sachen vermeiden
-    //Span → 
-    protected List<uint> _indices = new List<uint>();
-    protected List<byte> _vertices = new List<byte>();
+    //Listen um mit der geometriy komplexität zu wachsen
+    protected List<uint> _indices;
+    protected List<byte> _vertices;
     
-    protected int _vertexCount; // Anzahl der Vertices (nicht Bytes!)
+    protected int _vertexCount;
     protected uint _indicesCount;
     
     protected Matrix4x4 model;
     
     // Die OpenGL Handles für diesen spezifischen Chunk
-    private BufferObject<byte>? _vbo;
-    private BufferObject<uint>? _ebo;
-    private VertexArrayObject<byte, uint>? _vao;
     private GL? _gl;
+    
+    private uint _vbo;
+    private uint _ebo;
+    private uint _vao;
+    private nuint _vboCapacity;
+    private nuint _eboCapacity;
     
     private bool _uploaded = false;
     private bool _disposed = false;
     public bool IsEmpty => _indicesCount == 0;
+    
+    public BaseMesher()
+    {
+        // checken ob eine Liste im Pool frei ist
+        if (!ChunkProvider.VertexListPool.TryDequeue(out _vertices))
+        {
+            //Wenn der pool, leer ist, liste mit bestimmter größe erstellen um reallocation zu vermeiden
+            _vertices = new List<byte>(60_000);
+        }
+        _vertices.Clear(); //gebrauchte liste leeren
+
+        // Das gleiche für indexe
+        if (!ChunkProvider.IndexListPool.TryDequeue(out _indices))
+        {
+            _indices = new List<uint>(10_000);
+        }
+        _indices.Clear();
+    }
+    
     
     // Für Chunks die keine AO benutzten
     protected void AddIndices(uint baseIndex)
@@ -43,15 +65,29 @@ public class BaseMesher : IDisposable
     // Für Chunks die AO benutzten
     protected void AddVertex(float x, float y, float z, byte layer, byte aoLevel)
     {
-        // Position (3 floats = 12 Bytes)
-        _vertices.AddRange(BitConverter.GetBytes(x));
-        _vertices.AddRange(BitConverter.GetBytes(y));
-        _vertices.AddRange(BitConverter.GetBytes(z));
+        // X Float in 4 Bytes zerlegen und sofort hinzufügen (keine Arrays, kein AddRange!)
+        int ix = BitConverter.SingleToInt32Bits(x);
+        _vertices.Add((byte)(ix));
+        _vertices.Add((byte)(ix >> 8));
+        _vertices.Add((byte)(ix >> 16));
+        _vertices.Add((byte)(ix >> 24));
         
-        // Layer (1 byte)
+        // Y Float
+        int iy = BitConverter.SingleToInt32Bits(y);
+        _vertices.Add((byte)(iy));
+        _vertices.Add((byte)(iy >> 8));
+        _vertices.Add((byte)(iy >> 16));
+        _vertices.Add((byte)(iy >> 24));
+        
+        // Z Float
+        int iz = BitConverter.SingleToInt32Bits(z);
+        _vertices.Add((byte)(iz));
+        _vertices.Add((byte)(iz >> 8));
+        _vertices.Add((byte)(iz >> 16));
+        _vertices.Add((byte)(iz >> 24));
+        
+        // Layer und AO (je 1 byte)
         _vertices.Add(layer);
-        
-        // AO Level (1 byte)
         _vertices.Add(aoLevel);
         
         _vertexCount++;
@@ -60,15 +96,29 @@ public class BaseMesher : IDisposable
     // Für Chunks die keine AO benutzten
     protected void AddVertex(float x, float y, float z, byte layer)
     {
-        // Position (3 floats = 12 Bytes)
-        _vertices.AddRange(BitConverter.GetBytes(x));
-        _vertices.AddRange(BitConverter.GetBytes(y));
-        _vertices.AddRange(BitConverter.GetBytes(z));
+        // X Float
+        int ix = BitConverter.SingleToInt32Bits(x);
+        _vertices.Add((byte)(ix));
+        _vertices.Add((byte)(ix >> 8));
+        _vertices.Add((byte)(ix >> 16));
+        _vertices.Add((byte)(ix >> 24));
         
-        // Layer (1 byte)
+        // Y Float
+        int iy = BitConverter.SingleToInt32Bits(y);
+        _vertices.Add((byte)(iy));
+        _vertices.Add((byte)(iy >> 8));
+        _vertices.Add((byte)(iy >> 16));
+        _vertices.Add((byte)(iy >> 24));
+        
+        // Z Float
+        int iz = BitConverter.SingleToInt32Bits(z);
+        _vertices.Add((byte)(iz));
+        _vertices.Add((byte)(iz >> 8));
+        _vertices.Add((byte)(iz >> 16));
+        _vertices.Add((byte)(iz >> 24));
+        
+        // Layer und AO (je 1 byte)
         _vertices.Add(layer);
-        
-        // AO Level (1 byte)
         _vertices.Add(0);
         
         _vertexCount++;
@@ -93,6 +143,11 @@ public class BaseMesher : IDisposable
         {
             this._vertices?.Clear();
             this._indices?.Clear();
+            
+            //geliehende Listen wieder zum pool geben
+            if (this._vertices != null) ChunkProvider.VertexListPool.Enqueue(this._vertices);
+            if (this._indices != null) ChunkProvider.IndexListPool.Enqueue(this._indices);
+            
             this._vertices = null!;
             this._indices = null!;
             _uploaded = true;
@@ -102,29 +157,115 @@ public class BaseMesher : IDisposable
         // Anstatt mit ToArray() die ganze liste in ein array zu kopieren
         // nimmt man das array der Liste. listen sind ja eh arrays 
         // idk wer den typen der ToArray() schrieb verarscht hat
-        Span<uint> indexSpan = CollectionsMarshal.AsSpan(_indices);
         Span<byte> vertexSpan = CollectionsMarshal.AsSpan(_vertices);
+        Span<uint> indexSpan = CollectionsMarshal.AsSpan(_indices);
+        nuint neededVboSize = (nuint)vertexSpan.Length;
+        nuint neededEboSize = (nuint)(indexSpan.Length * sizeof(uint));
         
-        // Buffer erstellen 
-        _ebo = new BufferObject<uint>(_gl, indexSpan, BufferTargetARB.ElementArrayBuffer);
-        _vbo = new BufferObject<byte>(_gl, vertexSpan, BufferTargetARB.ArrayBuffer);
-        _vao = new VertexArrayObject<byte, uint>(_gl, _vbo, _ebo);
+        // Buffer für die grafikkarten arrays leihen
+        if (ChunkProvider.VramPool.TryDequeue(out PooledMeshBuffer pool))
+        {
+            _vao = pool.Vao;
+            _vbo = pool.Vbo;
+            _ebo = pool.Ebo;
+            _vboCapacity = pool.VboCapacity;
+            _eboCapacity = pool.EboCapacity;
 
-        // Layout: Stride = 14 Bytes (3 floats + 1 byte layer + 1 byte ao)
-        // aPos: 3 floats ab Offset 0
-        _gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, VertexStride, (void*)0);
-        _gl.EnableVertexAttribArray(0);
+            _gl.BindVertexArray(_vao);
+
+            // VBO
+            _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+            fixed (byte* vPtr = vertexSpan)
+            {
+                if (neededVboSize <= _vboCapacity)
+                {
+                    //Wenn der buffer viel zu groß ist einmal verkleinern um nicht zu viel speicher zu belegen
+                    if (_vboCapacity > neededVboSize * 2 && _vboCapacity > 100_000)
+                    {
+                        _gl.BufferData(BufferTargetARB.ArrayBuffer, neededVboSize, vPtr, BufferUsageARB.DynamicDraw);
+                        _vboCapacity = neededVboSize; // Kapazität nach unten korrigieren
+                    }
+                    else
+                    {
+                        // Buffer passt
+                        _gl.BufferSubData(BufferTargetARB.ArrayBuffer, 0, neededVboSize, vPtr);
+                    }
+                }
+                else
+                {
+                    // Chunk ist größer als recycelter Puffer, vergrößern
+                    _gl.BufferData(BufferTargetARB.ArrayBuffer, neededVboSize, vPtr, BufferUsageARB.DynamicDraw);
+                    _vboCapacity = neededVboSize;
+                }
+            }
+
+            // EBO
+            _gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
+            fixed (uint* iPtr = indexSpan)
+            {
+                if (neededEboSize <= _eboCapacity)
+                {
+                    // Gleiche Logik für die Indizes
+                    if (_eboCapacity > neededEboSize * 2 && _eboCapacity > 20_000)
+                    {
+                        _gl.BufferData(BufferTargetARB.ElementArrayBuffer, neededEboSize, iPtr,
+                            BufferUsageARB.DynamicDraw);
+                        _eboCapacity = neededEboSize;
+                    }
+                    else
+                    {
+                        _gl.BufferSubData(BufferTargetARB.ElementArrayBuffer, 0, neededEboSize, iPtr);
+                    }
+                }
+                else
+                {
+                    _gl.BufferData(BufferTargetARB.ElementArrayBuffer, neededEboSize, iPtr, BufferUsageARB.DynamicDraw);
+                    _eboCapacity = neededEboSize;
+                }
+            }
+        }
+        else
+        {
+            // Keine Buffer vorhanden
+            _vao = _gl.GenVertexArray();
+            _gl.BindVertexArray(_vao);
+            
+            // VBO
+            _vbo = _gl.GenBuffer();
+            _vboCapacity = neededVboSize;
+            _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
+            
+            fixed (byte* vPtr = vertexSpan) {
+                _gl.BufferData(BufferTargetARB.ArrayBuffer, _vboCapacity, vPtr, BufferUsageARB.DynamicDraw);
+            }
+            
+            // EBO
+            _ebo = _gl.GenBuffer();
+            _eboCapacity = neededEboSize;
+            _gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
+            
+            fixed (uint* iPtr = indexSpan) {
+                _gl.BufferData(BufferTargetARB.ElementArrayBuffer, _eboCapacity, iPtr, BufferUsageARB.DynamicDraw);
+            }
+            
+            // Vertex Attribute initialisieren
+            _gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, VertexStride, (void*)0);
+            _gl.EnableVertexAttribArray(0);
+            
+            _gl.VertexAttribIPointer(1, 1, VertexAttribIType.UnsignedByte, VertexStride, (void*)12);
+            _gl.EnableVertexAttribArray(1);
+            
+            _gl.VertexAttribIPointer(2, 1, VertexAttribIType.UnsignedByte, VertexStride, (void*)13);
+            _gl.EnableVertexAttribArray(2);
+        }
         
-        // aLayer: 1 byte (int) ab Offset 12
-        _gl.VertexAttribIPointer(1, 1, VertexAttribIType.UnsignedByte, VertexStride, (void*)12);
-        _gl.EnableVertexAttribArray(1);
-        
-        // aAoLevel: 1 byte (int) ab Offset 13
-        _gl.VertexAttribIPointer(2, 1, VertexAttribIType.UnsignedByte, VertexStride, (void*)13);
-        _gl.EnableVertexAttribArray(2);
-        
+        // Alles auf der GPU geometrie daten löschen und buffer zum pool geben
         this._vertices.Clear();
         this._indices.Clear();
+        
+        ChunkProvider.VertexListPool.Enqueue(_vertices);
+        ChunkProvider.IndexListPool.Enqueue(_indices);
+        
         this._vertices = null!;
         this._indices = null!;
         _uploaded = true;
@@ -132,15 +273,13 @@ public class BaseMesher : IDisposable
     
     public unsafe void Render(ShaderManager shaderManager)
     {
-        //Wenn chunks nicht hochgeladen sind oder schon ein empty chunk ohne vertexe disposen soll gibt es errors
-        if (!_uploaded || _disposed || _vao is null || _ebo is null || _gl is null) return;
+        if (!_uploaded || _disposed || _vao == 0 || _gl is null) return;
         
-        //Dem Shader sagen, wo dieser Chunk liegt
+        // Dem Shader die Weltposition geben
         shaderManager.SetModelMatrix(model);
         
-        _vao.Bind();
-        _ebo.Bind();
-        
+        _gl.BindVertexArray(_vao);
+        // Das EBO ist im VAO gebunden, wir können direkt zeichnen
         _gl.DrawElements(PrimitiveType.Triangles, _indicesCount, DrawElementsType.UnsignedInt, (void*)0);
     }
     
@@ -148,13 +287,20 @@ public class BaseMesher : IDisposable
     public void Dispose()
     {
         if (_disposed) return;
-        _vbo?.Dispose();
-        _ebo?.Dispose();
-        _vao?.Dispose();
         
-        _vbo = null;
-        _ebo = null;
-        _vao = null;
+        // Buffer in den pool nach dem GPU Upload
+        if (_vao != 0 && _vbo != 0 && _ebo != 0)
+        {
+            ChunkProvider.VramPool.Enqueue(new PooledMeshBuffer 
+            {
+                Vao = _vao,
+                Vbo = _vbo,
+                Ebo = _ebo,
+                VboCapacity = _vboCapacity,
+                EboCapacity = _eboCapacity
+            });
+        }
+        
         _disposed = true;
     }
 }

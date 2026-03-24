@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Threading.Channels;
+using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.TerrainManaging.Generation;
 using Basics.Game.TerrainManaging.Meshing;
 using Basics.Utilities;
@@ -9,40 +10,55 @@ namespace Basics.Game.TerrainManaging;
 /// <summary>
 /// Verwaltet den Chunk-Lebenszyklus: Laden von Disk (Placeholder), Generieren, Speichern.
 /// Zentraler Speicher für alle geladenen Chunks.
+///
+/// Für Multiplayer Client Server funktionalität muss generieren und meshen der chunks gesplitted werden
 /// </summary>
 public class ChunkProvider
 {
-    public static readonly ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
+    // Chunk Daten und Meshing Anfragen
     public static ConcurrentDictionary<ChunkCoord, ChunkData> Chunkdata = new();//Die Blockdaten
     private ConcurrentDictionary<ChunkCoord, byte> _queuedForMeshing = new();// Nur damit nicht mehrere Threads denselben Chunk meshen
     
-    // Chunks die bereit für das Meshing sind (haben alle Nachbarn und ihre Blockdaten)
-    public Channel<ChunkCoord> MeshingQueue = Channel.CreateUnbounded<ChunkCoord>(new UnboundedChannelOptions { 
+    // Meshing Anfragen
+    public Channel<ChunkCoord> MeshingQueue = Channel.CreateBounded<ChunkCoord>(new BoundedChannelOptions(200) { 
+        FullMode = BoundedChannelFullMode.Wait, // Lässt den Thread schlafen, wenn voll!
         SingleReader = false, 
         SingleWriter = false 
     });
     
-    // Chunks die fertig gemesht sind und auf die GPU sollen
-    public Channel<BaseMesher> UploadQueue = Channel.CreateUnbounded<BaseMesher>(new UnboundedChannelOptions { 
-        SingleReader = true, // Renderer is the only thread that reads from this
+    // Buffer für Meshing
+    public static readonly ConcurrentQueue<PooledMeshBuffer> VramPool = new();
+    public static readonly ConcurrentQueue<List<byte>> VertexListPool = new();
+    public static readonly ConcurrentQueue<List<uint>> IndexListPool = new();
+
+    // fertig zum Upload bereite meshes 
+    public Channel<BaseMesher> UploadQueue = Channel.CreateBounded<BaseMesher>(new BoundedChannelOptions(300) { 
+        FullMode = BoundedChannelFullMode.Wait, 
+        SingleReader = true, 
         SingleWriter = false 
     });
     
+    //hochgeladene meshes
+    public static readonly ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
+    
+    // meshes die entladen werden müssen
     public ConcurrentQueue<BaseMesher> UnloadQueue = new(); // Chunks die wieder aus der GPU raus müssen
     private readonly TerrainGenerator _terrainGenerator;
     
     
     private bool _isRunning = true;
-
+    
     public ChunkProvider(TerrainGenerator terrainGenerator, int meshingThreads)
     {
         _terrainGenerator = terrainGenerator;
         for (int i = 0; i < meshingThreads; i++)
         {
             // Threads machen die nicht aus dem Algemeienen Threadpool kommen
-            Thread t = new Thread(MeshingWorkerLoop);
-            t.IsBackground = true;
-            t.Name = $"MeshingThread_{i}";
+            Thread t = new Thread(MeshingWorkerLoop)
+            {
+                IsBackground = true,
+                Name = $"MeshingThread_{i}"
+            };
             t.Start();
         }
     }
@@ -51,7 +67,6 @@ public class ChunkProvider
     /// Fordert einen Chunk an. Prüft zuerst, ob er schon geladen ist,
     /// dann ob er von der Festplatte geladen werden kann,
     /// und generiert ihn ansonsten neu.
-    /// Ein Check um zu gucken, ob der Chunk von einem anderen Thread geladen wird fehlt
     /// </summary>
     public void RequestChunk(ChunkCoord coord)
     {
@@ -69,16 +84,15 @@ public class ChunkProvider
             return;
         }
         
-        // Chunk generieren (nur einmal aufrufen!)
+        // Chunk generieren
         byte[]? chunkBlocks = _terrainGenerator.GenerateChunk(coord);
         
         // Wenn der Chunkgenerator null zurückgibt ist der Chunk nur Luft oder
-        // nicht in der Welt. Trotzdem als leere Daten speichern, damit Nachbar-Chunks
-        // ihre HasAllNeighbors-Prüfung bestehen und gemesht werden können!
+        // nicht in der Welt. Trotzdem speichern, damit Nachbar-Chunks gemesht werden können
         ChunkData chunkData;
         if (chunkBlocks == null)
         {
-            chunkData = new ChunkData(coord); // Alles 0 = Luft
+            chunkData = new ChunkData(coord); // Alles Luft
         }
         else
         {
@@ -131,17 +145,17 @@ public class ChunkProvider
         //Selbstcheck um existenzkrisen zu vermeiden
         if (!Chunkdata.ContainsKey(coord)) return;
 
-        //Selbcheck fertig oder schon angefangen
+        //Selbcheck schon angefangen
         if (_queuedForMeshing.ContainsKey(coord)) return;
 
         //Sind direkte Nachbarn im Dictionary?
         if (!HasAllNeighbors(coord)) return;
-
-        // WENN WIR HIER SIND: Jackpot! Der Chunk ist zu 100% bereit für das Meshing.
+        
+        
         if (_queuedForMeshing.TryAdd(coord, 0))
         {
-            //Meshing anfangen
-            MeshingQueue.Writer.TryWrite(coord); 
+            //Meshing anfangen aber warten bis platz im channel ist
+            MeshingQueue.Writer.WriteAsync(coord).AsTask().Wait();
         }
     }
     
@@ -174,7 +188,7 @@ public class ChunkProvider
                         throw new Exception($"Ungültiges LOD-Level {coord.LodLevel} für Chunk {coord}");
                 }
                 
-                UploadQueue.Writer.TryWrite(newMesh);
+                UploadQueue.Writer.WriteAsync(newMesh).AsTask().Wait();
                 _queuedForMeshing.TryRemove(coord, out _);
             }
         }
@@ -261,7 +275,7 @@ public class ChunkProvider
         // Neu in die Meshing-Queue
         if (_queuedForMeshing.TryAdd(coord, 0))
         {
-            MeshingQueue.Writer.TryWrite(coord);
+            MeshingQueue.Writer.WriteAsync(coord).AsTask().Wait();
         }
         
         //Altes Mesh wird im Renderer ersetzt

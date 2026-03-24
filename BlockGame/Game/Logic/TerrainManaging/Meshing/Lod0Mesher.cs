@@ -14,8 +14,8 @@ public class Lod0Mesher : BaseMesher
     
     public Lod0Mesher(ChunkCoord position, ChunkData chunkData)
     {
-        if (chunkData == null) return;
         this.ChunkPosition = position;
+        if (chunkData.Blocks == null) return;
         this._blockData = chunkData.Blocks;
         CreateNeighborCache();
         BuildMeshData();
@@ -69,8 +69,6 @@ public class Lod0Mesher : BaseMesher
         _vertices.Clear();
         _indices.Clear();
         _vertexCount = 0;
-        _vertices.Capacity = 60_000;
-        _indices.Capacity = 10_000;
         
         byte[] data = _blockData; 
 
@@ -80,16 +78,31 @@ public class Lod0Mesher : BaseMesher
             {
                 for (int z = 0; z < 32; z++)
                 {
-                    // Kein Block, keine Flächen
-                    if (data[x * 1024 + y * 32 + z] == 0) continue;
-
-                    // Koordinaten direkt übergeben, IsBlock wurde optimiert
-                    if (!IsBlock(x, y + 1, z)) CreateCubeFace(x, y, z, BlockTextures.Top);
-                    if (!IsBlock(x, y - 1, z)) CreateCubeFace(x, y, z, BlockTextures.Bottom);
-                    if (!IsBlock(x, y, z + 1)) CreateCubeFace(x, y, z, BlockTextures.Front);
-                    if (!IsBlock(x, y, z - 1)) CreateCubeFace(x, y, z, BlockTextures.Back);
-                    if (!IsBlock(x - 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Left);
-                    if (!IsBlock(x + 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Right);
+                    int idx = x * 1024 + y * 32 + z;
+            
+                    // Leere überspringen
+                    if (data[idx] == 0) continue; 
+                    
+                    // innere Blöcke 
+                    if (x > 0 && x < 31 && y > 0 && y < 31 && z > 0 && z < 31)
+                    {
+                        if (data[idx + 32] == 0)   CreateCubeFace(x, y, z, BlockTextures.Top);     // y+1
+                        if (data[idx - 32] == 0)   CreateCubeFace(x, y, z, BlockTextures.Bottom);  // y-1
+                        if (data[idx + 1] == 0)    CreateCubeFace(x, y, z, BlockTextures.Front);   // z+1
+                        if (data[idx - 1] == 0)    CreateCubeFace(x, y, z, BlockTextures.Back);    // z-1
+                        if (data[idx - 1024] == 0) CreateCubeFace(x, y, z, BlockTextures.Left);    // x-1
+                        if (data[idx + 1024] == 0) CreateCubeFace(x, y, z, BlockTextures.Right);   // x+1
+                    }
+                    // äußere Blöcke Nachbarchunkcheck nötig 
+                    else
+                    {
+                        if (!IsBlock(x, y + 1, z)) CreateCubeFace(x, y, z, BlockTextures.Top);
+                        if (!IsBlock(x, y - 1, z)) CreateCubeFace(x, y, z, BlockTextures.Bottom);
+                        if (!IsBlock(x, y, z + 1)) CreateCubeFace(x, y, z, BlockTextures.Front);
+                        if (!IsBlock(x, y, z - 1)) CreateCubeFace(x, y, z, BlockTextures.Back);
+                        if (!IsBlock(x - 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Left);
+                        if (!IsBlock(x + 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Right);
+                    }
                 }
             }
         }

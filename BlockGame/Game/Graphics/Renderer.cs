@@ -66,11 +66,9 @@ public class Renderer
                 continue;
             }
             
-            // Alles außer Luft hochladen
-            if (!chunk.IsEmpty)
-            {
-                chunk.UploadToGpu(_gl);
-            }
+            //Der (nicht) Upload von leeren chunks wird im basemesher gehandelt
+            chunk.UploadToGpu(_gl);
+            
 
             // Wenn der Chunk schon geladen ist ersetzen, sonst hinzufügen
             if (ChunkProvider.LoadedChunks.TryGetValue(chunk.ChunkPosition, out BaseMesher? oldMesh))
@@ -105,17 +103,17 @@ public class Renderer
 
     }
     
-    /**
-     * Color und Depth Buffer löschen, damit der vorherige Frame nicht mehr sichtbar ist.
-     */
+    /// <summary>
+    /// Color und Depth Buffer löschen, damit der vorherige Frame nicht mehr sichtbar ist.
+    /// </summary>
     public void Clear()
     {
         _gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
     }
     
-    /**
-     * Jeden Shader und Chunk gefolgt vom GL Kontext entfernen
-     */
+    /// <summary>
+    /// Jeden Shader und Chunk gefolgt vom GL Kontext entfernen
+    /// </summary>
     public void Dispose()
     {
         _terrainshader.Dispose();
@@ -124,9 +122,9 @@ public class Renderer
         _gl.Dispose();
     }
     
-    /**
-     * Fenstergröße weitergeben damit die Viewportgröße angepasst werden kann.
-     */
+    /// <summary>
+    ///  Fenstergröße weitergeben damit die Viewportgröße angepasst werden kann.
+    /// </summary>
     public void FramebufferResize(Vector2D<int> size)
     {
         _gl.Viewport(size);

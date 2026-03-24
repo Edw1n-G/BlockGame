@@ -39,7 +39,7 @@ namespace Basics.Graphics.UI
                 .Show(ctx, ui =>
                 {
                     int dist = GameSettings.RenderDistance;
-                    if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, 1, 40).Text("Render Distance")).Changed)
+                    if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, 1, 60).Text("Render Distance")).Changed)
                     {
                         GameSettings.SetRenderDistance(dist);
                         //TODO: Force ChunkUpdate in ChunkRequestor without passing reference to UIManager

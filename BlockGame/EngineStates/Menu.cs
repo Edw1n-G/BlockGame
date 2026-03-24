@@ -116,6 +116,12 @@ public class Menu : IStates
                         GameSettings.SetRenderDistance(dist);
                     }
                     
+                    int size = GameSettings.MapSize;
+                    if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, 1, 500).Text("World size (in Chunks)")).Changed)
+                    {
+                        GameSettings.SetMapSize(size);
+                    }
+                    
                     if (ui.Button("Schließen").Clicked)
                     {
                         _showSettings = false;

@@ -30,6 +30,9 @@ public class Renderer
         _camera = camera;
         _terrainshader = new ShaderManager(_gl, "shader.vert", "shader.frag");
         _terrainTexture = new TextureArray(_gl, "Game/texture/example.png");
+        
+        // Ka ob hierhin oder in den shader manager
+        _gl.Enable(EnableCap.Multisample);
     }
 
     public void SetCamera(Camera camera)

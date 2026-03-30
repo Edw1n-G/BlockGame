@@ -1,4 +1,5 @@
-﻿using Basics.Input;
+﻿using Basics.Game;
+using Basics.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 
@@ -12,6 +13,7 @@ public class WindowSetup
     {
         WindowOptions options = WindowOptions.Default;
         options.Size = new Vector2D<int>(800, 600);
+        options.Samples = GameSettings.Msaa;
         options.Title = "Game";
         
         //options.FramesPerSecond = 60.0;

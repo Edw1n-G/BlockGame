@@ -82,7 +82,7 @@ public class Menu : IStates
                 {
                     // Titel
                     frameUi.Heading("MeinKraft");
-                    frameUi.Label("Version 0.9.1 Alpha");
+                    frameUi.Label("Version 0.10.2 Alpha");
                     
                     // Einen kleinen Strich als Trenner
                     frameUi.Separator();
@@ -117,7 +117,7 @@ public class Menu : IStates
                     }
                     
                     int size = GameSettings.MapSize;
-                    if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, 1, 500).Text("World size (in Chunks)")).Changed)
+                    if (ui.Add(new Egui.Widgets.Slider<int>(ref size, 1, 500).Text("World size (in Chunks)")).Changed)
                     {
                         GameSettings.SetMapSize(size);
                     }

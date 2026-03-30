@@ -18,7 +18,9 @@ public static class GameSettings
     public static int Seed { get; private set; } = 1; // Standard-Seed, später vor dem Start des Spiels setztbar
     public static int MapSize { get; private set; } = 100;
     
+    // Grafik einstellungen
     
+    public static int Msaa { get; private set; } = 2;
     
     // Funktionen zum Anpassen der Werte
     public static void SetRenderDistance(int distance)

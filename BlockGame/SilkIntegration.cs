@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using Basics.Input;
 using Egui;
 using Egui.Viewport;
 using Silk.NET.Input;
@@ -355,6 +356,8 @@ public abstract class SilkIntegration : IDisposable
     /// <param name="vector">The change in position, in pixels.</param>
     private void MouseMove(IMouse mouse, Vector2 vector)
     {
+        if (InputManager.IsMouseLocked) return;
+        
         _rawInput.Events = _rawInput.Events.Add(new Event.PointerMoved
         {
             Value = (vector.X / _nativeZoomFactor, vector.Y / _nativeZoomFactor)

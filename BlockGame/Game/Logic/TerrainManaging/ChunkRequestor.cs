@@ -62,16 +62,12 @@ public class ChunkRequestor
             }
             // Dieses Parallel. For blockiert jetzt nur diesen Task, nicht das ganze Spiel!
             
-            Parallel.ForEach(newActiveChunks, _parallelOptions, i =>
+            Parallel.ForEach(newActiveChunks, _parallelOptions, chunk =>
             {
-                foreach (ChunkCoord coord in newActiveChunks)
-                {
-                    if (!_activeChunks.Contains(coord))
-                    {
-                        _chunkProvider.RequestChunk(coord);
-                    }
+                if (!_activeChunks.Contains(chunk))
+                { 
+                    _chunkProvider.RequestChunk(chunk);
                 }
-                
             });
             
             // Thread-safe austauschen

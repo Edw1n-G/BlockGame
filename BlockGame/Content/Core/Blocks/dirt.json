@@ -1,0 +1,19 @@
+{
+  "name": "Dirt",
+  "tags": [
+    "tag:block",
+    "tag:mineable_shovel",
+    "tag:dirt"
+  ],
+  "properties": {
+    "hardness": 1.0,
+    "isSolid": true,
+    "isTransparent": false,
+    "lightEmission": 0
+  },
+  "textures": {
+    "top": "core:grass",
+    "bottom": "core:dirt",
+    "sides": "core:dirt-grass"
+  }
+}

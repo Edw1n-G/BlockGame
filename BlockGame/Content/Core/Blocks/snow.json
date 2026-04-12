@@ -1,0 +1,19 @@
+{
+  "name": "Snow",
+  "tags": [
+    "tag:block",
+    "tag:mineable_shovel",
+    "tag:snow"
+  ],
+  "properties": {
+    "hardness": 0.5,
+    "isSolid": true,
+    "isTransparent": false,
+    "lightEmission": 0
+  },
+  "textures": {
+    "top": "core:snow",
+    "bottom": "core:snow",
+    "sides": "core:snow"
+  }
+}

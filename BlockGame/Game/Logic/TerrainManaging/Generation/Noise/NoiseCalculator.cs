@@ -1,7 +1,6 @@
-using System;
 using System.Buffers;
 
-namespace Basics.Game.TerrainManaging.Generation;
+namespace Basics.Game.Logic.TerrainManaging.Generation.Noise;
 
 public class NoiseCalculator : IDisposable
 {
@@ -19,6 +18,12 @@ public class NoiseCalculator : IDisposable
     private FastNoise? _domainWarpSuperSimplexNode;
     private FastNoise? _domainWarpFractalProgressiveNode;
     private FastNoise? _scaleNode;
+    
+    
+    //TODO: mehrere noise maps generieren
+    //TODO: density anstatt absolut y benutzen für höhlen
+    //TODO: 3d terrain und am weltrand ein chunk als übergang interpoliert plazieren
+    //TODO: setting menü für nodes values mit maybe 2d map preview
     
     private NoiseCalculator()
     {

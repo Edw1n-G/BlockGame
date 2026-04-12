@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Basics.Configurations;
+using Basics.Game.Logic.TerrainManaging;
 using Basics.Utilities;
 
 namespace Basics.Game.TerrainManaging.Meshing;

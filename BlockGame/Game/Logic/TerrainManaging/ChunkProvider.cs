@@ -1,11 +1,11 @@
 ﻿using System.Collections.Concurrent;
 using System.Threading.Channels;
-using Basics.Game.Logic.TerrainManaging;
+using Basics.Game.TerrainManaging;
 using Basics.Game.TerrainManaging.Generation;
 using Basics.Game.TerrainManaging.Meshing;
 using Basics.Utilities;
 
-namespace Basics.Game.TerrainManaging;
+namespace Basics.Game.Logic.TerrainManaging;
 
 /// <summary>
 /// Verwaltet den Chunk-Lebenszyklus: Laden von Disk (Placeholder), Generieren, Speichern.

@@ -1,4 +1,4 @@
-namespace Basics.Game.TerrainManaging
+namespace Basics.Game.Logic.TerrainManaging
 {
     /// <summary>
     /// Alle Klassen können jetzt die welt bearbeiten über ChunkProvider,

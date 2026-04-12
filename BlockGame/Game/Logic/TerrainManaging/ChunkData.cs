@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using Basics.Utilities;
 
-namespace Basics.Game.TerrainManaging;
+namespace Basics.Game.Logic.TerrainManaging;
 
 /// <summary>
 /// Speichert die Blockdaten eines einzelnen Chunks.

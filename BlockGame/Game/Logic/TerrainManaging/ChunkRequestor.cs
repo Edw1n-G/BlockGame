@@ -1,4 +1,5 @@
-﻿using Basics.Game.Player;
+﻿using Basics.Game.Logic.TerrainManaging;
+using Basics.Game.Player;
 using Basics.Utilities;
 
 namespace Basics.Game.TerrainManaging;
@@ -38,14 +39,15 @@ public class ChunkRequestor
     /// <summary>
     /// Event-Handler: Wird aufgerufen, wenn der Spieler in einen neuen Chunk wechselt.
     /// Berechnet welche Chunks im Render-Radius liegen und fordert sie an.
+    /// TODO: die methode auf maximal eine instanz? limitieren damit kein update gefragt wird während eins schon läuft
     /// </summary>
     private void OnPlayerChunkChanged(ChunkCoord playerChunk)
     {
         Task.Run(() =>
         {
             
-            HashSet<ChunkCoord> newActiveChunks = new();
-            List<ChunkCoord> chunksToLoad = new();
+            HashSet<ChunkCoord> newActiveChunks = new(GameSettings.RenderDistance * GameSettings.RenderDistance * GameSettings.VerticalRenderDistance * 8);
+            
             for (int x = -GameSettings.RenderDistance; x <=GameSettings.RenderDistance; x++)
             {
                 for (int z = -GameSettings.RenderDistance; z <= GameSettings.RenderDistance; z++)
@@ -54,16 +56,22 @@ public class ChunkRequestor
                     for (int y = -GameSettings.RenderDistance; y <= GameSettings.RenderDistance; y++)
                     {
                         ChunkCoord coord = new ChunkCoord(playerChunk.X + x, playerChunk.Y + y, playerChunk.Z + z, 0);
-                        chunksToLoad.Add(coord);
                         newActiveChunks.Add(coord);
                     }
                 }
             }
-            // Dieses Parallel.For blockiert jetzt nur diesen Task, nicht das ganze Spiel!
-            // Es kann sich nun alle freien Kerne der CPU schnappen.
-            Parallel.For(0, chunksToLoad.Count, _parallelOptions, i =>
+            // Dieses Parallel. For blockiert jetzt nur diesen Task, nicht das ganze Spiel!
+            
+            Parallel.ForEach(newActiveChunks, _parallelOptions, i =>
             {
-                _chunkProvider.RequestChunk(chunksToLoad[i]);
+                foreach (ChunkCoord coord in newActiveChunks)
+                {
+                    if (!_activeChunks.Contains(coord))
+                    {
+                        _chunkProvider.RequestChunk(coord);
+                    }
+                }
+                
             });
             
             // Thread-safe austauschen
@@ -77,11 +85,11 @@ public class ChunkRequestor
     }
 
     /// <summary>
-    /// Entlädt Chunks die nicht mehr im aktiven Set sind.
+    /// Entlädt Chunks, die nicht mehr im aktiven Set sind.
     /// </summary>
     private void UnloadDistantChunks(HashSet<ChunkCoord> newActiveChunks)
     {
-        // Alle Chunks finden die vorher aktiv waren aber jetzt nicht mehr
+        // Alle Chunks finden, die vorher aktiv waren aber jetzt nicht mehr
         foreach (ChunkCoord oldChunk in _activeChunks)
         {
             if (!newActiveChunks.Contains(oldChunk))

@@ -2,6 +2,7 @@
 using Basics.Configurations;
 using Basics.Game;
 using Basics.Game.Graphics;
+using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Player;
 using Basics.Game.TerrainManaging;
 using Basics.Game.TerrainManaging.Generation;

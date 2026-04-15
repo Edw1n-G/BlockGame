@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 
-namespace Basics.Graphics;
+namespace Basics.Game.Graphics;
 
 public class Transform
 {

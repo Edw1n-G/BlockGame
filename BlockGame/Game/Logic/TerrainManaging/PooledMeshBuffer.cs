@@ -1,8 +1,9 @@
 namespace Basics.Game.Logic.TerrainManaging;
 
 /// <summary>
-/// Benutzt um garbage collector zu entlasten
+/// Benutzt, um Garbage Collector zu entlasten,
 /// durch wiederverwendung von buffers
+/// TODO noch solche für chunks machen. anzahl kann man ja von render distance berechnen
 /// </summary>
 public struct PooledMeshBuffer
 {

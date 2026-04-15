@@ -1,7 +1,9 @@
 ﻿using System;
 using System.IO;
+using Basics.Configurations;
+using Basics.Game.Logic;
 using Basics.Game.Logic.TerrainManaging.Generation.Noise;
-using Basics.Utilities;
+using Basics.Game.Utilities;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -17,6 +19,16 @@ public class TerrainGenerator
     
     //Anstatt dass jeder Chunk seine eigenen NoiseCalculator erstellt greift jeder Chunk auf eine Instanz zu
     private NoiseCalculator _noiseCalculator => NoiseCalculator.Instance;
+    private readonly ushort _dirtId;
+    private readonly ushort _stoneId;
+    private readonly ushort _snowId;
+
+    public TerrainGenerator()
+    {
+        _dirtId = BlockTextures.GetBlockId("core:dirt");
+        _stoneId = BlockTextures.GetBlockId("core:stone");
+        _snowId = BlockTextures.GetBlockId("core:snow");
+    }
     
     /// <summary>
     /// Setzt die Max Größe der Karte
@@ -31,7 +43,7 @@ public class TerrainGenerator
     /// generiert alles Blöcke des Chunkes mit 4D Noise
     /// wird in @param ChunkBlocks gespeichert und an den ChunkMesher übergeben, der die Geometrie erstellt
     /// </summary>
-    public byte[] GenerateChunk(ChunkCoord coord)
+    public ushort[] GenerateChunk(ChunkCoord coord)
     {
         if (Math.Abs(coord.X) > GameSettings.MapSize || Math.Abs(coord.Z) > GameSettings.MapSize)
         {
@@ -47,7 +59,7 @@ public class TerrainGenerator
         int chunkStartZ = coord.Z * stepSize * 32;
         int chunkTopY = chunkStartY + stepSize - 1; // Oberster Block im Chunk (skaliert nach LOD)
     
-        byte[] chunkBlocks = new byte[32768]; // 32*32*32 Blöcke pro Chunk
+        ushort[] chunkBlocks = new ushort[32768]; // 32*32*32 Blöcke pro Chunk
         
         // Chunk-Boden liegt über dem maximal möglichen Terrain
         if (chunkStartY > MaxPossibleHeight)
@@ -58,7 +70,7 @@ public class TerrainGenerator
         // Chunk-Decke liegt unter der oberfläche
         if (chunkTopY < MinPossibleHeight - CaveSafetyMargin)
         {
-            Array.Fill(chunkBlocks, (byte)2); // Komplett Stein
+            Array.Fill(chunkBlocks, _stoneId); // Komplett Stein
             return chunkBlocks;
         }
         
@@ -109,15 +121,15 @@ public class TerrainGenerator
                         
                         if (density < 2 && globalY > 30) 
                         {
-                            chunkBlocks[blockIndex] = 3; // Schnee (Ganz oben auf den Bergspitzen)
+                            chunkBlocks[blockIndex] = _snowId; // Schnee (Ganz oben auf den Bergspitzen)
                         }
                         else if (density < 4) 
                         {
-                            chunkBlocks[blockIndex] = 1; // Erde (Die obersten 3-4 Blöcke der Oberfläche)
+                            chunkBlocks[blockIndex] = _dirtId; // Erde (Die obersten 3-4 Blöcke der Oberfläche)
                         }
                         else 
                         {
-                            chunkBlocks[blockIndex] = 2; // Stein
+                            chunkBlocks[blockIndex] = _stoneId; // Stein
                         }
                     }
                     else

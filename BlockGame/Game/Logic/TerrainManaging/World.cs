@@ -16,12 +16,12 @@ namespace Basics.Game.Logic.TerrainManaging
         
         // --- Global API ---
         // Skripte einfach World.ModifyBlock
-        public static void ModifyBlock(int x, int y, int z, byte blockId)
+        public static void ModifyBlock(int x, int y, int z, ushort blockId)
         {
             _chunkProvider.ModifyBlock(x, y, z, blockId);
         }
 
-        public static byte GetBlock(int x, int y, int z)
+        public static ushort GetBlock(int x, int y, int z)
         {
             return _chunkProvider.GetBlockAt(x, y, z);
         }

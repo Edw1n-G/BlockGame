@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Numerics;
+using Basics.Game.Graphics;
+using Basics.Game.Utilities;
 using Basics.Graphics;
-using Basics.Utilities;
+using Plane = Basics.Game.Graphics.Plane;
 
 namespace Basics.Game;
 
@@ -67,39 +69,39 @@ public class Camera(Vector3 position)
         Frustum frustum = new Frustum();
     
         // Left Face (w + x)
-        frustum.LeftFace = NormalizePlane(new Basics.Graphics.Plane(
+        frustum.LeftFace = NormalizePlane(new Plane(
             new Vector3(vp.M14 + vp.M11, vp.M24 + vp.M21, vp.M34 + vp.M31), vp.M44 + vp.M41));
 
         // Right Face (w - x)
-        frustum.RightFace = NormalizePlane(new Basics.Graphics.Plane(
+        frustum.RightFace = NormalizePlane(new Plane(
             new Vector3(vp.M14 - vp.M11, vp.M24 - vp.M21, vp.M34 - vp.M31), vp.M44 - vp.M41));
 
         // Bottom Face (w + y)
-        frustum.BottomFace = NormalizePlane(new Basics.Graphics.Plane(
+        frustum.BottomFace = NormalizePlane(new Plane(
             new Vector3(vp.M14 + vp.M12, vp.M24 + vp.M22, vp.M34 + vp.M32), vp.M44 + vp.M42));
 
         // Top Face (w - y)
-        frustum.TopFace = NormalizePlane(new Basics.Graphics.Plane(
+        frustum.TopFace = NormalizePlane(new Plane(
             new Vector3(vp.M14 - vp.M12, vp.M24 - vp.M22, vp.M34 - vp.M32), vp.M44 - vp.M42));
 
         // Near Face (w + z)
-        frustum.NearFace = NormalizePlane(new Basics.Graphics.Plane(
+        frustum.NearFace = NormalizePlane(new Plane(
             new Vector3(vp.M13, vp.M23, vp.M33), vp.M43));
 
         // Far Face (w - z)
-        frustum.FarFace = NormalizePlane(new Basics.Graphics.Plane(
+        frustum.FarFace = NormalizePlane(new Plane(
             new Vector3(vp.M14 - vp.M13, vp.M24 - vp.M23, vp.M34 - vp.M33), vp.M44 - vp.M43));
 
         return frustum;
     }
 
 // Hilfsmethode, um die Normalen auf eine Länge von 1 zu bringen
-    private Basics.Graphics.Plane NormalizePlane(Basics.Graphics.Plane p)
+    private Plane NormalizePlane(Plane p)
     {
         float length = p.Normal.Length();
         // Verhindere Division durch 0
         if (length <= 0) return p; 
     
-        return new Basics.Graphics.Plane(p.Normal / length, p.Distance / length);
+        return new Plane(p.Normal / length, p.Distance / length);
     }
 }

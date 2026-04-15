@@ -1,15 +1,14 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Basics.Configurations;
-using Basics.Game.Logic.TerrainManaging;
-using Basics.Utilities;
+using Basics.Game.Utilities;
 
-namespace Basics.Game.TerrainManaging.Meshing;
+namespace Basics.Game.Logic.TerrainManaging.Meshing;
 
 public class Lod0Mesher : BaseMesher
 {
-    private byte[] _blockData;
-    private byte[][]? _neighborCache = new byte[27][]; //Is Block wird verdammt oft aufgerufen, pointer auf die Nachbarn während des ersten mes
+    private ushort[] _blockData;
+    private ushort[][]? _neighborCache = new ushort[27][]; //Is Block wird verdammt oft aufgerufen, pointer auf die Nachbarn während des ersten mes
     
     // AO Level (0–3) wird als int an den Shader gesendet, Konvertierung in float passiert dort
     
@@ -71,7 +70,7 @@ public class Lod0Mesher : BaseMesher
         _indices.Clear();
         _vertexCount = 0;
         
-        byte[] data = _blockData; 
+        ushort[] data = _blockData; 
 
         for (int x = 0; x < 32; x++)
         {
@@ -119,7 +118,7 @@ public class Lod0Mesher : BaseMesher
     private void CreateCubeFace(int x, int y, int z, int face)
     {
         int id = _blockData[x * 1024 + y * 32 + z];
-        byte textureLayer = BlockTextures.Get(id, face);
+        ushort textureLayer = BlockTextures.Get(id, face);
         
         // AO direkt als int berechnen (0–3)
         byte ao0 = CalcAoLevel(x, y, z, face, 0);
@@ -216,7 +215,7 @@ public class Lod0Mesher : BaseMesher
         else if (z > 31) { cz = 2; z -= 32; }
 
         // Cache Index (0 bis 26) berechnen
-        byte[] neighborData = _neighborCache[cx * 9 + cy * 3 + cz];
+        ushort[] neighborData = _neighborCache[cx * 9 + cy * 3 + cz];
 
         if (neighborData != null)
         {

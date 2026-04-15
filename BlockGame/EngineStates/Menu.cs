@@ -2,10 +2,10 @@ using Basics.Game;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-using Basics.Utilities;
 using Basics.Window;
 using Egui;
 using Basics;
+using Basics.Game.Logic;
 using Egui.Containers;
 using Egui.Silk.NET;
 

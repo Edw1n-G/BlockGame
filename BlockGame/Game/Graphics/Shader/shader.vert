@@ -1,7 +1,7 @@
 #version 460 core
 
 layout (location = 0) in vec3 aPos;
-layout (location = 1) in int aLayer;    // Textur-Layer als byte (int8)
+layout (location = 1) in uint aLayer;   // Textur-Layer als uint16
 layout (location = 2) in int aAoLevel;  // AO Level 0-3 als byte (int8)
 
 uniform mat4 uModel;

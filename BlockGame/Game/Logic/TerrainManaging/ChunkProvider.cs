@@ -1,9 +1,8 @@
 ﻿using System.Collections.Concurrent;
 using System.Threading.Channels;
-using Basics.Game.TerrainManaging;
+using Basics.Game.Logic.TerrainManaging.Meshing;
 using Basics.Game.TerrainManaging.Generation;
-using Basics.Game.TerrainManaging.Meshing;
-using Basics.Utilities;
+using Basics.Game.Utilities;
 
 namespace Basics.Game.Logic.TerrainManaging;
 
@@ -85,7 +84,7 @@ public class ChunkProvider
         }
         
         // Chunk generieren
-        byte[]? chunkBlocks = _terrainGenerator.GenerateChunk(coord);
+        ushort[]? chunkBlocks = _terrainGenerator.GenerateChunk(coord);
         
         // Wenn der Chunkgenerator null zurückgibt ist der Chunk nur Luft oder
         // nicht in der Welt. Trotzdem speichern, damit Nachbar-Chunks gemesht werden können
@@ -235,7 +234,7 @@ public class ChunkProvider
     /// Ändert einen Block an einer Weltposition und löst Re-Meshing aus.
     /// Gibt true zurück wenn der Block erfolgreich geändert wurde.
     /// </summary>
-    public bool ModifyBlock(int worldX, int worldY, int worldZ, byte newBlockId)
+    public bool ModifyBlock(int worldX, int worldY, int worldZ, ushort newBlockId)
     {
         // Weltkoordinaten → ChunkCoord + lokale Koordinaten
         ChunkCoord chunkCoord = ChunkData.WorldToChunkCoord(worldX, worldY, worldZ);
@@ -293,7 +292,7 @@ public class ChunkProvider
     /// <summary>
     /// Gibt die Block-ID an einer Weltposition zurück (0 = Luft/nicht geladen).
     /// </summary>
-    public byte GetBlockAt(int worldX, int worldY, int worldZ)
+    public ushort GetBlockAt(int worldX, int worldY, int worldZ)
     {
         ChunkCoord chunkCoord = ChunkData.WorldToChunkCoord(worldX, worldY, worldZ);
         if (!Chunkdata.TryGetValue(chunkCoord, out ChunkData? chunkData))

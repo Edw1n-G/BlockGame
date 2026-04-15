@@ -1,8 +1,7 @@
-﻿using System;
-using System.Numerics;
+﻿using System.Numerics;
 using Silk.NET.Maths;
 
-namespace Basics.Utilities;
+namespace Basics.Game.Utilities;
 
 /**
  * Hilfsklasse um Code zu vereinfachen

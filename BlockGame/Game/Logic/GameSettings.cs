@@ -1,8 +1,8 @@
-namespace Basics.Game;
+namespace Basics.Game.Logic;
 
 public static class GameSettings
 {
-    private static readonly object _lock = new(); // Lock-Objekt für Thread-Sicherheit vor dem bearbeiten der Einstellungen
+    private static readonly Lock Lock = new(); // Lock-Objekt für Thread-Sicherheit vor dem bearbeiten der Einstellungen
     
     // Render Distance Einstellungen
     public static int RenderDistance { get; private set; } = 20;
@@ -25,7 +25,7 @@ public static class GameSettings
     // Funktionen zum Anpassen der Werte
     public static void SetRenderDistance(int distance)
     {
-        lock (_lock)
+        lock (Lock)
         {
             RenderDistance = Math.Max(1, distance);
         }
@@ -33,7 +33,7 @@ public static class GameSettings
 
     public static void SetLod1Distance(int distance)
     {
-        lock (_lock)
+        lock (Lock)
         {
             Lod1Distance = Math.Max(2, distance);
         }
@@ -41,7 +41,7 @@ public static class GameSettings
     
     public static void SetLod2Distance(int distance)
     {
-        lock (_lock)
+        lock (Lock)
         {
             Lod2Distance = Math.Max(3, distance);
         }
@@ -49,7 +49,7 @@ public static class GameSettings
     
     public static void SetVerticalRenderDistance(int distance)
     {
-        lock (_lock)
+        lock (Lock)
         {
             VerticalRenderDistance = Math.Max(1, distance);
         }
@@ -57,7 +57,7 @@ public static class GameSettings
     
     public static void SetPlayerMoveSpeed(float speed)
     {
-        lock (_lock)
+        lock (Lock)
         {
             PlayerMoveSpeed = Math.Max(0.1f, speed);
         }
@@ -65,7 +65,7 @@ public static class GameSettings
     
     public static void SetMouseSensitivity(float sensitivity)
     {
-        lock (_lock)
+        lock (Lock)
         {
             MouseSensitivity = Math.Max(0.01f, sensitivity);
         }
@@ -73,7 +73,7 @@ public static class GameSettings
     
     public static void SetSeed(int seed)
     {
-        lock (_lock)
+        lock (Lock)
         {
             Seed = seed;
         }
@@ -81,7 +81,7 @@ public static class GameSettings
     
     public static void SetMapSize(int size)
     {
-        lock (_lock)
+        lock (Lock)
         {
             MapSize = Math.Max(10, size);
         }

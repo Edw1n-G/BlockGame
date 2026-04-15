@@ -1,16 +1,16 @@
 using System.Numerics;
-using Basics.Graphics;
-using Basics.Utilities;
-using Silk.NET.OpenGL;
 using System.Runtime.InteropServices;
-using Basics.Game.Logic.TerrainManaging;
+using Basics.Game.Graphics;
+using Basics.Game.Utilities;
+using Basics.Graphics;
+using Silk.NET.OpenGL;
 
-namespace Basics.Game.TerrainManaging.Meshing;
+namespace Basics.Game.Logic.TerrainManaging.Meshing;
 
 public class BaseMesher : IDisposable
 {
-    // Vertex Layout: 3 floats (12 Bytes) + 1 byte (Layer) + 1 byte (AO) = 14 Bytes pro Vertex
-    protected const int VertexStride = 14;
+    // Vertex Layout: 3 floats (12 Bytes) + ushort (2 Bytes for Layer) + 1 byte (AO) + 1 byte (padding) = 16 Bytes per Vertex
+    protected const int VertexStride = 16;
     
     public ChunkCoord ChunkPosition; // Position des Chunks in Chunk-Koordinaten (z.B. 0/0, 1/0, -1/0, etc.)
     
@@ -63,7 +63,7 @@ public class BaseMesher : IDisposable
     }
     
     // Für Chunks die AO benutzten
-    protected void AddVertex(float x, float y, float z, byte layer, byte aoLevel)
+    protected void AddVertex(float x, float y, float z, ushort layer, byte aoLevel)
     {
         // X Float in 4 Bytes zerlegen und sofort hinzufügen (keine Arrays, kein AddRange!)
         int ix = BitConverter.SingleToInt32Bits(x);
@@ -86,15 +86,17 @@ public class BaseMesher : IDisposable
         _vertices.Add((byte)(iz >> 16));
         _vertices.Add((byte)(iz >> 24));
         
-        // Layer und AO (je 1 byte)
-        _vertices.Add(layer);
+        // Layer (ushort), AO (byte), +1 byte padding damit das Vertex 16 Bytes bleibt.
+        _vertices.Add((byte)layer);
+        _vertices.Add((byte)(layer >> 8));
         _vertices.Add(aoLevel);
+        _vertices.Add(0);
         
         _vertexCount++;
     }
     
     // Für Chunks die keine AO benutzten
-    protected void AddVertex(float x, float y, float z, byte layer)
+    protected void AddVertex(float x, float y, float z, ushort layer)
     {
         // X Float
         int ix = BitConverter.SingleToInt32Bits(x);
@@ -117,8 +119,10 @@ public class BaseMesher : IDisposable
         _vertices.Add((byte)(iz >> 16));
         _vertices.Add((byte)(iz >> 24));
         
-        // Layer und AO (je 1 byte)
-        _vertices.Add(layer);
+        // Layer (ushort), AO (byte), +1 byte padding damit das Vertex 16 Bytes bleibt.
+        _vertices.Add((byte)layer);
+        _vertices.Add((byte)(layer >> 8));
+        _vertices.Add(0);
         _vertices.Add(0);
         
         _vertexCount++;
@@ -252,10 +256,10 @@ public class BaseMesher : IDisposable
             _gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, VertexStride, (void*)0);
             _gl.EnableVertexAttribArray(0);
             
-            _gl.VertexAttribIPointer(1, 1, VertexAttribIType.UnsignedByte, VertexStride, (void*)12);
+            _gl.VertexAttribIPointer(1, 1, VertexAttribIType.UnsignedShort, VertexStride, (void*)12);
             _gl.EnableVertexAttribArray(1);
             
-            _gl.VertexAttribIPointer(2, 1, VertexAttribIType.UnsignedByte, VertexStride, (void*)13);
+            _gl.VertexAttribIPointer(2, 1, VertexAttribIType.UnsignedByte, VertexStride, (void*)14);
             _gl.EnableVertexAttribArray(2);
         }
         
@@ -288,7 +292,7 @@ public class BaseMesher : IDisposable
     {
         if (_disposed) return;
         
-        // Buffer in den pool nach dem GPU Upload
+        // Buffer in den pool nach dem GPU-Upload
         if (_vao != 0 && _vbo != 0 && _ebo != 0)
         {
             ChunkProvider.VramPool.Enqueue(new PooledMeshBuffer 

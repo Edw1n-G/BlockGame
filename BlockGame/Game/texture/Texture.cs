@@ -1,9 +1,7 @@
-using System;
-using System.IO;
 using Silk.NET.OpenGL;
 using StbImageSharp;
 
-namespace Basics.texture
+namespace Basics.Game.texture
 {
     public class Texture : IDisposable
     {

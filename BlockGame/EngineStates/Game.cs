@@ -3,13 +3,14 @@ using Basics.Configurations;
 using Basics.Game;
 using Basics.Game.Graphics;
 using Basics.Game.Logic.TerrainManaging;
+using Basics.Game.PhysicsSystem;
 using Basics.Game.Player;
 using Basics.Game.TerrainManaging;
 using Basics.Game.TerrainManaging.Generation;
+using Basics.Game.Utilities;
 using Basics.Graphics.UI;
 using Basics.Input;
 using Basics.PhysicsSystem;
-using Basics.Utilities;
 using Basics.Window;
 using Egui;
 using Egui.Silk.NET;
@@ -60,6 +61,9 @@ public class Game : IStates
         
         //Kerne aufteilen und reservieren
         CoreAvailability.Initialize();
+
+        // Datengetriebene Block- und Textur-Registries laden.
+        BlockTextures.Initialize(_gl, "Content");
         
         // Player mit eigener Kamera erstellen
         _player = new PlayerCharacter(PlayerStartPosition);
@@ -81,9 +85,6 @@ public class Game : IStates
         InputManager.SetPlayerMovement(_playerMovement); //TODO: InputManager vom Player trennen
 
         InputManager.SetActionBindings(Actions.ToogleDebugCamera, ToggleDebugCamera);
-        
-        // Texture Mapping lesen und in den speicher legen
-        BlockTextures.Initialize("Game/Configurations/TextureConfig.json");
         
         // Terrain-Pipeline aufbauen:
         // TerrainGenerator erzeugt Chunk-Daten

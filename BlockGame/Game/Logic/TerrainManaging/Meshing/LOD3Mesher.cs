@@ -1,4 +1,4 @@
-namespace Basics.Game.TerrainManaging.Meshing;
+namespace Basics.Game.Logic.TerrainManaging.Meshing;
 
 public class LOD3Mesher
 {

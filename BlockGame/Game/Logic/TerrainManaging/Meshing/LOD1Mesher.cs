@@ -1,19 +1,18 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Basics.Configurations;
-using Basics.Game.Logic.TerrainManaging;
-using Basics.Utilities;
+using Basics.Game.Utilities;
 
-namespace Basics.Game.TerrainManaging.Meshing;
+namespace Basics.Game.Logic.TerrainManaging.Meshing;
 
 public class Lod1Mesher : BaseMesher
 {
-    private byte[] _blockData;
-    private byte[][] _neighborCache = new byte[27][];
+    private ushort[] _blockData = null!;
+    private ushort[][] _neighborCache = new ushort[27][];
     
     public Lod1Mesher(ChunkCoord position, ChunkData chunkData)
     {
-        if (chunkData == null) return;
+        if (chunkData == null || chunkData.Blocks == null) return;
         this.ChunkPosition = position;
         this._blockData = chunkData.Blocks;
         CreateNeighborCache();
@@ -69,7 +68,7 @@ public class Lod1Mesher : BaseMesher
         _vertices.Capacity = 40_000;
         _indices.Capacity = 8_000;
         
-        byte[] data = _blockData; 
+        ushort[] data = _blockData; 
 
         for (int x = 0; x < 32; x++)
         {
@@ -105,7 +104,7 @@ public class Lod1Mesher : BaseMesher
     private void CreateCubeFace(int x, int y, int z, int face)
     {
         int id = _blockData[x * 1024 + y * 32 + z];
-        byte textureLayer = BlockTextures.Get(id, face);
+        ushort textureLayer = BlockTextures.Get(id, face);
         
         switch (face)
         {
@@ -191,7 +190,7 @@ public class Lod1Mesher : BaseMesher
         else if (z > 31) { cz = 2; z -= 32; }
 
         // Cache Index (0 bis 26) berechnen
-        byte[] neighborData = _neighborCache[cx * 9 + cy * 3 + cz];
+        ushort[] neighborData = _neighborCache[cx * 9 + cy * 3 + cz];
 
         if (neighborData != null)
         {

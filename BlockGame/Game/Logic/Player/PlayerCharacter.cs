@@ -1,15 +1,19 @@
 using System.Numerics;
+using Basics.Configurations;
 using Basics.Game.Logic.TerrainManaging;
+using Basics.Game.PhysicsSystem;
 using Basics.Game.TerrainManaging;
+using Basics.Game.Utilities;
 using Basics.Input;
 using Basics.PhysicsSystem;
 using Basics.PhysicsSystem.Structs;
-using Basics.Utilities;
 
 namespace Basics.Game.Player;
 
 public class PlayerCharacter
 {
+    private static readonly ushort DefaultPlaceBlockId = BlockTextures.GetBlockId("core:dirt");
+
     public Camera Camera { get; }
 
     public event Action<ChunkCoord>? OnChunkChanged;
@@ -73,7 +77,7 @@ public class PlayerCharacter
             int placeY = hit.HitPosition.Y + hit.HitNormal.Y;
             int placeZ = hit.HitPosition.Z + hit.HitNormal.Z;
 
-            World.ModifyBlock(placeX, placeY, placeZ, 1); // 1 = Erde
+            World.ModifyBlock(placeX, placeY, placeZ, DefaultPlaceBlockId);
         }
     }
 }

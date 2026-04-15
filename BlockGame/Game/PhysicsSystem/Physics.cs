@@ -1,10 +1,11 @@
+using Basics.PhysicsSystem;
 using Basics.PhysicsSystem.Structs;
 using Silk.NET.Maths;
 
-namespace Basics.PhysicsSystem
+namespace Basics.Game.PhysicsSystem
 {
     /// <summary>
-    /// Alle skripte können über statische Physics klasse alle nicht statischen Funktionen aufrufen
+    /// Alle skripte können über statische Physics klasse alle nicht statischen Funktionen aufrufen,
     /// ohne referenz auf die eigentliche Instanz zu haben.
     /// </summary>
     public static class Physics

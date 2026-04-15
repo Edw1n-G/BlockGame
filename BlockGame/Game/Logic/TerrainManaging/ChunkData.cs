@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using Basics.Utilities;
+using Basics.Game.Utilities;
 
 namespace Basics.Game.Logic.TerrainManaging;
 
@@ -13,7 +13,7 @@ public class ChunkData
     public const int BlockCount = ChunkSize * ChunkSize * ChunkSize;
     
     
-    public byte[]? Blocks;
+    public ushort[]? Blocks;
     
     public readonly ChunkCoord Coord;
     
@@ -22,7 +22,7 @@ public class ChunkData
     /// </summary>
     public bool IsDirty { get; set; }
 
-    public ChunkData(ChunkCoord coord, byte[] blocks)
+    public ChunkData(ChunkCoord coord, ushort[] blocks)
     {
         Coord = coord;
         Blocks = blocks;
@@ -50,7 +50,7 @@ public class ChunkData
     /// Gibt die Block-ID an der lokalen Position zurück.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public byte GetBlock(int x, int y, int z)
+    public ushort GetBlock(int x, int y, int z)
     {
         if (Blocks == null) return 0;
         return Blocks[x * 1024 + y * 32 + z];
@@ -58,16 +58,16 @@ public class ChunkData
 
     /// <summary>
     /// Setzt die Block-ID an der lokalen Position.
-    /// Prüft NICHT ob die Koordinaten gültig sind (Performance)!
+    /// Prüft NICHT, ob die Koordinaten gültig sind (Performance)!
     
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetBlock(int x, int y, int z, byte blockId)
+    public void SetBlock(int x, int y, int z, ushort blockId)
     {
         if (Blocks == null)
         {
             if (blockId == 0) return; // Falls ein genie luft in luft setzten will
-            Blocks =  new byte[BlockCount];
+            Blocks =  new ushort[BlockCount];
         }
         Blocks[x * 1024 + y * 32 + z] = blockId;
         IsDirty = true;
@@ -75,24 +75,30 @@ public class ChunkData
 
     /// <summary>
     /// Gibt die Block-ID zurück, mit Bounds-Check.
-    /// Gibt 0 zurück wenn die Koordinaten außerhalb liegen.
+    /// Gibt 0 zurück, wenn die Koordinaten außerhalb liegen.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public byte GetBlockSafe(int x, int y, int z)
+    public ushort GetBlockSafe(int x, int y, int z)
     {
         if ((uint)x >= ChunkSize || (uint)y >= ChunkSize || (uint)z >= ChunkSize)
             return 0;
+        if (Blocks == null) return 0;
         return Blocks[x * 1024 + y * 32 + z];
     }
 
     /// <summary>
     /// Setzt einen Block mit Bounds-Check.
-    /// Gibt false zurück wenn die Koordinaten außerhalb liegen.
+    /// Gibt false zurück, wenn die Koordinaten außerhalb liegen.
     /// </summary>
-    public bool SetBlockSafe(int x, int y, int z, byte blockId)
+    public bool SetBlockSafe(int x, int y, int z, ushort blockId)
     {
         if ((uint)x >= ChunkSize || (uint)y >= ChunkSize || (uint)z >= ChunkSize)
             return false;
+        if (Blocks == null)
+        {
+            if (blockId == 0) return true;
+            Blocks = new ushort[BlockCount];
+        }
         Blocks[x * 1024 + y * 32 + z] = blockId;
         IsDirty = true;
         return true;
@@ -106,6 +112,7 @@ public class ChunkData
     {
         if ((uint)x >= ChunkSize || (uint)y >= ChunkSize || (uint)z >= ChunkSize)
             return false;
+        if (Blocks == null) return false;
         return Blocks[x * 1024 + y * 32 + z] != 0;
     }
 
@@ -138,6 +145,7 @@ public class ChunkData
     /// </summary>
     public bool IsEmpty()
     {
+        if (Blocks == null) return true;
         for (int i = 0; i < BlockCount; i++)
         {
             if (Blocks[i] != 0) return false;

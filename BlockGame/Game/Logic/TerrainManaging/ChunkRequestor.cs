@@ -1,8 +1,7 @@
-﻿using Basics.Game.Logic.TerrainManaging;
-using Basics.Game.Player;
-using Basics.Utilities;
+﻿using Basics.Game.Player;
+using Basics.Game.Utilities;
 
-namespace Basics.Game.TerrainManaging;
+namespace Basics.Game.Logic.TerrainManaging;
 
 /// <summary>
 /// Berechnet basierend auf der Spielerposition welche Chunks geladen/entladen werden sollen.

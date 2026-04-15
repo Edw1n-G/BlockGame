@@ -1,8 +1,4 @@
-using System;
-using System.IO;
-using Basics.Game;
-
-namespace Basics.Utilities;
+namespace Basics.Game.Utilities;
 
 ///<summary>
 /// Berchnet die optimale Aufteilung der Threads für verschiedene Aufgaben.
@@ -16,7 +12,7 @@ public class CoreAvailability
     private static int _exampleTaskCores;
     
     public static int TotalCores => Environment.ProcessorCount;
-    public static int AvailableCores => Math.Max(1, TotalCores - 2);// Es muss immer ein Thread für den Render und Logik Prozess da sein deshalb -2
+    public static int AvailableCores => Math.Max(1, TotalCores - 2);// Paar threads müssen reserviert sein unabhängig der config
 
     public static void Initialize()
     {
@@ -30,7 +26,8 @@ public class CoreAvailability
         }
         Console.WriteLine("--- Core Availability ---");
         Console.WriteLine($"Total Cores: {TotalCores}");
-        Console.WriteLine($"Available Cores: {AvailableCores}");
+        Console.WriteLine($"1 Render Thread + 1 Logic Thread + 0 Render assistance Thread reserved");
+        Console.WriteLine($"Available Background Cores: {AvailableCores}");
         Console.WriteLine($"Terrain Generation Cores: {_terrainGenerationCores}");
         Console.WriteLine($"Chunk Meshing Cores: {_ChunkMeshingCores}");
     }

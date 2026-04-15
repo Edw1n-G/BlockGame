@@ -1,4 +1,4 @@
-﻿using Basics.Game;
+﻿using Basics.Game.Logic;
 using Basics.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;

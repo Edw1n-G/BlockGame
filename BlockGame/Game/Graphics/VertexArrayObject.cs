@@ -1,7 +1,6 @@
 using Silk.NET.OpenGL;
-using System;
 
-namespace Basics.Graphics
+namespace Basics.Game.Graphics
 {
     //The vertex array object abstraction.
     public class VertexArrayObject<TVertexType, TIndexType> : IDisposable

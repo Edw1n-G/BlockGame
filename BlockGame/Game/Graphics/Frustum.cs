@@ -1,7 +1,7 @@
 using System.Numerics;
-using Basics.Utilities;
+using Basics.Game.Utilities;
 
-namespace Basics.Graphics;
+namespace Basics.Game.Graphics;
 
 public struct Frustum
 {

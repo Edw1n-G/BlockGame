@@ -1,6 +1,6 @@
-﻿using System;
+﻿
 
-namespace Basics.Utilities;
+namespace Basics.Game.Utilities;
 
 public struct ChunkCoord : IEquatable<ChunkCoord>
 {

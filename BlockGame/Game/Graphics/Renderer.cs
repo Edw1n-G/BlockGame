@@ -1,8 +1,10 @@
 ﻿using System.Diagnostics;
 using System.Drawing;
+using Basics.Configurations;
 using Basics.Game.Logic.TerrainManaging;
+using Basics.Game.Logic.TerrainManaging.Meshing;
 using Basics.Game.TerrainManaging;
-using Basics.Game.TerrainManaging.Meshing;
+using Basics.Game.texture;
 using Basics.Graphics;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -30,7 +32,7 @@ public class Renderer
         
         _camera = camera;
         _terrainshader = new ShaderManager(_gl, "shader.vert", "shader.frag");
-        _terrainTexture = new TextureArray(_gl, "Game/texture/example.png");
+        _terrainTexture = BlockTextures.TerrainTexture;
         
         // Ka ob hierhin oder in den shader manager
         _gl.Enable(EnableCap.Multisample);
@@ -52,6 +54,7 @@ public class Renderer
     /// damit der Main-Thread die Daten an die GPU bringen kann,
     /// wenn PCIe Uploads zu lange dauern wird der nächste Frame gerendert und der Upload wird im nächsten Frame fortgesetzt
     /// da ich gerade 16.6ms insgesamt habe benutze ich 5ms aber für schnelle gpus braucht man ein smarten upload timer
+    /// TODO worker thread der sich nur um das culling kümmert auch wenn es dann 1-2 frames latenz gibt. da ich ne smarte stopwatch machen wollte kann man auch ein low latenzy modus der automisch schaltet implementieren der das culling mit aktuellen daten macht
     ///</summary>
     public unsafe void Render()
     {

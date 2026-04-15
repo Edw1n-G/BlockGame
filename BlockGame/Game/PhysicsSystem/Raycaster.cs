@@ -1,9 +1,8 @@
 using Basics.Game.Logic.TerrainManaging;
-using Basics.Game.TerrainManaging;
 using Basics.PhysicsSystem.Structs;
 using Silk.NET.Maths;
 
-namespace Basics.PhysicsSystem;
+namespace Basics.Game.PhysicsSystem;
 
 public class Raycaster
 {
@@ -55,8 +54,8 @@ public class Raycaster
         while (distanceTravelled <= maxDistance)
         {
             // === DEINE NEUE ARCHITEKTUR IN AKTION ===
-            // Wir holen die Block ID an der aktuellen Raycast-Position
-            byte blockId = _chunkProvider.GetBlockAt(x, y, z);
+            // Wir holen die Block-ID an der aktuellen Raycast-Position
+            ushort blockId = _chunkProvider.GetBlockAt(x, y, z);
 
             // Ist der Block solide? (0 = Luft, vielleicht hast du noch Wasser etc.)
             if (blockId != 0)

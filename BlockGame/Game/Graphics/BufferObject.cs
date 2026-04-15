@@ -1,7 +1,6 @@
 using Silk.NET.OpenGL;
-using System;
 
-namespace Basics.Graphics
+namespace Basics.Game.Graphics
 {
     //Our buffer object abstraction.
     public class BufferObject<TDataType> : IDisposable

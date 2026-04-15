@@ -1,14 +1,12 @@
-﻿using Silk.NET.OpenGL;
-using StbImageSharp;
-using System;
-using System.IO;
-using System.Numerics;
-using Basics.EngineStates;
-using Basics.Game;
-using Basics.Utilities;
+﻿using System.Numerics;
+using Basics.Game.texture;
+using Basics.Game.Utilities;
+using Basics.Graphics;
 using Basics.Window;
+using Silk.NET.OpenGL;
+using Shader = Basics.Graphics.Shader;
 
-namespace Basics.Graphics;
+namespace Basics.Game.Graphics;
 
 /**
  * Die Klasse verwaltet die Shaderdateien und die Texturen

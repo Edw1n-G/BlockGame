@@ -1,4 +1,5 @@
-﻿using Basics.Game.Player;
+﻿using Basics.Game.Logic.Player;
+using Basics.Game.Player;
 using Basics.Game.Utilities;
 
 namespace Basics.Game.Logic.TerrainManaging;

@@ -3,9 +3,7 @@ using System.Drawing;
 using Basics.Configurations;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Logic.TerrainManaging.Meshing;
-using Basics.Game.TerrainManaging;
 using Basics.Game.texture;
-using Basics.Graphics;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 

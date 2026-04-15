@@ -1,13 +1,10 @@
-﻿using System;
-using System.IO;
-using Basics.Configurations;
-using Basics.Game.Logic;
+﻿using Basics.Configurations;
 using Basics.Game.Logic.TerrainManaging.Generation.Noise;
 using Basics.Game.Utilities;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace Basics.Game.TerrainManaging.Generation;
+namespace Basics.Game.Logic.TerrainManaging.Generation;
 
 public class TerrainGenerator
 {
@@ -20,12 +17,14 @@ public class TerrainGenerator
     //Anstatt dass jeder Chunk seine eigenen NoiseCalculator erstellt greift jeder Chunk auf eine Instanz zu
     private NoiseCalculator _noiseCalculator => NoiseCalculator.Instance;
     private readonly ushort _dirtId;
+    private readonly ushort _grassId;
     private readonly ushort _stoneId;
     private readonly ushort _snowId;
 
     public TerrainGenerator()
     {
         _dirtId = BlockTextures.GetBlockId("core:dirt");
+        _grassId = BlockTextures.GetBlockId("core:grass");
         _stoneId = BlockTextures.GetBlockId("core:stone");
         _snowId = BlockTextures.GetBlockId("core:snow");
     }
@@ -119,17 +118,24 @@ public class TerrainGenerator
                     {
                         // Der Block ist solid
                         
-                        if (density < 2 && globalY > 30) 
+                        bool isTopSolidBlock = density <= stepSize; // bei LOD > 0 robust
+                        bool isNearSurface = density <= 4 * stepSize;
+
+                        if (globalY > 30 && isTopSolidBlock)
                         {
-                            chunkBlocks[blockIndex] = _snowId; // Schnee (Ganz oben auf den Bergspitzen)
+                            chunkBlocks[blockIndex] = _snowId;
                         }
-                        else if (density < 4) 
+                        else if (isTopSolidBlock)
                         {
-                            chunkBlocks[blockIndex] = _dirtId; // Erde (Die obersten 3-4 Blöcke der Oberfläche)
+                            chunkBlocks[blockIndex] = _grassId; // oberster Bodenblock
                         }
-                        else 
+                        else if (isNearSurface)
                         {
-                            chunkBlocks[blockIndex] = _stoneId; // Stein
+                            chunkBlocks[blockIndex] = _dirtId;  // darunter liegende Schicht
+                        }
+                        else
+                        {
+                            chunkBlocks[blockIndex] = _stoneId;
                         }
                     }
                     else

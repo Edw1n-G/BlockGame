@@ -2,13 +2,11 @@ using System.Numerics;
 using Basics.Configurations;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.PhysicsSystem;
-using Basics.Game.TerrainManaging;
 using Basics.Game.Utilities;
 using Basics.Input;
-using Basics.PhysicsSystem;
 using Basics.PhysicsSystem.Structs;
 
-namespace Basics.Game.Player;
+namespace Basics.Game.Logic.Player;
 
 public class PlayerCharacter
 {

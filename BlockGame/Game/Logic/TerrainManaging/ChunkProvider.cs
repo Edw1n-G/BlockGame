@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Threading.Channels;
+using Basics.Game.Logic.TerrainManaging.Generation;
 using Basics.Game.Logic.TerrainManaging.Meshing;
-using Basics.Game.TerrainManaging.Generation;
 using Basics.Game.Utilities;
 
 namespace Basics.Game.Logic.TerrainManaging;

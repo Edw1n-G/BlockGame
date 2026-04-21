@@ -37,10 +37,16 @@ namespace Basics.Graphics.UI
                 .Resizable((false, false))
                 .Show(ctx, ui =>
                 {
-                    int dist = GameSettings.RenderDistance;
-                    if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, 1, 60).Text("Render Distance")).Changed)
+                    int hdist = GameSettings.RenderDistance;
+                    int vdist = GameSettings.VerticalRenderDistance;
+                    if (ui.Add(new Egui.Widgets.Slider<int>(ref hdist, 1, 60).Text("Horizontal Render Distance")).Changed)
                     {
-                        GameSettings.SetRenderDistance(dist);
+                        GameSettings.SetRenderDistance(hdist);
+                        //TODO: Force ChunkUpdate in ChunkRequestor without passing reference to UIManager
+                    }
+                    if (ui.Add(new Egui.Widgets.Slider<int>(ref vdist, 1, 30).Text("Vertical Render Distance")).Changed)
+                    {
+                        GameSettings.SetVerticalRenderDistance(vdist);
                         //TODO: Force ChunkUpdate in ChunkRequestor without passing reference to UIManager
                     }
                     if (ui.Button("Unload All Chunks").Clicked)

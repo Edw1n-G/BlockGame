@@ -55,4 +55,9 @@
       <None Remove="Game\texture\example.png" />
     </ItemGroup>
 
+    <ItemGroup>
+        <EmbeddedResource Include="Content\**">
+            <LogicalName>$([System.String]::new('%(RelativeDir)').Replace('\','.').Replace('/','.').Substring(8))%(FileName)%(Extension)</LogicalName>
+        </EmbeddedResource>
+    </ItemGroup>
 </Project>

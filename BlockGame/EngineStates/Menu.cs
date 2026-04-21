@@ -1,13 +1,12 @@
-using Basics.Game;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Basics.Window;
 using Egui;
-using Basics;
 using Basics.Game.Logic;
 using Egui.Containers;
 using Egui.Silk.NET;
+using StbImageSharp;
 
 namespace Basics.EngineStates;
 
@@ -27,8 +26,8 @@ public class Menu : IStates
         _gl = gl;
         _inputContext = inputContext;
         _manager = manager;
-
-        //Mauszeiger anzeigen
+        
+        //Mauszeiger anzeigen. idk kann man mehrere mäuse benutzen in windows?
         foreach (var mouse in _inputContext.Mice)
         {
             mouse.Cursor.CursorMode = CursorMode.Normal;
@@ -82,7 +81,7 @@ public class Menu : IStates
                 {
                     // Titel
                     frameUi.Heading("MeinKraft");
-                    frameUi.Label("Version 0.10.2 Alpha");
+                    frameUi.Label("Version 0.11.0 Alpha");
                     
                     // Einen kleinen Strich als Trenner
                     frameUi.Separator();
@@ -128,5 +127,35 @@ public class Menu : IStates
                     }
                 });
         }
+        
+        new Egui.Containers.Area("Controlls")
+                .Anchor(Align2.RightBottom, new EVec2(20, 10))
+                .Show(ctx, ui =>
+                {
+                    // Einen Frame definieren. Hier kannst du Farbe, Rundungen und Abstände (Margin) anpassen.
+                    var backgroundFrame = new Egui.Containers.Frame
+                    {
+                        Fill = Color32.Black,
+                        CornerRadius = new CornerRadius { Nw = 5, Ne = 5, Sw = 5, Se = 5 }
+                    };
+
+                    // Den Frame in das 'ui' der Area zeichnen. 
+                    backgroundFrame.Show(ui, frameUi =>
+                    {
+                        frameUi.Label("WASD Shift Space - Movement");
+                        frameUi.Label("F - Mouse Toggle");
+                        frameUi.Label("F1 - Debug Cam (No worki)");
+                        frameUi.Label("F11 - Fullscreen");
+                        frameUi.Label("F12 - Borderless Fullscreen");
+                    });
+                });
+
+        new Egui.Containers.Area("Pfp")
+            .Anchor(Align2.RightTop, new EVec2(10, 10))
+            .Show(ctx, ui =>
+            {
+                ui.Add(new Egui.Widgets.Image(EguiHelpers.IncludeImageResource("Core.images.me.png"))
+                    .FitToExactSize((128f, 128f)));
+            });
     }
 }

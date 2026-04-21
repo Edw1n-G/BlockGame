@@ -8,7 +8,7 @@ public static class GameSettings
     public static int RenderDistance { get; private set; } = 20;
     public static int Lod1Distance { get; private set; } = 15;
     public static int Lod2Distance { get; private set; } = 20;
-    public static int VerticalRenderDistance { get; private set; } = 10;
+    public static int VerticalRenderDistance { get; private set; } = 15;
     
     // Movement Einstellungen
     public static float PlayerMoveSpeed { get; private set; } = 10f;

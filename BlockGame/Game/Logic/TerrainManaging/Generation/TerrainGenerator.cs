@@ -8,12 +8,6 @@ namespace Basics.Game.Logic.TerrainManaging.Generation;
 
 public class TerrainGenerator
 {
-    // Theoretische Grenzen aus NoiseCalculator: BaseHeight ± Amplitude
-    // Noise liefert Werte im Bereich -1..1, also: Höhe = BaseHeight + noise * Amplitude
-    private const float MaxPossibleHeight = 1f + 70f;  // = 41  (BaseHeight + Amplitude)
-    private const float MinPossibleHeight = 1f - 70f;  // = -39 (BaseHeight - Amplitude)
-    private const float CaveSafetyMargin = 12f;         // 4 Blöcke Schutzzone + 8 Blöcke Übergang
-    
     //Anstatt dass jeder Chunk seine eigenen NoiseCalculator erstellt greift jeder Chunk auf eine Instanz zu
     private NoiseCalculator _noiseCalculator => NoiseCalculator.Instance;
     private readonly ushort _dirtId;
@@ -57,81 +51,54 @@ public class TerrainGenerator
         int chunkStartY = coord.Y * stepSize * 32;
         int chunkStartZ = coord.Z * stepSize * 32;
         int chunkTopY = chunkStartY + stepSize - 1; // Oberster Block im Chunk (skaliert nach LOD)
-    
+
         ushort[] chunkBlocks = new ushort[32768]; // 32*32*32 Blöcke pro Chunk
         
-        // Chunk-Boden liegt über dem maximal möglichen Terrain
-        if (chunkStartY > MaxPossibleHeight)
-        {
-            return null; // Nichts zurückgeben und den Chunk skippen
-        }
-        
-        // Chunk-Decke liegt unter der oberfläche
-        if (chunkTopY < MinPossibleHeight - CaveSafetyMargin)
-        {
-            Array.Fill(chunkBlocks, _stoneId); // Komplett Stein
-            return chunkBlocks;
-        }
-        
-        float[] heightMap = _noiseCalculator.GetNoiseValues(chunkStartX, chunkStartZ, 32, 32, stepSize);
-        
-        // Herausfinden was der höchste und niedrigste Punkt in dieser Spalte ist
-        float maxHeight = float.MinValue;
-        float minHeight = float.MaxValue;
-        
-        
-        //float[] caves3D = _noiseCalculator.GetCaves3D(chunkStartX, chunkStartY, chunkStartZ, 32, 32, 32);
-        //_noiseCalculator.Dispose();
-        
+        // +1 in Y für robuste Surface-Erkennung (Block über current)
+        const int noiseSizeX = 32;
+        const int noiseSizeY = 33;
+        const int noiseSizeZ = 32;
+        float[] densityField = _noiseCalculator.GetNoiseValues(
+            chunkStartX,
+            chunkStartY,
+            chunkStartZ,
+            noiseSizeX,
+            noiseSizeY,
+            noiseSizeZ,
+            stepSize);
+
         for (byte x = 0; x < 32; x++)
         {
             for (byte z = 0; z < 32; z++)
             {
-                // Die 2D-Basishöhe an dieser X/Z Koordinate
-                float baseHeight = heightMap[z * 32 + x];
-    
                 for (byte y = 0; y < 32; y++)
                 {
-                    // Wetkoordinate
                     int globalY = chunkStartY + y * stepSize;
-                    
-                    // Indizes für die Arrays
+
                     ushort blockIndex = (ushort)(x * 1024 + y * 32 + z);
-                    
-                    // FastNoise UniformGrid3D index
-                    //int noise3DIndex = x + y * 32 + z * 1024; 
-                    
-                    float density = baseHeight - globalY;
-    
-                    // Höhlen-Logik anwenden:
-                    // Nur unterhalb der Oberfläche Höhlen erlauben (Schutzzone an der Oberfläche)
-                    // Je tiefer unter der Oberfläche, desto stärker die Höhlen
-                    //float depthBelowSurface = baseHeight - globalY;
-                    //float caveAttenuation = MathF.Max(0, MathF.Min(1, (depthBelowSurface - 4f) / 8f));
-                    //float cavePower = MathF.Abs(caves3D[noise3DIndex]) * 20f * caveAttenuation;
-                    
-                    // Wir subtrahieren die Höhlen von unserer Dichte!
-                    density -= 0;
-                    
-                    // BLOCK PLATZIEREN BASIEREND AUF DICHTE
+
+                    int densityIndex = x + y * noiseSizeX + z * noiseSizeX * noiseSizeY;
+                    int aboveIndex = densityIndex + noiseSizeX;
+
+                    float density = densityField[densityIndex];
+                    float densityAbove = densityField[aboveIndex];
+
                     if (density > 0)
                     {
-                        // Der Block ist solid
-                        
-                        bool isTopSolidBlock = density <= stepSize; // bei LOD > 0 robust
-                        bool isNearSurface = density <= 4 * stepSize;
+                        bool isTopSolidBlock = densityAbove <= 0;
+                        bool isNearSurface = isTopSolidBlock || density <= 4 * stepSize;
 
-                        if (globalY > 30 && isTopSolidBlock)
+                        if (globalY > 80 && isTopSolidBlock)
                         {
                             chunkBlocks[blockIndex] = _snowId;
                         }
                         else if (isTopSolidBlock)
                         {
-                            chunkBlocks[blockIndex] = _grassId; // oberster Bodenblock
+                            chunkBlocks[blockIndex] = _grassId;
                         }
                         else if (isNearSurface)
                         {
-                            chunkBlocks[blockIndex] = _dirtId;  // darunter liegende Schicht
+                            chunkBlocks[blockIndex] = _dirtId;
                         }
                         else
                         {
@@ -140,20 +107,22 @@ public class TerrainGenerator
                     }
                     else
                     {
-                        // Dichte ist negativ -> Luft!
                         chunkBlocks[blockIndex] = 0;
                     }
                 }
             }
         }
-    
+
         return chunkBlocks;
     }
     
+    
+    //may not be usable because of 3d noise 
+    // TODO: figure out how to make a 2D map out of 3D data
     public void DebugExportNoiseMap(string filename = "debug_noisemap.png", int steps = 16)
     {
         int totalwidth = GameSettings.MapSize * 32;
-        float[] noiseValues = _noiseCalculator.GetNoiseValues(-totalwidth/2, -totalwidth/2, totalwidth, totalwidth, 1);
+        float[] noiseValues = _noiseCalculator.GetNoiseValues(1, 1, 1, 1, 1, 1);
         
         float minNoise = noiseValues[0];
         float maxNoise = noiseValues[0];

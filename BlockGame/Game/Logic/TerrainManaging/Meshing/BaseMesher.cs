@@ -292,6 +292,23 @@ public class BaseMesher : IDisposable
     {
         if (_disposed) return;
         
+        // Return lists to pool if never uploaded
+        if (!_uploaded)
+        {
+            if (_vertices != null)
+            {
+                _vertices.Clear();
+                ChunkProvider.VertexListPool.Enqueue(_vertices);
+                _vertices = null!;
+            }
+            if (_indices != null)
+            {
+                _indices.Clear();
+                ChunkProvider.IndexListPool.Enqueue(_indices);
+                _indices = null!;
+            }
+        }
+        
         // Buffer in den pool nach dem GPU-Upload
         if (_vao != 0 && _vbo != 0 && _ebo != 0)
         {

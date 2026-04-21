@@ -20,6 +20,9 @@ public class ChunkRequestor
     private HashSet<ChunkCoord> _activeChunks = new();
     private readonly object _chunkLock = new();
 
+    private ChunkCoord _lastPlayerChunk;
+    private bool _isUpdating = false;
+
     public int RenderDistance
     {
         get => _renderDistance;
@@ -43,41 +46,74 @@ public class ChunkRequestor
     /// </summary>
     private void OnPlayerChunkChanged(ChunkCoord playerChunk)
     {
+        lock (_chunkLock)
+        {
+            _lastPlayerChunk = playerChunk;
+            if (_isUpdating) return;
+            _isUpdating = true;
+        }
+
         Task.Run(() =>
         {
-            
+            ProcessChunkUpdates();
+        });
+    }
+
+    private void ProcessChunkUpdates()
+    {
+        while (true)
+        {
+            ChunkCoord targetChunk;
+            lock (_chunkLock)
+            {
+                targetChunk = _lastPlayerChunk;
+            }
+
             HashSet<ChunkCoord> newActiveChunks = new(GameSettings.RenderDistance * GameSettings.RenderDistance * GameSettings.VerticalRenderDistance * 8);
-            
-            for (int x = -GameSettings.RenderDistance; x <=GameSettings.RenderDistance; x++)
+
+            for (int x = -GameSettings.RenderDistance; x <= GameSettings.RenderDistance; x++)
             {
                 for (int z = -GameSettings.RenderDistance; z <= GameSettings.RenderDistance; z++)
                 {
                     if (x * x + z * z > GameSettings.RenderDistance * GameSettings.RenderDistance) continue;
-                    for (int y = -GameSettings.RenderDistance; y <= GameSettings.RenderDistance; y++)
+                    for (int y = -GameSettings.VerticalRenderDistance; y <= GameSettings.VerticalRenderDistance; y++)
                     {
-                        ChunkCoord coord = new ChunkCoord(playerChunk.X + x, playerChunk.Y + y, playerChunk.Z + z, 0);
+                        ChunkCoord coord = new ChunkCoord(targetChunk.X + x, targetChunk.Y + y, targetChunk.Z + z, 0);
                         newActiveChunks.Add(coord);
                     }
                 }
             }
-            // Dieses Parallel. For blockiert jetzt nur diesen Task, nicht das ganze Spiel!
-            
-            Parallel.ForEach(newActiveChunks, _parallelOptions, chunk =>
-            {
-                if (!_activeChunks.Contains(chunk))
-                { 
-                    _chunkProvider.RequestChunk(chunk);
-                }
-            });
-            
-            // Thread-safe austauschen
+
+            HashSet<ChunkCoord> pendingRequests = new();
             lock (_chunkLock)
             {
-                // Nein ich entlade nicht die neuen Chunks, der name ist nur blöd
+                foreach (var chunk in newActiveChunks)
+                {
+                    if (!_activeChunks.Contains(chunk))
+                    {
+                        pendingRequests.Add(chunk);
+                    }
+                }
+            }
+
+            Parallel.ForEach(pendingRequests, _parallelOptions, chunk =>
+            {
+                _chunkProvider.RequestChunk(chunk);
+            });
+
+            lock (_chunkLock)
+            {
+                if (_lastPlayerChunk != targetChunk)
+                {
+                    continue;
+                }
+
                 UnloadDistantChunks(newActiveChunks);
                 _activeChunks = newActiveChunks;
+                _isUpdating = false;
+                break;
             }
-        });
+        }
     }
 
     /// <summary>
@@ -100,12 +136,15 @@ public class ChunkRequestor
     {
         lock (_chunkLock)
         {
-            foreach (ChunkCoord chunk in _activeChunks)
+            foreach (var chunk in ChunkProvider.LoadedChunks.Keys.ToList())
+            {
+                _chunkProvider.UnloadChunk(chunk);
+            }
+            foreach (var chunk in ChunkProvider.Chunkdata.Keys.ToList())
             {
                 _chunkProvider.UnloadChunk(chunk);
             }
             _activeChunks.Clear();
         }
     }
-    
 }

@@ -68,6 +68,7 @@ public class Renderer
             // Wenn der Chunk nicht mehr in Chunk data ist, wurde er schon entladen
             if (!ChunkProvider.Chunkdata.ContainsKey(chunk.ChunkPosition))
             {
+                chunk.Dispose();
                 continue;
             }
             
@@ -80,6 +81,7 @@ public class Renderer
             {
                 // Neues Mesh an alte Position setzen
                 ChunkProvider.LoadedChunks[chunk.ChunkPosition] = chunk;
+                ChunkProvider.UnloadQueue.Enqueue(oldMesh);
             }
             else
             {

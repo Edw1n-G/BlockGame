@@ -16,6 +16,7 @@ public static class GameSettings
     
     // Welt Generierung Einstellungen. Noise map detail settings noch nicht hier
     public static int Seed { get; private set; } = 1; // Standard-Seed, später vor dem Start des Spiels setztbar
+    public static string Worldtype { get; private set; } = "KBE@CgL8EFQkVCRcJIQBvEgM8CQ0AB@CkG@BY0MUAwAA8EIEAhcJFgMAAKBCCgQIAACAPwwDzczMPgwCFwkbCRYDAABIwgr/BQAMAw@AEAMAhkJJQB7@BCSEAKVwPPQkNAAI@BJBiQLWDk0PRPsUTg9BA=="; // Standard-Worldtype, später vor dem Start des Spiels setztbar
     public static int MapSize { get; private set; } = 100;
     
     // Grafik einstellungen

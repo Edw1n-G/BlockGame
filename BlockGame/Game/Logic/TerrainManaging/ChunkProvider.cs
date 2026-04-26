@@ -41,7 +41,7 @@ public class ChunkProvider
     public static readonly ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
     
     // meshes die entladen werden müssen
-    public ConcurrentQueue<BaseMesher> UnloadQueue = new(); // Chunks die wieder aus der GPU raus müssen
+    public ConcurrentQueue<BaseMesher> UnloadQueue = new(); // Chunks die wieder aus der GPU rausmüssen
     private readonly TerrainGenerator _terrainGenerator;
     
     

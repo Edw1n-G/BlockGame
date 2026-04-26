@@ -146,7 +146,7 @@ public static class BlockTextures
                 continue;
             }
 
-            foreach (string file in Directory.EnumerateFiles(textureDir, "*.png", SearchOption.TopDirectoryOnly))
+            foreach (string file in Directory.EnumerateFiles(textureDir, "*.png", SearchOption.AllDirectories))
             {
                 string textureName = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
                 textureFiles.Add(($"{namespaceName}:{textureName}", file));
@@ -191,7 +191,7 @@ public static class BlockTextures
                 continue;
             }
 
-            foreach (string file in Directory.EnumerateFiles(blocksDir, "*.json", SearchOption.TopDirectoryOnly))
+            foreach (string file in Directory.EnumerateFiles(blocksDir, "*.json", SearchOption.AllDirectories))
             {
                 string blockName = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
                 blockFiles.Add(($"{namespaceName}:{blockName}", file));

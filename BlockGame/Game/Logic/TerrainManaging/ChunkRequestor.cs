@@ -29,11 +29,11 @@ public class ChunkRequestor
         set => _renderDistance = Math.Max(1, value);
     }
 
-    public ChunkRequestor(PlayerCharacter player, ChunkProvider chunkProvider, int availableCores)
+    public ChunkRequestor(PlayerCharacter player, ChunkProvider chunkProvider, int generationCores)
     {
         _player = player;
         _chunkProvider = chunkProvider;
-        _parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, availableCores) };
+        _parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, generationCores) };
 
         // Event abonnieren: wird gefeuert, wenn der Spieler einen neuen Chunk betritt
         _player.OnChunkChanged += OnPlayerChunkChanged;

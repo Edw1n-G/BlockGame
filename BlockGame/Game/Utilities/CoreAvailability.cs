@@ -4,6 +4,7 @@ namespace Basics.Game.Utilities;
 /// Berchnet die optimale Aufteilung der Threads für verschiedene Aufgaben.
 /// Vorerst nur für Chunk-Generierung
 /// Später für Pathfinding und andere CPU-intensive Aufgaben
+/// TODO garbage collector berücksichtgen, soft caps on tasks mit dynamischen task wechsel anstatt feste reservierung
 /// </summary>
 public class CoreAvailability
 {

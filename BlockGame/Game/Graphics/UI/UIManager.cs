@@ -9,6 +9,7 @@ namespace Basics.Graphics.UI
     public class UIManager
     {
         private ChunkRequestor _chunkRequestor;
+        public static event Action OnRenderDistanceChanged;
 
         public UIManager(ChunkRequestor requestor)
         {
@@ -42,12 +43,12 @@ namespace Basics.Graphics.UI
                     if (ui.Add(new Egui.Widgets.Slider<int>(ref hdist, 1, 60).Text("Horizontal Render Distance")).Changed)
                     {
                         GameSettings.SetRenderDistance(hdist);
-                        //TODO: Force ChunkUpdate in ChunkRequestor without passing reference to UIManager
+                        OnRenderDistanceChanged?.Invoke();
                     }
                     if (ui.Add(new Egui.Widgets.Slider<int>(ref vdist, 1, 30).Text("Vertical Render Distance")).Changed)
                     {
                         GameSettings.SetVerticalRenderDistance(vdist);
-                        //TODO: Force ChunkUpdate in ChunkRequestor without passing reference to UIManager
+                        OnRenderDistanceChanged?.Invoke();
                     }
                     if (ui.Button("Unload All Chunks").Clicked)
                     {

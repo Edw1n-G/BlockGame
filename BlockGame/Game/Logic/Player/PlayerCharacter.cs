@@ -3,6 +3,7 @@ using Basics.Configurations;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.PhysicsSystem;
 using Basics.Game.Utilities;
+using Basics.Graphics.UI;
 using Basics.Input;
 using Basics.PhysicsSystem.Structs;
 
@@ -21,6 +22,7 @@ public class PlayerCharacter
     {
         Camera = new Camera(spawnPosition);
         _currentChunkCoord = Camera.GetChunkCoord(Camera.Position);
+        UIManager.OnRenderDistanceChanged += ForceChunkUpdate;
         BindActions();
     }
 

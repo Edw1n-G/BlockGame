@@ -23,12 +23,6 @@ public class ChunkRequestor
     private ChunkCoord _lastPlayerChunk;
     private bool _isUpdating = false;
 
-    public int RenderDistance
-    {
-        get => _renderDistance;
-        set => _renderDistance = Math.Max(1, value);
-    }
-
     public ChunkRequestor(PlayerCharacter player, ChunkProvider chunkProvider, int generationCores)
     {
         _player = player;
@@ -42,7 +36,6 @@ public class ChunkRequestor
     /// <summary>
     /// Event-Handler: Wird aufgerufen, wenn der Spieler in einen neuen Chunk wechselt.
     /// Berechnet welche Chunks im Render-Radius liegen und fordert sie an.
-    /// TODO: die methode auf maximal eine instanz? limitieren damit kein update gefragt wird während eins schon läuft
     /// </summary>
     private void OnPlayerChunkChanged(ChunkCoord playerChunk)
     {
@@ -68,16 +61,25 @@ public class ChunkRequestor
             {
                 targetChunk = _lastPlayerChunk;
             }
+            
+            //TODO: dreifache for loop ersetzen durch z.B offsets oder nur ränder neu berechnen
+            
+            int renderDistance = GameSettings.RenderDistance;
+            int verticalRenderDistance = GameSettings.VerticalRenderDistance;
+            float renderDistanceSq = renderDistance * renderDistance;
+            float verticalRenderDistanceSq = verticalRenderDistance * verticalRenderDistance;
 
-            HashSet<ChunkCoord> newActiveChunks = new(GameSettings.RenderDistance * GameSettings.RenderDistance * GameSettings.VerticalRenderDistance * 8);
+            HashSet<ChunkCoord> newActiveChunks = new(renderDistance * renderDistance * verticalRenderDistance * 8);
 
-            for (int x = -GameSettings.RenderDistance; x <= GameSettings.RenderDistance; x++)
+            for (int x = -renderDistance; x <= renderDistance; x++)
             {
-                for (int z = -GameSettings.RenderDistance; z <= GameSettings.RenderDistance; z++)
+                for (int z = -renderDistance; z <= renderDistance; z++)
                 {
-                    if (x * x + z * z > GameSettings.RenderDistance * GameSettings.RenderDistance) continue;
-                    for (int y = -GameSettings.VerticalRenderDistance; y <= GameSettings.VerticalRenderDistance; y++)
+                    for (int y = -verticalRenderDistance; y <= verticalRenderDistance; y++)
                     {
+                        float distanceFactor = (x * x + z * z) / renderDistanceSq + (y * y) / verticalRenderDistanceSq;
+                        if (distanceFactor > 1f) continue;
+
                         ChunkCoord coord = new ChunkCoord(targetChunk.X + x, targetChunk.Y + y, targetChunk.Z + z, 0);
                         newActiveChunks.Add(coord);
                     }

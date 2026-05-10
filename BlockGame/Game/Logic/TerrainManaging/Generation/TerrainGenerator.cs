@@ -47,17 +47,17 @@ public class TerrainGenerator
         }
 
         int stepSize = (1 << coord.LodLevel); // lod0 -> 1, lod1 -> 2, lod2 -> 4, lod3 -> 8,lod4 -> 16
-        int chunkStartX = coord.X * stepSize * 32;
-        int chunkStartY = coord.Y * stepSize * 32;
-        int chunkStartZ = coord.Z * stepSize * 32;
+        int chunkStartX = coord.X * stepSize * 16;
+        int chunkStartY = coord.Y * stepSize * 16;
+        int chunkStartZ = coord.Z * stepSize * 16;
         int chunkTopY = chunkStartY + stepSize - 1; // Oberster Block im Chunk (skaliert nach LOD)
 
-        ushort[] chunkBlocks = new ushort[32768]; // 32*32*32 Blöcke pro Chunk
+        ushort[] chunkBlocks = new ushort[4096];
         
         // +1 in Y für robuste Surface-Erkennung (Block über current)
-        const int noiseSizeX = 32;
-        const int noiseSizeY = 33;
-        const int noiseSizeZ = 32;
+        const int noiseSizeX = 16;
+        const int noiseSizeY = 17;
+        const int noiseSizeZ = 16;
         float[] densityField = _noiseCalculator.GetNoiseValues(
             chunkStartX,
             chunkStartY,
@@ -67,15 +67,15 @@ public class TerrainGenerator
             noiseSizeZ,
             stepSize);
 
-        for (byte x = 0; x < 32; x++)
+        for (byte x = 0; x < 16; x++)
         {
-            for (byte z = 0; z < 32; z++)
+            for (byte z = 0; z < 16; z++)
             {
-                for (byte y = 0; y < 32; y++)
+                for (byte y = 0; y < 16; y++)
                 {
                     int globalY = chunkStartY + y * stepSize;
 
-                    ushort blockIndex = (ushort)(x * 1024 + y * 32 + z);
+                    int blockIndex = x * 256 + y * 16 + z;
 
                     int densityIndex = x + y * noiseSizeX + z * noiseSizeX * noiseSizeY;
                     int aboveIndex = densityIndex + noiseSizeX;
@@ -121,7 +121,7 @@ public class TerrainGenerator
     // TODO: figure out how to make a 2D map out of 3D data
     public void DebugExportNoiseMap(string filename = "debug_noisemap.png", int steps = 16)
     {
-        int totalwidth = GameSettings.MapSize * 32;
+        int totalwidth = GameSettings.MapSize * 16;
         float[] noiseValues = _noiseCalculator.GetNoiseValues(1, 1, 1, 1, 1, 1);
         
         float minNoise = noiseValues[0];

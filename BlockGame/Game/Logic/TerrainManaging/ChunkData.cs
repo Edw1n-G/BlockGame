@@ -9,9 +9,9 @@ namespace Basics.Game.Logic.TerrainManaging;
 /// </summary>
 public class ChunkData
 {
-    public const int ChunkSize = 32;
-    public const int BlockCount = ChunkSize * ChunkSize * ChunkSize;
-    
+    public const int ChunkSize = 16;
+    public const int ChunkArea = 256;
+    public const int BlockCount = 4096;
     
     public ushort[]? Blocks;
     
@@ -38,12 +38,12 @@ public class ChunkData
     }
 
     /// <summary>
-    /// Rechnet lokale Koordinaten (0-31) in den Array-Index um.
+    /// Rechnet lokale Koordinaten (0-15) in den Array-Index um.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int ToIndex(int x, int y, int z)
     {
-        return x * 1024 + y * 32 + z;
+        return x * 256 + y * 16 + z;
     }
 
     /// <summary>
@@ -53,7 +53,7 @@ public class ChunkData
     public ushort GetBlock(int x, int y, int z)
     {
         if (Blocks == null) return 0;
-        return Blocks[x * 1024 + y * 32 + z];
+        return Blocks[x * 256 + y * 16 + z];
     }
 
     /// <summary>
@@ -69,7 +69,7 @@ public class ChunkData
             if (blockId == 0) return; // Falls ein genie luft in luft setzten will
             Blocks =  new ushort[BlockCount];
         }
-        Blocks[x * 1024 + y * 32 + z] = blockId;
+        Blocks[x * 256 + y * 16 + z] = blockId;
         IsDirty = true;
     }
 
@@ -80,10 +80,10 @@ public class ChunkData
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ushort GetBlockSafe(int x, int y, int z)
     {
-        if ((uint)x >= ChunkSize || (uint)y >= ChunkSize || (uint)z >= ChunkSize)
+        if ((uint)x >= 16u || (uint)y >= 16u || (uint)z >= 16u)
             return 0;
         if (Blocks == null) return 0;
-        return Blocks[x * 1024 + y * 32 + z];
+        return Blocks[x * 256 + y * 16 + z];
     }
 
     /// <summary>
@@ -92,14 +92,14 @@ public class ChunkData
     /// </summary>
     public bool SetBlockSafe(int x, int y, int z, ushort blockId)
     {
-        if ((uint)x >= ChunkSize || (uint)y >= ChunkSize || (uint)z >= ChunkSize)
+        if ((uint)x >= 16u || (uint)y >= 16u || (uint)z >= 16u)
             return false;
         if (Blocks == null)
         {
             if (blockId == 0) return true;
             Blocks = new ushort[BlockCount];
         }
-        Blocks[x * 1024 + y * 32 + z] = blockId;
+        Blocks[x * 256 + y * 16 + z] = blockId;
         IsDirty = true;
         return true;
     }
@@ -110,10 +110,10 @@ public class ChunkData
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsBlock(int x, int y, int z)
     {
-        if ((uint)x >= ChunkSize || (uint)y >= ChunkSize || (uint)z >= ChunkSize)
+        if ((uint)x >= 16u || (uint)y >= 16u || (uint)z >= 16u)
             return false;
         if (Blocks == null) return false;
-        return Blocks[x * 1024 + y * 32 + z] != 0;
+        return Blocks[x * 256 + y * 16 + z] != 0;
     }
 
     /// <summary>
@@ -122,9 +122,9 @@ public class ChunkData
     public static (int localX, int localY, int localZ) WorldToLocal(int worldX, int worldY, int worldZ)
     {
         // Modulo das auch für negative Werte funktioniert
-        int localX = ((worldX % ChunkSize) + ChunkSize) % ChunkSize;
-        int localY = ((worldY % ChunkSize) + ChunkSize) % ChunkSize;
-        int localZ = ((worldZ % ChunkSize) + ChunkSize) % ChunkSize;
+        int localX = ((worldX % 16) + 16) % 16;
+        int localY = ((worldY % 16) + 16) % 16;
+        int localZ = ((worldZ % 16) + 16) % 16;
         return (localX, localY, localZ);
     }
 
@@ -134,9 +134,9 @@ public class ChunkData
     public static ChunkCoord WorldToChunkCoord(int worldX, int worldY, int worldZ, byte lodLevel = 0)
     {
         // Floor-Division für negative Koordinaten
-        int chunkX = worldX >= 0 ? worldX / ChunkSize : (worldX - ChunkSize + 1) / ChunkSize;
-        int chunkY = worldY >= 0 ? worldY / ChunkSize : (worldY - ChunkSize + 1) / ChunkSize;
-        int chunkZ = worldZ >= 0 ? worldZ / ChunkSize : (worldZ - ChunkSize + 1) / ChunkSize;
+        int chunkX = worldX >= 0 ? worldX / 16 : (worldX - 16 + 1) / 16;
+        int chunkY = worldY >= 0 ? worldY / 16 : (worldY - 16 + 1) / 16;
+        int chunkZ = worldZ >= 0 ? worldZ / 16 : (worldZ - 16 + 1) / 16;
         return new ChunkCoord(chunkX, chunkY, chunkZ, lodLevel);
     }
 
@@ -153,4 +153,3 @@ public class ChunkData
         return true;
     }
 }
-

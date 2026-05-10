@@ -11,6 +11,9 @@ public class BaseMesher : IDisposable
 {
     // Vertex Layout: 3 floats (12 Bytes) + ushort (2 Bytes for Layer) + 1 byte (AO) + 1 byte (padding) = 16 Bytes per Vertex
     protected const int VertexStride = 16;
+    protected static readonly int EstimatedSurfaceFaces = 6 * 16 * 16;
+    protected static readonly int EstimatedVertexBytes = EstimatedSurfaceFaces * 4 * VertexStride;
+    protected static readonly int EstimatedIndices = EstimatedSurfaceFaces * 6;
     
     public ChunkCoord ChunkPosition; // Position des Chunks in Chunk-Koordinaten (z.B. 0/0, 1/0, -1/0, etc.)
     

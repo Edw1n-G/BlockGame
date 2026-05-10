@@ -16,21 +16,21 @@ public struct Frustum
     
     
     
-    public bool isInFrustum(ChunkCoord chunk)
+    public bool IsInFrustum(ChunkCoord chunk)
     {
         //Mittelpunkt (Center) des Chunks berechnen
         // Chunkcoord gibt die Koordinaten aus dem Chunk grid an
-        // LOD-Level bestimmt den Skalierungsfaktor: LOD 0 = 1, LOD 1 = 2, LOD 2 = 3
-        int scale = chunk.LodLevel + 1;
-        int halfSize = 16 * scale;
+        // LOD-Level bestimmt den Skalierungsfaktor: LOD 0 = 1, LOD 1 = 2, LOD 2 = 4
+        int scale = 1 << chunk.LodLevel;
+        int halfSize = 8 * scale;
         
-        int x = halfSize + 32 * scale * chunk.X;
-        int y = halfSize + 32 * scale * chunk.Y;
-        int z = halfSize + 32 * scale * chunk.Z;
+        int x = halfSize + 16 * scale * chunk.X;
+        int y = halfSize + 16 * scale * chunk.Y;
+        int z = halfSize + 16 * scale * chunk.Z;
         
         Vector3 center = new Vector3(x, y, z);
         
-        //Lod0 -> 16, Lod1 -> 32, Lod2 -> 48
+        // Axis-aligned extents for the chunk bounds
         Vector3 extents = new Vector3(halfSize, halfSize, halfSize);
 
         //Prüfen, ob die Box VOR allen 6 Ebenen liegt

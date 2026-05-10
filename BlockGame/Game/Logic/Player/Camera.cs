@@ -27,9 +27,9 @@ public class Camera(Vector3 position)
     public ChunkCoord GetChunkCoord(Vector3 pos)
     {
         // Integer-Division die auch für negative Koordinaten korrekt funktioniert
-        int cx = (int)MathF.Floor(pos.X / 32f);
-        int cy = (int)MathF.Floor(pos.Y / 32f);
-        int cz = (int)MathF.Floor(pos.Z / 32f);
+        int cx = (int)MathF.Floor(pos.X / 16f);
+        int cy = (int)MathF.Floor(pos.Y / 16f);
+        int cz = (int)MathF.Floor(pos.Z / 16f);
         return new ChunkCoord(cx, cy, cz, 0);//Die Camera ist immer im Lod0 System
     }
     

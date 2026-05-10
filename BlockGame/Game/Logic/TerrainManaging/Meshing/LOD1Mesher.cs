@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Basics.Configurations;
+using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Utilities;
 
 namespace Basics.Game.Logic.TerrainManaging.Meshing;
@@ -65,19 +66,21 @@ public class Lod1Mesher : BaseMesher
         _vertices.Clear();
         _indices.Clear();
         _vertexCount = 0;
-        _vertices.Capacity = 40_000;
-        _indices.Capacity = 8_000;
+        _vertices.Capacity = EstimatedVertexBytes;
+        _indices.Capacity = EstimatedIndices;
         
-        ushort[] data = _blockData; 
+        ushort[] data = _blockData;
 
-        for (int x = 0; x < 32; x++)
+        for (int x = 0; x < 16; x++)
         {
-            for (int y = 0; y < 32; y++)
+            for (int y = 0; y < 16; y++)
             {
-                for (int z = 0; z < 32; z++)
+                for (int z = 0; z < 16; z++)
                 {
+                    int idx = x * 256 + y * 16 + z;
+
                     // Kein Block, keine Flächen
-                    if (data[x * 1024 + y * 32 + z] == 0) continue;
+                    if (data[idx] == 0) continue;
 
                     // Koordinaten direkt übergeben, IsBlock wurde optimiert
                     if (!IsBlock(x, y + 1, z)) CreateCubeFace(x, y, z, BlockTextures.Top);
@@ -95,7 +98,7 @@ public class Lod1Mesher : BaseMesher
         _indices.TrimExcess();
         // Model Matrix: Zuerst skalieren (Blöcke 2x so groß), dann an die richtige Weltposition verschieben
         model = Matrix4x4.CreateScale(2f) * Matrix4x4.CreateTranslation(
-            new Vector3(ChunkPosition.X * 32 * 2, ChunkPosition.Y * 32 * 2, ChunkPosition.Z * 32 * 2));
+            new Vector3(ChunkPosition.X * 16 * 2, ChunkPosition.Y * 16 * 2, ChunkPosition.Z * 16 * 2));
         // brauchen Daten nicht mehr im RAM, sind in der ChunkProvider.Chunkdata gespeichert
         _neighborCache = null;
         _blockData = null;
@@ -103,7 +106,7 @@ public class Lod1Mesher : BaseMesher
     
     private void CreateCubeFace(int x, int y, int z, int face)
     {
-        int id = _blockData[x * 1024 + y * 32 + z];
+        int id = _blockData[x * 256 + y * 16 + z];
         ushort textureLayer = BlockTextures.Get(id, face);
         
         switch (face)
@@ -159,15 +162,14 @@ public class Lod1Mesher : BaseMesher
     [MethodImpl(MethodImplOptions.AggressiveInlining)] // Black magic 
     private bool IsBlock(int x, int y, int z)
     {
-        // Der "uint" Trick: Prüft (>= 0 UND < 32)
-        if ((uint)x < 32u && (uint)y < 32u && (uint)z < 32u)
+        // Der "uint" Trick: Prüft (>= 0 UND < 16)
+        if ((uint)x < 16u && (uint)y < 16u && (uint)z < 16u)
         {
             // Blitzschneller Array-Zugriff. 
-            // 1024 ist 32*32 vorab ausgerechnet, das spart Multiplikationen!
-            return _blockData[x * 1024 + y * 32 + z] != 0; 
+            return _blockData[x * 256 + y * 16 + z] != 0; 
         }
 
-        // Wenn der Block AUßERHALB liegt (x=-1, z=32 etc.), gehe in den langsameren Pfad
+        // Wenn der Block AUßERHALB liegt (x=-1, z=16 etc.), gehe in den langsameren Pfad
         return IsBlockNeighbor(x, y, z);
     }
 
@@ -180,21 +182,21 @@ public class Lod1Mesher : BaseMesher
         int cz = 1;
 
         // Koordinaten "wrappen" und Nachbar-Index berechnen
-        if (x < 0)       { cx = 0; x += 32; }
-        else if (x > 31) { cx = 2; x -= 32; }
+        if (x < 0)       { cx = 0; x += 16; }
+        else if (x > 15) { cx = 2; x -= 16; }
 
-        if (y < 0)       { cy = 0; y += 32; }
-        else if (y > 31) { cy = 2; y -= 32; }
+        if (y < 0)       { cy = 0; y += 16; }
+        else if (y > 15) { cy = 2; y -= 16; }
 
-        if (z < 0)       { cz = 0; z += 32; }
-        else if (z > 31) { cz = 2; z -= 32; }
+        if (z < 0)       { cz = 0; z += 16; }
+        else if (z > 15) { cz = 2; z -= 16; }
 
         // Cache Index (0 bis 26) berechnen
         ushort[] neighborData = _neighborCache[cx * 9 + cy * 3 + cz];
 
         if (neighborData != null)
         {
-            return neighborData[x * 1024 + y * 32 + z] != 0;
+            return neighborData[x * 256 + y * 16 + z] != 0;
         }
 
         return false; // Nachbar nicht geladen

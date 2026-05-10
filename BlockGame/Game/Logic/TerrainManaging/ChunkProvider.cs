@@ -52,7 +52,7 @@ public class ChunkProvider
         _terrainGenerator = terrainGenerator;
         for (int i = 0; i < meshingThreads; i++)
         {
-            // Threads machen die nicht aus dem Algemeienen Threadpool kommen
+            // Threads machen die nicht aus dem Algemeinen Threadpool kommen
             Thread t = new Thread(MeshingWorkerLoop)
             {
                 IsBackground = true,
@@ -251,11 +251,11 @@ public class ChunkProvider
 
         // Wenn der Block am Rand des Chunks liegt, müssen auch Nachbar-Chunks neu gemesht werden
         if (localX == 0)  RemeshChunk(new ChunkCoord(chunkCoord.X - 1, chunkCoord.Y, chunkCoord.Z, chunkCoord.LodLevel));
-        if (localX == 31) RemeshChunk(new ChunkCoord(chunkCoord.X + 1, chunkCoord.Y, chunkCoord.Z, chunkCoord.LodLevel));
+        if (localX == 15) RemeshChunk(new ChunkCoord(chunkCoord.X + 1, chunkCoord.Y, chunkCoord.Z, chunkCoord.LodLevel));
         if (localY == 0)  RemeshChunk(new ChunkCoord(chunkCoord.X, chunkCoord.Y - 1, chunkCoord.Z, chunkCoord.LodLevel));
-        if (localY == 31) RemeshChunk(new ChunkCoord(chunkCoord.X, chunkCoord.Y + 1, chunkCoord.Z, chunkCoord.LodLevel));
+        if (localY == 15) RemeshChunk(new ChunkCoord(chunkCoord.X, chunkCoord.Y + 1, chunkCoord.Z, chunkCoord.LodLevel));
         if (localZ == 0)  RemeshChunk(new ChunkCoord(chunkCoord.X, chunkCoord.Y, chunkCoord.Z - 1, chunkCoord.LodLevel));
-        if (localZ == 31) RemeshChunk(new ChunkCoord(chunkCoord.X, chunkCoord.Y, chunkCoord.Z + 1, chunkCoord.LodLevel));
+        if (localZ == 15) RemeshChunk(new ChunkCoord(chunkCoord.X, chunkCoord.Y, chunkCoord.Z + 1, chunkCoord.LodLevel));
 
         return true;
     }

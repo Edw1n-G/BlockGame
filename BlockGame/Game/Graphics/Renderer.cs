@@ -99,7 +99,7 @@ public class Renderer
             BaseMesher chunk = kvp.Value;
             
             if (chunk.IsEmpty) continue;
-            if (!frustum.isInFrustum(chunk.ChunkPosition)) continue;
+            if (!frustum.IsInFrustum(chunk.ChunkPosition)) continue;
             chunk.Render(_terrainshader);
         }
         

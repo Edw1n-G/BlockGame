@@ -1,5 +1,6 @@
 using System.Numerics;
 using Basics.Game.Utilities;
+using System.Runtime.CompilerServices;
 
 namespace Basics.Game.Graphics;
 
@@ -42,12 +43,12 @@ public struct Frustum
                IsOnOrForwardPlane(this.TopFace, center, extents);
     }
     
-    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)] 
     private bool IsOnOrForwardPlane(Plane plane, Vector3 center, Vector3 extents)
     {
         // Wir projizieren die halbe Größe der Box auf die Normale der Ebene.
         // Das ergibt den "Radius" der Box aus Sicht der Ebene.
-        float r = Vector3.Dot(extents, Vector3.Abs(plane.Normal));
+        float r = Vector3.Dot(extents, plane.AbsNormal);
 
         // Abstand vom Zentrum zur Ebene (+ = vor der Ebene, - = hinter)
         float distance = plane.GetDistanceToPoint(center);
@@ -61,13 +62,16 @@ public struct Plane
 {
     public Vector3 Normal;
     public float Distance;
+    public Vector3 AbsNormal;
 
     public Plane(Vector3 normal, float distance)
     {
         Normal = normal;
         Distance = distance;
+        AbsNormal = Vector3.Abs(normal);
     }
-
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public float GetDistanceToPoint(Vector3 point)
     {
         return Vector3.Dot(Normal, point) + Distance;

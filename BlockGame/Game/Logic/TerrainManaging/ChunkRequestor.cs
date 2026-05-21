@@ -128,7 +128,6 @@ public class ChunkRequestor
         {
             if (!newActiveChunks.Contains(oldChunk))
             {
-                // TODO: Hier später auch Chunk-Daten auf Festplatte speichern
                 _chunkProvider.UnloadChunk(oldChunk);
             }
         }

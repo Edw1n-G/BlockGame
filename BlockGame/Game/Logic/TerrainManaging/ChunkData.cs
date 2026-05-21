@@ -18,7 +18,7 @@ public class ChunkData
     public readonly ChunkCoord Coord;
     
     /// <summary>
-    /// Wird true wenn Blöcke geändert wurden.
+    /// Wird true wenn Blöcke geändert wurden aber noch nicht angezeigt.
     /// </summary>
     public bool IsDirty { get; set; }
 

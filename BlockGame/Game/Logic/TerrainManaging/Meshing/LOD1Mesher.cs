@@ -40,8 +40,8 @@ public class Lod1Mesher : BaseMesher
                     }
 
                     ChunkCoord neighborCoord = new ChunkCoord(
-                        ChunkPosition.X + dx, 
-                        ChunkPosition.Y + dy, 
+                        ChunkPosition.X + dx,
+                        ChunkPosition.Y + dy,
                         ChunkPosition.Z + dz,
                         1
                     );

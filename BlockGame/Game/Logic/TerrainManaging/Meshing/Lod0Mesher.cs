@@ -24,40 +24,36 @@ public class Lod0Mesher : BaseMesher
     
     private void CreateNeighborCache()
     {
-        for (int dx = -1; dx <= 1; dx++)
+        for (int idx = 0; idx < 27; idx++)
         {
-            for (int dy = -1; dy <= 1; dy++)
+            int dx = idx / 9 - 1;
+            int dy = (idx / 3) % 3 - 1;
+            int dz = idx % 3 - 1;
+
+            int cacheIndex = idx;
+
+            // Wenn es der eigene Chunk ist den Cache direkt auf die Blockdaten setzen
+            // Dann muss man nicht hin und her wechseln
+            if (dx == 0 && dy == 0 && dz == 0)
             {
-                for (int dz = -1; dz <= 1; dz++)
-                {
-                    // Index im 1D-Array berechnen dafür ist KI gut
-                    int cacheIndex = (dx + 1) * 9 + (dy + 1) * 3 + (dz + 1);
+                _neighborCache[cacheIndex] = _blockData;
+                continue;
+            }
 
-                    // Wenn es der eigene Chunk ist den Cache direkt auf die Blockdaten setzen
-                    // Dann muss man nicht hin und her wechseln
-                    if (dx == 0 && dy == 0 && dz == 0)
-                    {
-                        _neighborCache[cacheIndex] = _blockData;
-                        continue;
-                    }
+            ChunkCoord neighborCoord = new ChunkCoord(
+                ChunkPosition.X + dx, 
+                ChunkPosition.Y + dy, 
+                ChunkPosition.Z + dz,
+                0
+            );
 
-                    ChunkCoord neighborCoord = new ChunkCoord(
-                        ChunkPosition.X + dx, 
-                        ChunkPosition.Y + dy, 
-                        ChunkPosition.Z + dz,
-                        0
-                    );
-
-                    
-                    if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out ChunkData neighborChunk))
-                    {
-                        _neighborCache[cacheIndex] = neighborChunk.Blocks;
-                    }
-                    else
-                    {
-                        _neighborCache[cacheIndex] = null; // Nachbar ist (noch) nicht geladen
-                    }
-                }
+            if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out ChunkData neighborChunk))
+            {
+                _neighborCache[cacheIndex] = neighborChunk.Blocks;
+            }
+            else
+            {
+                _neighborCache[cacheIndex] = null; // Nachbar ist (noch) nicht geladen
             }
         }
     }
@@ -72,38 +68,33 @@ public class Lod0Mesher : BaseMesher
         _vertexCount = 0;
         
         ushort[] data = _blockData;
-        for (int x = 0; x < 16; x++)
+        for (int idx = 0; idx < 16 * 16 * 16; idx++)
         {
-            for (int y = 0; y < 16; y++)
+            if (data[idx] == 0) continue;
+
+            int x = idx >> 8;         // idx / 256
+            int y = (idx >> 4) & 0xF; // (idx / 16) % 16
+            int z = idx & 0xF;        // idx % 16
+
+            // innere Blöcke 
+            if (x > 0 && x < 15 && y > 0 && y < 15 && z > 0 && z < 15)
             {
-                for (int z = 0; z < 16; z++)
-                {
-                    int idx = x * 256 + y * 16 + z;
-            
-                    // Leere überspringen
-                    if (data[idx] == 0) continue; 
-                    
-                    // innere Blöcke 
-                    if (x > 0 && x < 15 && y > 0 && y < 15 && z > 0 && z < 15)
-                    {
-                        if (data[idx + 16] == 0)   CreateCubeFace(x, y, z, BlockTextures.Top);     // y+1
-                        if (data[idx - 16] == 0)   CreateCubeFace(x, y, z, BlockTextures.Bottom);  // y-1
-                        if (data[idx + 1] == 0)    CreateCubeFace(x, y, z, BlockTextures.Front);   // z+1
-                        if (data[idx - 1] == 0)    CreateCubeFace(x, y, z, BlockTextures.Back);    // z-1
-                        if (data[idx - 256] == 0)  CreateCubeFace(x, y, z, BlockTextures.Left);    // x-1
-                        if (data[idx + 256] == 0)  CreateCubeFace(x, y, z, BlockTextures.Right);   // x+1
-                    }
-                    // äußere Blöcke Nachbarchunkcheck nötig 
-                    else
-                    {
-                        if (!IsBlock(x, y + 1, z)) CreateCubeFace(x, y, z, BlockTextures.Top);
-                        if (!IsBlock(x, y - 1, z)) CreateCubeFace(x, y, z, BlockTextures.Bottom);
-                        if (!IsBlock(x, y, z + 1)) CreateCubeFace(x, y, z, BlockTextures.Front);
-                        if (!IsBlock(x, y, z - 1)) CreateCubeFace(x, y, z, BlockTextures.Back);
-                        if (!IsBlock(x - 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Left);
-                        if (!IsBlock(x + 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Right);
-                    }
-                }
+                if (data[idx + 16] == 0)   CreateCubeFace(x, y, z, BlockTextures.Top);     // y+1
+                if (data[idx - 16] == 0)   CreateCubeFace(x, y, z, BlockTextures.Bottom);  // y-1
+                if (data[idx + 1] == 0)    CreateCubeFace(x, y, z, BlockTextures.Front);   // z+1
+                if (data[idx - 1] == 0)    CreateCubeFace(x, y, z, BlockTextures.Back);    // z-1
+                if (data[idx - 256] == 0)  CreateCubeFace(x, y, z, BlockTextures.Left);    // x-1
+                if (data[idx + 256] == 0)  CreateCubeFace(x, y, z, BlockTextures.Right);   // x+1
+            }
+            // äußere Blöcke Nachbarchunkcheck nötig 
+            else
+            {
+                if (!IsBlock(x, y + 1, z)) CreateCubeFace(x, y, z, BlockTextures.Top);
+                if (!IsBlock(x, y - 1, z)) CreateCubeFace(x, y, z, BlockTextures.Bottom);
+                if (!IsBlock(x, y, z + 1)) CreateCubeFace(x, y, z, BlockTextures.Front);
+                if (!IsBlock(x, y, z - 1)) CreateCubeFace(x, y, z, BlockTextures.Back);
+                if (!IsBlock(x - 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Left);
+                if (!IsBlock(x + 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Right);
             }
         }
         

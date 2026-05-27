@@ -9,7 +9,7 @@ using Silk.NET.OpenGL;
 
 namespace Basics.Configurations;
 
-public static class BlockTextures
+public static class BlockLoader
 {
     private sealed class BlockFile
     {

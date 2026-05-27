@@ -40,7 +40,7 @@ public class Game : IStates
     private static PlayerMovement _playerMovement = null!;
     public static Camera PlayerCamera  = null!;
     public static Camera? DebugCamera  = null!; // Zweite Free cam
-    private static readonly Vector3 PlayerStartPosition = new Vector3(0, 40, 0);
+    private static readonly Vector3 PlayerStartPosition = new Vector3(0, 100, 0);
     
     //Ingame UI
     private static UIManager _uiManager = null!; // Das was die UI elemente definiert
@@ -61,7 +61,7 @@ public class Game : IStates
         CoreAvailability.Initialize();
 
         // Datengetriebene Block- und Textur-Registries laden.
-        BlockTextures.Initialize(_gl, "Content");
+        BlockLoader.Initialize(_gl, "Content");
         
         // Player mit eigener Kamera erstellen
         _player = new PlayerCharacter(PlayerStartPosition);
@@ -84,19 +84,24 @@ public class Game : IStates
 
         InputManager.SetActionBindings(Actions.ToogleDebugCamera, ToggleDebugCamera);
         
+        //Multithreading System initializieren
+        var jobScheduler = new JobScheduler();
+        
         // Terrain-Pipeline aufbauen:
         // TerrainGenerator erzeugt Chunk-Daten
         _terrainGenerator = new TerrainGenerator();
         
         // ChunkProvider verwaltet den Chunk-Lebenszyklus (Laden/Generieren/Speichern)
-        int meshingThreads = CoreAvailability.GetChunkMeshingCores();
-        _chunkProvider = new ChunkProvider(_terrainGenerator, meshingThreads );
+        _chunkProvider = new ChunkProvider(jobScheduler);
         Renderer.ChunkProvider = _chunkProvider;
         
         // ChunkRequestor abonniert das Player-Event und berechnet welche Chunks geladen werden
         // die Chunks werden dann vom Provider parallel erstellt und verwaltet
-        int generationCores = CoreAvailability.GetTerrainGenerationCores();
-        _chunkRequestor = new ChunkRequestor(_player, _chunkProvider, generationCores);
+        _chunkRequestor = new ChunkRequestor(_player, _chunkProvider);
+        
+        //Schedular starten mit context
+        var context = new JobContext(_terrainGenerator, _chunkProvider);
+        jobScheduler.Start(CoreAvailability.GetTaskCores(), context);
         
         //UI erstellen
         _uiManager = new UIManager(_chunkRequestor);
@@ -131,6 +136,7 @@ public class Game : IStates
     public void Update(double deltaTime)
     {
         _playerMovement.MovementUpdate(deltaTime);
+        _chunkProvider.RequestMeshes();
     }
     
     //Wird aufgerufen, wenn die Fenstergröße geändert wird.

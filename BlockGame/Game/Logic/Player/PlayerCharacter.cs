@@ -11,7 +11,7 @@ namespace Basics.Game.Logic.Player;
 
 public class PlayerCharacter
 {
-    private static readonly ushort DefaultPlaceBlockId = BlockTextures.GetBlockId("core:dirt");
+    private static readonly ushort DefaultPlaceBlockId = BlockLoader.GetBlockId("core:dirt");
 
     public Camera Camera { get; }
 

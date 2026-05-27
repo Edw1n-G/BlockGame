@@ -23,11 +23,10 @@ public class ChunkRequestor
     private ChunkCoord _lastPlayerChunk;
     private bool _isUpdating = false;
 
-    public ChunkRequestor(PlayerCharacter player, ChunkProvider chunkProvider, int generationCores)
+    public ChunkRequestor(PlayerCharacter player, ChunkProvider chunkProvider)
     {
         _player = player;
         _chunkProvider = chunkProvider;
-        _parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, generationCores) };
 
         // Event abonnieren: wird gefeuert, wenn der Spieler einen neuen Chunk betritt
         _player.OnChunkChanged += OnPlayerChunkChanged;
@@ -98,10 +97,10 @@ public class ChunkRequestor
                 }
             }
 
-            Parallel.ForEach(pendingRequests, _parallelOptions, chunk =>
+            foreach (var chunk in pendingRequests)
             {
                 _chunkProvider.RequestChunk(chunk);
-            });
+            }
 
             lock (_chunkLock)
             {

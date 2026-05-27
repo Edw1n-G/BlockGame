@@ -8,9 +8,8 @@ namespace Basics.Game.Utilities;
 /// </summary>
 public class CoreAvailability
 {
-    private static int _terrainGenerationCores;
-    private static int _ChunkMeshingCores;
-    private static int _exampleTaskCores;
+    
+    private static int _TaskCores;
     
     public static int TotalCores => Environment.ProcessorCount;
     public static int AvailableCores => Math.Max(1, TotalCores - 2);// Paar threads müssen reserviert sein unabhängig der config
@@ -29,8 +28,6 @@ public class CoreAvailability
         Console.WriteLine($"Total Cores: {TotalCores}");
         Console.WriteLine($"1 Render Thread + 1 Logic Thread + 0 Render assistance Thread reserved");
         Console.WriteLine($"Available Background Cores: {AvailableCores}");
-        Console.WriteLine($"Terrain Generation Cores: {_terrainGenerationCores}");
-        Console.WriteLine($"Chunk Meshing Cores: {_ChunkMeshingCores}");
     }
 
     static void LoadConfig(String configPath)
@@ -40,19 +37,12 @@ public class CoreAvailability
     
     static void DefaultConfig()
     {
-        _terrainGenerationCores = AvailableCores/2 + 4;
-        _ChunkMeshingCores = AvailableCores/2 - 4;
-        _exampleTaskCores = 0; // Keine Kerne für andere Aufgaben reservieren
+        _TaskCores= AvailableCores/2 + 4;
     }
 
-    public static int GetTerrainGenerationCores()
+    public static int GetTaskCores()
     {
-        return _terrainGenerationCores;
-    }
-
-    public static int GetChunkMeshingCores()
-    {
-        return _ChunkMeshingCores;
+        return _TaskCores;
     }
     
 }

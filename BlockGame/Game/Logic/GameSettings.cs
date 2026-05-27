@@ -10,6 +10,8 @@ public static class GameSettings
     public static int Lod2Distance { get; private set; } = 20;
     public static int VerticalRenderDistance { get; private set; } = 15;
     
+    public static int MaxChunkMeshesInRam { get; private set; } = 200;
+    
     // Movement Einstellungen
     public static float PlayerMoveSpeed { get; private set; } = 10f;
     public static float MouseSensitivity { get; private set; } = 0.1f;
@@ -45,6 +47,14 @@ public static class GameSettings
         lock (Lock)
         {
             Lod2Distance = Math.Max(3, distance);
+        }
+    }
+    
+    public static void SetMaxChunkMeshesInRam(int size)
+    {
+        lock (Lock)
+        {
+            MaxChunkMeshesInRam = Math.Max(1, size);
         }
     }
     

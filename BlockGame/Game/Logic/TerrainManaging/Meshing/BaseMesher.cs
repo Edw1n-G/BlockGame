@@ -266,7 +266,7 @@ public class BaseMesher : IDisposable
             _gl.EnableVertexAttribArray(2);
         }
         
-        // Alles auf der GPU geometrie daten löschen und buffer zum pool geben
+        // Alles auf der GPU. geometrie daten löschen und buffer zum pool geben
         this._vertices.Clear();
         this._indices.Clear();
         

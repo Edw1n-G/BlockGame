@@ -14,7 +14,7 @@ public class Renderer
     private static GL _gl = null!;
 
     private static ShaderManager _terrainshader = null!;
-    private static TextureArray _terrainTexture = null!;
+    private static TextureArray _terrainTexture = null!;//TODO: alles von terrain zu etwas algemeinem umbennenen
     private static Camera _camera = null!;
     
     public static ChunkProvider ChunkProvider = null!;
@@ -30,7 +30,7 @@ public class Renderer
         
         _camera = camera;
         _terrainshader = new ShaderManager(_gl, "shader.vert", "shader.frag");
-        _terrainTexture = BlockTextures.TerrainTexture;
+        _terrainTexture = BlockLoader.TerrainTexture;
         
         // Ka ob hierhin oder in den shader manager
         _gl.Enable(EnableCap.Multisample);
@@ -63,7 +63,7 @@ public class Renderer
         Frustum frustum = _terrainshader.Use(_gl, _camera);
         _terrainshader.BindTexture(_terrainTexture);
 
-        while (ChunkProvider.UploadQueue.Reader.TryRead(out BaseMesher? chunk))
+        while (ChunkProvider.UploadQueue.TryDequeue(out BaseMesher? chunk))
         {
             // Wenn der Chunk nicht mehr in Chunk data ist, wurde er schon entladen
             if (!ChunkProvider.Chunkdata.ContainsKey(chunk.ChunkPosition))

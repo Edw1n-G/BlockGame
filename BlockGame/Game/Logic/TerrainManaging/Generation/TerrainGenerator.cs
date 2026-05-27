@@ -14,36 +14,28 @@ public class TerrainGenerator
     private readonly ushort _grassId;
     private readonly ushort _stoneId;
     private readonly ushort _snowId;
-
+    
+    //TODO:beim laden von "Content" alle Block ids automatisch laden
     public TerrainGenerator()
     {
-        _dirtId = BlockTextures.GetBlockId("core:dirt");
-        _grassId = BlockTextures.GetBlockId("core:grass");
-        _stoneId = BlockTextures.GetBlockId("core:stone");
-        _snowId = BlockTextures.GetBlockId("core:snow");
+        _dirtId = BlockLoader.GetBlockId("core:dirt");
+        _grassId = BlockLoader.GetBlockId("core:grass");
+        _stoneId = BlockLoader.GetBlockId("core:stone");
+        _snowId = BlockLoader.GetBlockId("core:snow");
     }
-    
-    /// <summary>
-    /// Setzt die Max Größe der Karte
-    /// @param mapSize absolute Chunkmenge in x und z
-    /// @param Menge der Chunks jeweils in die positive und negative Richtung
-    /// @param mapLimit die Grenze der Karte in Blöcken
-    /// </summary>
     
     /// <summary>
     /// Bekommt den Index des Chunkes
     /// rechnet den ChunkIndex in die Weltposition
-    /// generiert alles Blöcke des Chunkes mit 4D Noise
+    /// generiert alle Blöcke des Chunkes mit 3D Noise
     /// wird in @param ChunkBlocks gespeichert und an den ChunkMesher übergeben, der die Geometrie erstellt
     /// </summary>
-    public ushort[] GenerateChunk(ChunkCoord coord)
+    public ChunkData GenerateChunk(ChunkCoord coord)
     {
+        //Außerhalb der map
         if (Math.Abs(coord.X) > GameSettings.MapSize || Math.Abs(coord.Z) > GameSettings.MapSize)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("WARNUNG: Chunk außerhalb der Weltlimits angefragt.");
-            Console.ResetColor();
-            return null;
+            return new ChunkData(coord); // Alles Luft damit nachbarn gemesht werden können;
         }
 
         int stepSize = (1 << coord.LodLevel); // lod0 -> 1, lod1 -> 2, lod2 -> 4, lod3 -> 8,lod4 -> 16
@@ -112,12 +104,25 @@ public class TerrainGenerator
                 }
             }
         }
-
-        return chunkBlocks;
+        
+        
+        // Wenn der Chunkgenerator null zurückgibt ist der Chunk nur Luft oder
+        // nicht in der Welt. Trotzdem speichern, damit Nachbar-Chunks gemesht werden können
+        ChunkData chunkData;
+        if (chunkBlocks == null)
+        {
+            chunkData = new ChunkData(coord); // Alles Luft
+        }
+        else
+        {
+            chunkData = new ChunkData(coord, chunkBlocks);
+        }
+        
+        return chunkData;
     }
     
     
-    //may not be usable because of 3d noise 
+    //not usable because of 3d noise change
     // TODO: figure out how to make a 2D map out of 3D data
     public void DebugExportNoiseMap(string filename = "debug_noisemap.png", int steps = 16)
     {

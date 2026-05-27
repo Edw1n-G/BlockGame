@@ -79,22 +79,22 @@ public class Lod0Mesher : BaseMesher
             // innere Blöcke 
             if (x > 0 && x < 15 && y > 0 && y < 15 && z > 0 && z < 15)
             {
-                if (data[idx + 16] == 0)   CreateCubeFace(x, y, z, BlockTextures.Top);     // y+1
-                if (data[idx - 16] == 0)   CreateCubeFace(x, y, z, BlockTextures.Bottom);  // y-1
-                if (data[idx + 1] == 0)    CreateCubeFace(x, y, z, BlockTextures.Front);   // z+1
-                if (data[idx - 1] == 0)    CreateCubeFace(x, y, z, BlockTextures.Back);    // z-1
-                if (data[idx - 256] == 0)  CreateCubeFace(x, y, z, BlockTextures.Left);    // x-1
-                if (data[idx + 256] == 0)  CreateCubeFace(x, y, z, BlockTextures.Right);   // x+1
+                if (data[idx + 16] == 0)   CreateCubeFace(x, y, z, BlockLoader.Top);     // y+1
+                if (data[idx - 16] == 0)   CreateCubeFace(x, y, z, BlockLoader.Bottom);  // y-1
+                if (data[idx + 1] == 0)    CreateCubeFace(x, y, z, BlockLoader.Front);   // z+1
+                if (data[idx - 1] == 0)    CreateCubeFace(x, y, z, BlockLoader.Back);    // z-1
+                if (data[idx - 256] == 0)  CreateCubeFace(x, y, z, BlockLoader.Left);    // x-1
+                if (data[idx + 256] == 0)  CreateCubeFace(x, y, z, BlockLoader.Right);   // x+1
             }
             // äußere Blöcke Nachbarchunkcheck nötig 
             else
             {
-                if (!IsBlock(x, y + 1, z)) CreateCubeFace(x, y, z, BlockTextures.Top);
-                if (!IsBlock(x, y - 1, z)) CreateCubeFace(x, y, z, BlockTextures.Bottom);
-                if (!IsBlock(x, y, z + 1)) CreateCubeFace(x, y, z, BlockTextures.Front);
-                if (!IsBlock(x, y, z - 1)) CreateCubeFace(x, y, z, BlockTextures.Back);
-                if (!IsBlock(x - 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Left);
-                if (!IsBlock(x + 1, y, z)) CreateCubeFace(x, y, z, BlockTextures.Right);
+                if (!IsBlock(x, y + 1, z)) CreateCubeFace(x, y, z, BlockLoader.Top);
+                if (!IsBlock(x, y - 1, z)) CreateCubeFace(x, y, z, BlockLoader.Bottom);
+                if (!IsBlock(x, y, z + 1)) CreateCubeFace(x, y, z, BlockLoader.Front);
+                if (!IsBlock(x, y, z - 1)) CreateCubeFace(x, y, z, BlockLoader.Back);
+                if (!IsBlock(x - 1, y, z)) CreateCubeFace(x, y, z, BlockLoader.Left);
+                if (!IsBlock(x + 1, y, z)) CreateCubeFace(x, y, z, BlockLoader.Right);
             }
         }
         
@@ -109,7 +109,7 @@ public class Lod0Mesher : BaseMesher
     private void CreateCubeFace(int x, int y, int z, int face)
     {
         int id = _blockData[x * 256 + y * 16 + z];
-        ushort textureLayer = BlockTextures.Get(id, face);
+        ushort textureLayer = BlockLoader.Get(id, face);
         
         // AO direkt als int berechnen (0–3)
         byte ao0 = CalcAoLevel(x, y, z, face, 0);
@@ -119,37 +119,37 @@ public class Lod0Mesher : BaseMesher
         
         switch (face)
         {
-            case BlockTextures.Top:
+            case BlockLoader.Top:
                 AddVertex(x,     y + 1, z + 1, textureLayer, ao0);
                 AddVertex(x + 1, y + 1, z + 1, textureLayer, ao1);
                 AddVertex(x + 1, y + 1, z,     textureLayer, ao2);
                 AddVertex(x,     y + 1, z,     textureLayer, ao3);
                 break;
-            case BlockTextures.Bottom:
+            case BlockLoader.Bottom:
                 AddVertex(x,     y, z,     textureLayer, ao0);
                 AddVertex(x + 1, y, z,     textureLayer, ao1);
                 AddVertex(x + 1, y, z + 1, textureLayer, ao2);
                 AddVertex(x,     y, z + 1, textureLayer, ao3);
                 break;
-            case BlockTextures.Front:
+            case BlockLoader.Front:
                 AddVertex(x,     y,     z + 1, textureLayer, ao0);
                 AddVertex(x + 1, y,     z + 1, textureLayer, ao1);
                 AddVertex(x + 1, y + 1, z + 1, textureLayer, ao2);
                 AddVertex(x,     y + 1, z + 1, textureLayer, ao3);
                 break;
-            case BlockTextures.Back:
+            case BlockLoader.Back:
                 AddVertex(x + 1, y,     z, textureLayer, ao0);
                 AddVertex(x,     y,     z, textureLayer, ao1);
                 AddVertex(x,     y + 1, z, textureLayer, ao2);
                 AddVertex(x + 1, y + 1, z, textureLayer, ao3);
                 break;
-            case BlockTextures.Left:
+            case BlockLoader.Left:
                 AddVertex(x, y,     z,     textureLayer, ao0);
                 AddVertex(x, y,     z + 1, textureLayer, ao1);
                 AddVertex(x, y + 1, z + 1, textureLayer, ao2);
                 AddVertex(x, y + 1, z,     textureLayer, ao3);
                 break;
-            case BlockTextures.Right:
+            case BlockLoader.Right:
                 AddVertex(x + 1, y,     z + 1, textureLayer, ao0);
                 AddVertex(x + 1, y,     z,     textureLayer, ao1);
                 AddVertex(x + 1, y + 1, z,     textureLayer, ao2);

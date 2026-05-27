@@ -16,50 +16,34 @@ public class ChunkProvider
 {
     // Chunk Daten und Meshing Anfragen
     public static ConcurrentDictionary<ChunkCoord, ChunkData> Chunkdata = new();//Die Blockdaten
-    private ConcurrentDictionary<ChunkCoord, byte> _queuedForMeshing = new();// Nur damit nicht mehrere Threads denselben Chunk meshen
-    
-    // Meshing Anfragen
-    public Channel<ChunkCoord> MeshingQueue = Channel.CreateBounded<ChunkCoord>(new BoundedChannelOptions(200) { 
-        FullMode = BoundedChannelFullMode.Wait, // Lässt den Thread schlafen, wenn voll!
-        SingleReader = false, 
-        SingleWriter = false 
-    });
+    public static ConcurrentDictionary<ChunkCoord, byte> QueuedForMeshing = new();// Nur damit nicht mehrere Threads denselben Chunk meshen. byte als dummy da der datentyp vorteile hat
     
     // Buffer für Meshing
     public static readonly ConcurrentQueue<PooledMeshBuffer> VramPool = new();
     public static readonly ConcurrentQueue<List<byte>> VertexListPool = new();
     public static readonly ConcurrentQueue<List<uint>> IndexListPool = new();
+    
+    // Meshing Anfragen
+    public static ConcurrentQueue<ChunkCoord> PendingMeshRequests = new();
 
     // fertig zum Upload bereite meshes 
-    public Channel<BaseMesher> UploadQueue = Channel.CreateBounded<BaseMesher>(new BoundedChannelOptions(300) { 
-        FullMode = BoundedChannelFullMode.Wait, 
-        SingleReader = true, 
-        SingleWriter = false 
-    });
+    public ConcurrentQueue<BaseMesher> UploadQueue = new();
     
     //hochgeladene meshes
     public static readonly ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
     
     // meshes die entladen werden müssen
     public ConcurrentQueue<BaseMesher> UnloadQueue = new(); // Chunks die wieder aus der GPU rausmüssen
-    private readonly TerrainGenerator _terrainGenerator;
     
+    //Referenzen
+    private readonly TerrainGenerator _terrainGenerator;
+    private readonly JobScheduler _jobScheduler;
     
     private bool _isRunning = true;
     
-    public ChunkProvider(TerrainGenerator terrainGenerator, int meshingThreads)
+    public ChunkProvider(JobScheduler jobScheduler)
     {
-        _terrainGenerator = terrainGenerator;
-        for (int i = 0; i < meshingThreads; i++)
-        {
-            // Threads machen die nicht aus dem Algemeinen Threadpool kommen
-            Thread t = new Thread(MeshingWorkerLoop)
-            {
-                IsBackground = true,
-                Name = $"MeshingThread_{i}"
-            };
-            t.Start();
-        }
+        _jobScheduler = jobScheduler;
     }
 
     /// <summary>
@@ -75,121 +59,23 @@ public class ChunkProvider
         
         if (Chunkdata.ContainsKey(coord))
             return;
-
-        // Versuch von Festplatte zu laden (Placeholder)
-        if (TryLoadFromDisk(coord, out BaseMesher? loadedChunk))
-        {
-            LoadedChunks.TryAdd(coord, loadedChunk!);
-            return;
-        }
-        
-        // Chunk generieren
-        ushort[]? chunkBlocks = _terrainGenerator.GenerateChunk(coord);
-        
-        // Wenn der Chunkgenerator null zurückgibt ist der Chunk nur Luft oder
-        // nicht in der Welt. Trotzdem speichern, damit Nachbar-Chunks gemesht werden können
-        ChunkData chunkData;
-        if (chunkBlocks == null)
-        {
-            chunkData = new ChunkData(coord); // Alles Luft
-        }
-        else
-        {
-            chunkData = new ChunkData(coord, chunkBlocks);
-        }
-        OnChunkDataGenerated(coord, chunkData);
+        _jobScheduler.EnqueueLow(new ChunkLoadorGenerateJob(coord));
     }
     
-    public void OnChunkDataGenerated(ChunkCoord coord, ChunkData data)
+    /// <summary>
+    /// Wenn paar tausend meshes im ram liegen und warten bis der main thread es ins vram shiebt
+    /// Ehhh Ram kabumm
+    /// </summary>
+    public void RequestMeshes()
     {
-        // Daten im Dictionary ablegen
-        Chunkdata.TryAdd(coord, data);
+        int maxMeshesInRam = GameSettings.MaxChunkMeshesInRam;
 
-        // chunk selbst prüfen
-        TryQueueForMeshing(coord);
-
-        // nachbar Chunks prüfen
-        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y, coord.Z, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y, coord.Z, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y + 1, coord.Z, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y - 1, coord.Z, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y, coord.Z + 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y, coord.Z - 1, coord.LodLevel));
-        // Diagonale
-        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y + 1, coord.Z + 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y + 1, coord.Z - 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y - 1, coord.Z + 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X, coord.Y - 1, coord.Z - 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y, coord.Z + 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y, coord.Z - 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y, coord.Z + 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y, coord.Z - 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y + 1, coord.Z, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y - 1, coord.Z, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y + 1, coord.Z, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y - 1, coord.Z, coord.LodLevel));
-        // Ecken
-        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y + 1, coord.Z + 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y + 1, coord.Z - 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y - 1, coord.Z + 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X + 1, coord.Y - 1, coord.Z - 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y + 1, coord.Z + 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y + 1, coord.Z - 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y - 1, coord.Z + 1, coord.LodLevel));
-        TryQueueForMeshing(new ChunkCoord(coord.X - 1, coord.Y - 1, coord.Z - 1, coord.LodLevel));
-    }
-    
-    private void TryQueueForMeshing(ChunkCoord coord)
-    {
-        //Selbstcheck um existenzkrisen zu vermeiden
-        if (!Chunkdata.ContainsKey(coord)) return;
-
-        //Selbcheck schon angefangen
-        if (_queuedForMeshing.ContainsKey(coord)) return;
-
-        //Sind direkte Nachbarn im Dictionary?
-        if (!HasAllNeighbors(coord)) return;
-        
-        
-        if (_queuedForMeshing.TryAdd(coord, 0))
+       //gucken ob noch platz im ram und rausziehen zum Meshen
+        while (UploadQueue.Count < maxMeshesInRam && 
+               PendingMeshRequests.TryDequeue(out ChunkCoord coord))
         {
-            //Meshing anfangen aber warten bis platz im channel ist
-            MeshingQueue.Writer.WriteAsync(coord).AsTask().Wait();
-        }
-    }
-    
-    private void MeshingWorkerLoop()
-    {
-        // GetConsumingEnumerable() blockiert automatisch wenn nichts drinne ist und wird selbst aktiv wenn man add aufruft
-        foreach (ChunkCoord coord in MeshingQueue.Reader.ReadAllAsync().ToBlockingEnumerable())
-        {
-            if (!_isRunning) break;
-
-            if (Chunkdata.TryGetValue(coord, out ChunkData chunkData))
-            {
-                BaseMesher newMesh;
-                
-                switch (coord.LodLevel)
-                {
-                    case 0:
-                        newMesh = new Lod0Mesher(coord, chunkData);
-                        break;
-                    
-                    case 1:
-                        newMesh = new Lod1Mesher(coord, chunkData);
-                        break;
-                    
-                    case 2:
-                        newMesh = new Lod2Mesher(coord, chunkData);
-                        break;
-                    
-                    default:
-                        throw new Exception($"Ungültiges LOD-Level {coord.LodLevel} für Chunk {coord}");
-                }
-                
-                UploadQueue.Writer.WriteAsync(newMesh).AsTask().Wait();
-                _queuedForMeshing.TryRemove(coord, out _);
-            }
+            // WorkerThreads
+            _jobScheduler.EnqueueLow(new MeshgenerateJob(coord));
         }
     }
 
@@ -268,16 +154,10 @@ public class ChunkProvider
         if (!Chunkdata.ContainsKey(coord)) return;
         if (!HasAllNeighbors(coord)) return;
 
-        // Erlaubt Re-Queue
-        _queuedForMeshing.TryRemove(coord, out _);
-
-        // Neu in die Meshing-Queue
-        if (_queuedForMeshing.TryAdd(coord, 0))
+        if (QueuedForMeshing.TryAdd(coord, 1))
         {
-            MeshingQueue.Writer.WriteAsync(coord).AsTask().Wait();
+            PendingMeshRequests.Enqueue(coord);
         }
-        
-        //Altes Mesh wird im Renderer ersetzt
     }
 
     /// <summary>
@@ -316,7 +196,7 @@ public class ChunkProvider
         
         //Chunks könnten auch ohne Mesh entladen werden
         Chunkdata.TryRemove(coord, out _);
-        _queuedForMeshing.TryRemove(coord, out _);
+        QueuedForMeshing.TryRemove(coord , out _);
     }
 
     /// <summary>
@@ -333,17 +213,6 @@ public class ChunkProvider
     public bool IsChunkLoaded(ChunkCoord coord)
     {
         return LoadedChunks.ContainsKey(coord);
-    }
-
-    /// <summary>
-    /// Placeholder: Versucht einen Chunk von der Festplatte zu laden.
-    /// Gibt vorerst immer false zurück.
-    /// </summary>
-    private bool TryLoadFromDisk(ChunkCoord coord, out BaseMesher? chunk)
-    {
-        // TODO: Implementierung für Chunk-Laden von der Festplatte
-        chunk = null;
-        return false;
     }
 
     /// <summary>

@@ -1,12 +1,12 @@
-# BlockGame Documentation
+# EdwinCraft (BlockGame) Documentation
 
 ## Overview
-BlockGame is a voxel terrain renderer in C# built on Silk.NET (OpenGL) with an Egui.NET UI layer. The engine streams 16×16×16 chunks around the player, generates terrain via FastNoise2, and supports block placement/destruction through raycasting.
+EdwinCraft (project/solution name: BlockGame) is a voxel terrain renderer in C# built on Silk.NET (OpenGL) with an Egui.NET UI layer. The engine streams 16×16×16 chunks around the player, generates terrain via FastNoise2, and supports block placement/destruction through raycasting.
 
 Key facts:
 - Target framework: **net10.0**
 - Rendering: **OpenGL 4.6** via Silk.NET
-- Chunk size: **16 × 16 × 16** blocks (`ChunkData.ChunkSize`)
+- Chunk size: **16 × 16 × 16** blocks (`ChunkData.ChunkSize`; older docs may mention 32×32×32)
 - World bounds: **X/Z limited by `GameSettings.MapSize`** (default 100)
 - Rendering features: texture arrays, frustum culling, per-vertex AO
 - Threading: background jobs for generation/meshing; GPU uploads on the main thread

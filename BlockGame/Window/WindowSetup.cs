@@ -16,11 +16,14 @@ public class WindowSetup
         options.Samples = GameSettings.Msaa;
         options.Title = "Game";
         
-        //options.FramesPerSecond = 60.0;
-        //options.UpdatesPerSecond = 60.0;
-        options.VSync = true;
+        options.FramesPerSecond = GameSettings.FrameRate;
+        options.UpdatesPerSecond = 60.0;
+        options.VSync = GameSettings.VSync;
         
         Window = Silk.NET.Windowing.Window.Create(options);
+        
+        GameSettings.OnFpsChanged += OnFpsChanged;
+        GameSettings.OnVSyncChanged += OnVSyncChanged;
         
         //Aktion -> Methode Mappen
         InputManager.SetActionBindings(Actions.Close, () => Window.Close());
@@ -31,6 +34,23 @@ public class WindowSetup
     public static void Run()
     {
         Window.Run();
+    }
+    
+    //Events die von GameSettings getriggert werden
+    private static void OnFpsChanged(int newFps)
+    {
+        if (Window == null) return;
+    
+        // Das Limit greift in Silk.NET meist nur, wenn VSync aus ist
+        Window.FramesPerSecond = newFps;
+        Window.UpdatesPerSecond = newFps;
+    }
+    
+    private static void OnVSyncChanged(bool VSync)
+    {
+        if (Window == null) return;
+    
+        Window.VSync = VSync;
     }
     
     //Funktionen die durch Tasten getriggert werden können.

@@ -31,7 +31,7 @@ public class Game : IStates
     private static TerrainGenerator _terrainGenerator  = null!;
     private static ChunkProvider _chunkProvider = null!;
     private static ChunkRequestor _chunkRequestor = null!;
-    public static float Fps = 0;
+    public static float Fps = 0;//wird in der UI benutzt
     
     private static GL _gl = null!;
 

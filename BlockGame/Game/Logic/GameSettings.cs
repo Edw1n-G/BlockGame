@@ -10,6 +10,7 @@ public static class GameSettings
     public static int Lod2Distance { get; private set; } = 20;
     public static int VerticalRenderDistance { get; private set; } = 15;
     
+    //Chunk Gen Einstellungen
     public static int MaxChunkMeshesInRam { get; private set; } = 200;
     
     // Movement Einstellungen
@@ -22,8 +23,16 @@ public static class GameSettings
     public static int MapSize { get; private set; } = 100;
     
     // Grafik einstellungen
-    
     public static int Msaa { get; private set; } = 2;
+    
+    // Render einstellungen
+    public static int FrameRate { get; private set; } = 120;
+    public static event Action<int>? OnFpsChanged; //Event um fps im window manager zu ändern
+    
+    public static bool VSync { get; private set; } = false;
+    public static event Action<bool>? OnVSyncChanged;
+    
+    public static bool LowLatencyRenderer { get; private set; } = false; //Ob alles in echtzeit auf einem Render thread läuft oder multithreading(culling) mit 1-2 frames latenz
     
     // Funktionen zum Anpassen der Werte
     public static void SetRenderDistance(int distance)
@@ -96,5 +105,31 @@ public static class GameSettings
         {
             MapSize = Math.Max(10, size);
         }
+    }
+    
+    public static void SetMsaa(int aa)
+    {
+        lock (Lock)
+        {
+            Msaa = aa;
+        }
+    }
+
+    public static void SetFrameRate(int newFrameRate)
+    {
+        lock (Lock)
+        {
+            FrameRate = newFrameRate;
+        }
+        OnFpsChanged?.Invoke(newFrameRate);
+    }
+
+    public static void SetVSync(bool vsync)
+    {
+        lock (Lock)
+        {
+            VSync = vsync;
+        }
+        OnVSyncChanged?.Invoke(vsync);
     }
 }

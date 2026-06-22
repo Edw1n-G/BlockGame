@@ -1,17 +1,16 @@
-﻿using Basics.EngineStates;
-using Basics.Window;
+﻿using Basics.Window;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 
-namespace Basics
+namespace Basics.EngineStates
 {
     /**
      * Entry Point des Programms
      */
     public class StateManager
     {
-        private EngineStates.Game _game;
+        private Game _game;
         
         private IStates _nextState;
         private IStates _currentState;
@@ -57,12 +56,11 @@ namespace Basics
         {
             _currentState.Update(delta);
             
-            // Der verzögerte State-Wechsel, den wir vorhin besprochen haben
             if (_nextState != null)
             {
                 _currentState.Exit();
                 _currentState = _nextState;
-                _currentState.Enter(_gl, _inputContext, this); // Neuen State initialisieren
+                _currentState.Enter(_gl, _inputContext, this);
                 _nextState = null;
             }
         }

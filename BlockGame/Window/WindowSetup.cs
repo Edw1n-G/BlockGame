@@ -77,7 +77,7 @@ public class WindowSetup
 
     private static void ToggleBorderless()
     {
-        // FIX 2: Hier das logische ODER (||) nutzen
+        
         if (Window.WindowBorder == WindowBorder.Hidden || Window.WindowState == WindowState.Fullscreen)
         {
             // Zurück zum normalen kleinen Fenster MIT Rahmen

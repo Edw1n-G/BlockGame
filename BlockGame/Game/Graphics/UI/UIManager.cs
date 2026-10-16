@@ -1,3 +1,4 @@
+using Basics.Game;
 using Basics.Game.Logic;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Utilities;
@@ -9,11 +10,13 @@ namespace Basics.Graphics.UI
     public class UIManager
     {
         private ChunkRequestor _chunkRequestor;
+        private readonly GameSettings _settings;
         public static event Action OnRenderDistanceChanged;
 
-        public UIManager(ChunkRequestor requestor)
+        public UIManager(ChunkRequestor requestor, GameSettings? settings = null)
         {
             _chunkRequestor = requestor;
+            _settings = settings ?? EngineContext.Current?.Settings ?? GameSettings.Current;
         }
 
         // Diese Methode wird aus dem Integration.Run() aufgerufen
@@ -38,16 +41,16 @@ namespace Basics.Graphics.UI
                 .Resizable((false, false))
                 .Show(ctx, ui =>
                 {
-                    int hdist = GameSettings.RenderDistance;
-                    int vdist = GameSettings.VerticalRenderDistance;
+                    int hdist = _settings.RenderDistance;
+                    int vdist = _settings.VerticalRenderDistance;
                     if (ui.Add(new Egui.Widgets.Slider<int>(ref hdist, 1, 60).Text("Horizontal Render Distance")).Changed)
                     {
-                        GameSettings.SetRenderDistance(hdist);
+                        _settings.SetRenderDistance(hdist);
                         OnRenderDistanceChanged?.Invoke();
                     }
                     if (ui.Add(new Egui.Widgets.Slider<int>(ref vdist, 1, 30).Text("Vertical Render Distance")).Changed)
                     {
-                        GameSettings.SetVerticalRenderDistance(vdist);
+                        _settings.SetVerticalRenderDistance(vdist);
                         OnRenderDistanceChanged?.Invoke();
                     }
                     if (ui.Button("Unload All Chunks").Clicked)
@@ -61,16 +64,16 @@ namespace Basics.Graphics.UI
                 .Show(ctx, ui =>
                 {
                     ui.Heading("Player Settings");
-                    float speed = GameSettings.PlayerMoveSpeed;
+                    float speed = _settings.PlayerMoveSpeed;
                     if (ui.Add(new Egui.Widgets.Slider<float>(ref speed, 1f, 100f).Text("Player Speed")).Changed)
                     {
-                        GameSettings.SetPlayerMoveSpeed(speed);
+                        _settings.SetPlayerMoveSpeed(speed);
                     }
                     
-                    float sensitivity = GameSettings.MouseSensitivity;
+                    float sensitivity = _settings.MouseSensitivity;
                     if (ui.Add(new Egui.Widgets.Slider<float>(ref sensitivity, 0.01f, 1f).Text("Mouse Sensitivity")).Changed)
                     {
-                        GameSettings.SetMouseSensitivity(sensitivity);
+                        _settings.SetMouseSensitivity(sensitivity);
                     }
                 });
             

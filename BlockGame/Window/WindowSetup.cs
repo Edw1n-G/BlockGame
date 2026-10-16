@@ -1,4 +1,4 @@
-﻿using Basics.Game.Logic;
+using Basics.Game.Logic;
 using Basics.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
@@ -13,17 +13,17 @@ public class WindowSetup
     {
         WindowOptions options = WindowOptions.Default;
         options.Size = new Vector2D<int>(800, 600);
-        options.Samples = GameSettings.Msaa;
+        options.Samples = GameSettings.Current.Msaa;
         options.Title = "Game";
         
-        options.FramesPerSecond = GameSettings.FrameRate;
+        options.FramesPerSecond = GameSettings.Current.FrameRate;
         options.UpdatesPerSecond = 60.0;
-        options.VSync = GameSettings.VSync;
+        options.VSync = GameSettings.Current.VSync;
         
         Window = Silk.NET.Windowing.Window.Create(options);
         
-        GameSettings.OnFpsChanged += OnFpsChanged;
-        GameSettings.OnVSyncChanged += OnVSyncChanged;
+        GameSettings.Current.OnFpsChanged += OnFpsChanged;
+        GameSettings.Current.OnVSyncChanged += OnVSyncChanged;
         
         //Aktion -> Methode Mappen
         InputManager.SetActionBindings(Actions.Close, () => Window.Close());

@@ -1,20 +1,36 @@
+using System;
+using System.IO;
+using Basics.Game;
+
 namespace Basics.Game.Utilities;
 
 ///<summary>
-/// Berchnet die optimale Aufteilung der Threads für verschiedene Aufgaben.
+/// Berechnet die optimale Aufteilung der Threads für verschiedene Aufgaben.
 /// Vorerst nur für Chunk-Generierung
 /// Später für Pathfinding und andere CPU-intensive Aufgaben
-/// TODO garbage collector berücksichtgen, soft caps on tasks mit dynamischen task wechsel anstatt feste reservierung
-/// </summary>
+///</summary>
 public class CoreAvailability
 {
-    
-    private static int _TaskCores;
+    private int _taskCores;
     
     public static int TotalCores => Environment.ProcessorCount;
-    public static int AvailableCores => Math.Max(1, TotalCores - 2);// Paar threads müssen reserviert sein unabhängig der config
+    public static int AvailableCores => Math.Max(1, TotalCores - 2);
 
-    public static void Initialize()
+    public int TaskCores => _taskCores;
+
+    public CoreAvailability(int? customTaskCores = null)
+    {
+        if (customTaskCores.HasValue)
+        {
+            _taskCores = customTaskCores.Value;
+        }
+        else
+        {
+            DefaultConfig();
+        }
+    }
+
+    public void InitializeInstance()
     {
         if (File.Exists("coreconfig.txt"))
         {
@@ -24,25 +40,32 @@ public class CoreAvailability
         {
             DefaultConfig();
         }
-        Console.WriteLine("--- Core Availability ---");
-        Console.WriteLine($"Total Cores: {TotalCores}");
-        Console.WriteLine($"1 Render Thread + 1 Logic Thread + 0 Render assistance Thread reserved");
-        Console.WriteLine($"Available Background Cores: {AvailableCores}");
     }
 
-    static void LoadConfig(String configPath)
+    private void LoadConfig(string configPath)
     {
         // TODO: Configuration aus Datei laden
+        DefaultConfig();
     }
     
-    static void DefaultConfig()
+    private void DefaultConfig()
     {
-        _TaskCores= AvailableCores/2 + 4;
+        _taskCores = AvailableCores / 2 + 4;
     }
 
-    public static int GetTaskCores()
+    public int GetCores()
     {
-        return _TaskCores;
+        return _taskCores;
     }
-    
+
+    // =========================================================================
+    // --- Statische Fassade für Ergonomie und Abwärtskompatibilität ---
+    // =========================================================================
+
+    private static CoreAvailability? _defaultInstance;
+    public static CoreAvailability Current =>
+        EngineContext.Current?.CoreAvailability ?? (_defaultInstance ??= new CoreAvailability());
+
+    public static void Initialize() => Current.InitializeInstance();
+    public static int GetTaskCores() => Current._taskCores;
 }

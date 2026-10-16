@@ -11,15 +11,20 @@ namespace Basics.Game.Logic.Player;
 
 public class PlayerCharacter
 {
-    private static readonly ushort DefaultPlaceBlockId = BlockLoader.GetBlockId("core:dirt");
+    private static ushort DefaultPlaceBlockId => BlockLoader.GetBlockId("core:dirt");
+
+    private readonly World? _world;
+    private readonly Physics? _physics;
 
     public Camera Camera { get; }
 
     public event Action<ChunkCoord>? OnChunkChanged;
     private ChunkCoord _currentChunkCoord;
 
-    public PlayerCharacter(Vector3 spawnPosition)
+    public PlayerCharacter(Vector3 spawnPosition, World? world = null, Physics? physics = null)
     {
+        _world = world;
+        _physics = physics;
         Camera = new Camera(spawnPosition);
         _currentChunkCoord = Camera.GetChunkCoord(Camera.Position);
         UIManager.OnRenderDistanceChanged += ForceChunkUpdate;
@@ -58,17 +63,28 @@ public class PlayerCharacter
 
     private void DestroyBlock()
     {
-        BlockResult hit = Physics.Raycast(MathHelper.ToGeneric(Camera.Position), MathHelper.ToGeneric(Camera.Front), 5.0f);
+        BlockResult hit = _physics != null
+            ? _physics.CastRay(MathHelper.ToGeneric(Camera.Position), MathHelper.ToGeneric(Camera.Front), 5.0f)
+            : Physics.Raycast(MathHelper.ToGeneric(Camera.Position), MathHelper.ToGeneric(Camera.Front), 5.0f);
 
         if (hit.Hit)
         {
-            World.ModifyBlock(hit.HitPosition.X, hit.HitPosition.Y, hit.HitPosition.Z, 0);
+            if (_world != null)
+            {
+                _world.SetBlock(hit.HitPosition.X, hit.HitPosition.Y, hit.HitPosition.Z, 0);
+            }
+            else
+            {
+                World.ModifyBlock(hit.HitPosition.X, hit.HitPosition.Y, hit.HitPosition.Z, 0);
+            }
         }
     }
 
     private void PlaceBlock()
     {
-        BlockResult hit = Physics.Raycast(MathHelper.ToGeneric(Camera.Position), MathHelper.ToGeneric(Camera.Front), 5.0f);
+        BlockResult hit = _physics != null
+            ? _physics.CastRay(MathHelper.ToGeneric(Camera.Position), MathHelper.ToGeneric(Camera.Front), 5.0f)
+            : Physics.Raycast(MathHelper.ToGeneric(Camera.Position), MathHelper.ToGeneric(Camera.Front), 5.0f);
 
         if (hit.Hit)
         {
@@ -77,7 +93,14 @@ public class PlayerCharacter
             int placeY = hit.HitPosition.Y + hit.HitNormal.Y;
             int placeZ = hit.HitPosition.Z + hit.HitNormal.Z;
 
-            World.ModifyBlock(placeX, placeY, placeZ, DefaultPlaceBlockId);
+            if (_world != null)
+            {
+                _world.SetBlock(placeX, placeY, placeZ, DefaultPlaceBlockId);
+            }
+            else
+            {
+                World.ModifyBlock(placeX, placeY, placeZ, DefaultPlaceBlockId);
+            }
         }
     }
 }

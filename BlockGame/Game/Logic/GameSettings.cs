@@ -1,135 +1,183 @@
+using System;
+
 namespace Basics.Game.Logic;
 
-public static class GameSettings
+/// <summary>
+/// Hält alle Konfigurationseinstellungen für eine Engine-Instanz.
+/// Kann als isolierte Instanz pro EngineContext/EngineSession existieren
+/// oder über GameSettings.Current angesprochen werden.
+/// </summary>
+public class GameSettings
 {
-    private static readonly Lock Lock = new(); // Lock-Objekt für Thread-Sicherheit vor dem bearbeiten der Einstellungen
-    
+    private readonly Lock _lock = new();
+
     // Render Distance Einstellungen
-    public static int RenderDistance { get; private set; } = 20;
-    public static int Lod1Distance { get; private set; } = 15;
-    public static int Lod2Distance { get; private set; } = 20;
-    public static int VerticalRenderDistance { get; private set; } = 15;
+    public int RenderDistance { get; set; } = 20;
+    public int Lod1Distance { get; set; } = 15;
+    public int Lod2Distance { get; set; } = 20;
+    public int VerticalRenderDistance { get; set; } = 15;
     
-    //Chunk Gen Einstellungen
-    public static int MaxChunkMeshesInRam { get; private set; } = 200;
+    // Chunk Gen Einstellungen
+    public int MaxChunkMeshesInRam { get; set; } = 200;
     
     // Movement Einstellungen
-    public static float PlayerMoveSpeed { get; private set; } = 10f;
-    public static float MouseSensitivity { get; private set; } = 0.1f;
+    public float PlayerMoveSpeed { get; set; } = 10f;
+    public float MouseSensitivity { get; set; } = 0.1f;
     
-    // Welt Generierung Einstellungen. Noise map detail settings noch nicht hier
-    public static int Seed { get; private set; } = 1; // Standard-Seed, später vor dem Start des Spiels setztbar
-    public static string Worldtype { get; private set; } = "KBE@CgL8EFQkVCRcJIQBvEgM8CQ0AB@CkG@BY0MUAwAA8EIEAhcJFgMAAKBCCgQIAACAPwwDzczMPgwCFwkbCRYDAABIwgr/BQAMAw@AEAMAhkJJQB7@BCSEAKVwPPQkNAAI@BJBiQLWDk0PRPsUTg9BA=="; // Standard-Worldtype, später vor dem Start des Spiels setztbar
-    public static int MapSize { get; private set; } = 100;
+    // Welt Generierung Einstellungen
+    public int Seed { get; set; } = 1;
+    public string Worldtype { get; set; } = "KBE@CgL8EFQkVCRcJIQBvEgM8CQ0AB@CkG@BY0MUAwAA8EIEAhcJFgMAAKBCCgQIAACAPwwDzczMPgwCFwkbCRYDAABIwgr/BQAMAw@AEAMAhkJJQB7@BCSEAKVwPPQkNAAI@BJBiQLWDk0PRPsUTg9BA==";
+    public int MapSize { get; set; } = 100;
     
     // Grafik einstellungen
-    public static int Msaa { get; private set; } = 2;
+    public int Msaa { get; set; } = 2;
     
     // Render einstellungen
-    public static int FrameRate { get; private set; } = 120;
-    public static event Action<int>? OnFpsChanged; //Event um fps im window manager zu ändern
+    public int FrameRate { get; set; } = 120;
+    public event Action<int>? OnFpsChanged;
     
-    public static bool VSync { get; private set; } = false;
-    public static event Action<bool>? OnVSyncChanged;
+    public bool VSync { get; set; } = false;
+    public event Action<bool>? OnVSyncChanged;
     
-    public static bool LowLatencyRenderer { get; private set; } = false; //Ob alles in echtzeit auf einem Render thread läuft oder multithreading(culling) mit 1-2 frames latenz
-    
-    // Funktionen zum Anpassen der Werte
-    public static void SetRenderDistance(int distance)
+    public bool LowLatencyRenderer { get; set; } = false;
+
+    public GameSettings()
     {
-        lock (Lock)
+    }
+
+    public GameSettings Clone()
+    {
+        lock (_lock)
+        {
+            return new GameSettings
+            {
+                RenderDistance = this.RenderDistance,
+                Lod1Distance = this.Lod1Distance,
+                Lod2Distance = this.Lod2Distance,
+                VerticalRenderDistance = this.VerticalRenderDistance,
+                MaxChunkMeshesInRam = this.MaxChunkMeshesInRam,
+                PlayerMoveSpeed = this.PlayerMoveSpeed,
+                MouseSensitivity = this.MouseSensitivity,
+                Seed = this.Seed,
+                Worldtype = this.Worldtype,
+                MapSize = this.MapSize,
+                Msaa = this.Msaa,
+                FrameRate = this.FrameRate,
+                VSync = this.VSync,
+                LowLatencyRenderer = this.LowLatencyRenderer
+            };
+        }
+    }
+
+    public void SetRenderDistance(int distance)
+    {
+        lock (_lock)
         {
             RenderDistance = Math.Max(1, distance);
         }
     }
 
-    public static void SetLod1Distance(int distance)
+    public void SetLod1Distance(int distance)
     {
-        lock (Lock)
+        lock (_lock)
         {
             Lod1Distance = Math.Max(2, distance);
         }
     }
-    
-    public static void SetLod2Distance(int distance)
+
+    public void SetLod2Distance(int distance)
     {
-        lock (Lock)
+        lock (_lock)
         {
             Lod2Distance = Math.Max(3, distance);
         }
     }
-    
-    public static void SetMaxChunkMeshesInRam(int size)
+
+    public void SetMaxChunkMeshesInRam(int size)
     {
-        lock (Lock)
+        lock (_lock)
         {
             MaxChunkMeshesInRam = Math.Max(1, size);
         }
     }
-    
-    public static void SetVerticalRenderDistance(int distance)
+
+    public void SetVerticalRenderDistance(int distance)
     {
-        lock (Lock)
+        lock (_lock)
         {
             VerticalRenderDistance = Math.Max(1, distance);
         }
     }
-    
-    public static void SetPlayerMoveSpeed(float speed)
+
+    public void SetPlayerMoveSpeed(float speed)
     {
-        lock (Lock)
+        lock (_lock)
         {
             PlayerMoveSpeed = Math.Max(0.1f, speed);
         }
     }
-    
-    public static void SetMouseSensitivity(float sensitivity)
+
+    public void SetMouseSensitivity(float sensitivity)
     {
-        lock (Lock)
+        lock (_lock)
         {
             MouseSensitivity = Math.Max(0.01f, sensitivity);
         }
     }
-    
-    public static void SetSeed(int seed)
+
+    public void SetSeed(int seed)
     {
-        lock (Lock)
+        lock (_lock)
         {
             Seed = seed;
         }
     }
-    
-    public static void SetMapSize(int size)
+
+    public void SetMapSize(int size)
     {
-        lock (Lock)
+        lock (_lock)
         {
             MapSize = Math.Max(10, size);
         }
     }
-    
-    public static void SetMsaa(int aa)
+
+    public void SetMsaa(int aa)
     {
-        lock (Lock)
+        lock (_lock)
         {
             Msaa = aa;
         }
     }
 
-    public static void SetFrameRate(int newFrameRate)
+    public void SetFrameRate(int newFrameRate)
     {
-        lock (Lock)
+        lock (_lock)
         {
             FrameRate = newFrameRate;
         }
         OnFpsChanged?.Invoke(newFrameRate);
     }
 
-    public static void SetVSync(bool vsync)
+    public void SetVSync(bool vsync)
     {
-        lock (Lock)
+        lock (_lock)
         {
             VSync = vsync;
         }
         OnVSyncChanged?.Invoke(vsync);
+    }
+
+    // =========================================================================
+    // --- Statische Fassade: Delegiert an den aktiven Engine-Kontext ---
+    // =========================================================================
+
+    private static GameSettings _defaultInstance = new();
+
+    public static GameSettings Current =>
+        EngineContext.Current?.Settings ?? _defaultInstance;
+
+    public static void SetGlobalDefault(GameSettings settings)
+    {
+        _defaultInstance = settings ?? new GameSettings();
     }
 }

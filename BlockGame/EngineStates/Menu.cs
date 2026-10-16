@@ -109,16 +109,16 @@ public class Menu : IStates
                 .Resizable((false, false))
                 .Show(ctx, ui =>
                 {
-                    int dist = GameSettings.RenderDistance;
+                    int dist = GameSettings.Current.RenderDistance;
                     if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, 1, 40).Text("Render Distance")).Changed)
                     {
-                        GameSettings.SetRenderDistance(dist);
+                        GameSettings.Current.SetRenderDistance(dist);
                     }
                     
-                    int size = GameSettings.MapSize;
+                    int size = GameSettings.Current.MapSize;
                     if (ui.Add(new Egui.Widgets.Slider<int>(ref size, 1, 500).Text("World size (in Chunks)")).Changed)
                     {
-                        GameSettings.SetMapSize(size);
+                        GameSettings.Current.SetMapSize(size);
                     }
                     
                     if (ui.Button("Schließen").Clicked)

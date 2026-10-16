@@ -1,31 +1,61 @@
-using Basics.PhysicsSystem;
+using System;
 using Basics.PhysicsSystem.Structs;
 using Silk.NET.Maths;
 
-namespace Basics.Game.PhysicsSystem
+namespace Basics.Game.PhysicsSystem;
+
+public interface IPhysics
 {
-    /// <summary>
-    /// Alle skripte können über statische Physics klasse alle nicht statischen Funktionen aufrufen,
-    /// ohne referenz auf die eigentliche Instanz zu haben.
-    /// </summary>
-    public static class Physics
+    Raycaster Raycaster { get; }
+    BlockResult Raycast(Vector3D<float> start, Vector3D<float> dir, float maxDist);
+}
+
+/// <summary>
+/// Verwaltet Physik- und Raycast-Operationen für eine Engine-Instanz
+/// mit statischer Fassade für Gameplay-Skripte.
+/// </summary>
+public class Physics : IPhysics
+{
+    private readonly Raycaster _raycaster;
+
+    public Physics(Raycaster raycaster)
     {
-        // Die eigentliche Instanz liegt versteckt im Hintergrund
-        private static Raycaster _raycaster;
+        _raycaster = raycaster ?? throw new ArgumentNullException(nameof(raycaster));
+    }
 
-        // Wird beim Spielstart einmal aufgerufen
-        public static void Initialize(Raycaster raycaster)
-        {
-            _raycaster = raycaster;
-        }
+    public Raycaster Raycaster => _raycaster;
 
-        // --- Global API ---
-        // Jedes Skript kann Physics.Raycast aufrufen
-        public static BlockResult Raycast(Vector3D<float> start, Vector3D<float> dir, float maxDist)
-        {
-            if (_raycaster == null) throw new System.Exception("Physics wurde nicht initialisiert!");
-            
-            return _raycaster.CastBlockRay(start, dir, maxDist);
-        }
+    public BlockResult CastRay(Vector3D<float> start, Vector3D<float> dir, float maxDist)
+    {
+        return _raycaster.CastBlockRay(start, dir, maxDist);
+    }
+
+    BlockResult IPhysics.Raycast(Vector3D<float> start, Vector3D<float> dir, float maxDist)
+    {
+        return CastRay(start, dir, maxDist);
+    }
+
+    // =========================================================================
+    // --- Statische Fassade für Gameplay-Skripte & Ergonomie ---
+    // =========================================================================
+
+    private static Physics? _activeInstance;
+
+    public static Physics Current =>
+        EngineContext.Current?.Physics ?? _activeInstance ?? throw new InvalidOperationException("Physics wurde nicht initialisiert!");
+
+    public static void Initialize(Raycaster raycaster)
+    {
+        _activeInstance = new Physics(raycaster);
+    }
+
+    public static void SetActive(Physics physics)
+    {
+        _activeInstance = physics;
+    }
+
+    public static BlockResult Raycast(Vector3D<float> start, Vector3D<float> dir, float maxDist)
+    {
+        return Current.CastRay(start, dir, maxDist);
     }
 }

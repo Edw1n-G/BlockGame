@@ -1,6 +1,7 @@
-﻿using System.Collections.Concurrent;
-using System.Threading.Channels;
-using Basics.Game.Logic.TerrainManaging.Generation;
+using System.Collections.Concurrent;
+using Silk.NET.OpenGL;
+using Basics.Game;
+using Basics.Game.Logic;
 using Basics.Game.Logic.TerrainManaging.Meshing;
 using Basics.Game.Utilities;
 
@@ -8,42 +9,49 @@ namespace Basics.Game.Logic.TerrainManaging;
 
 /// <summary>
 /// Verwaltet den Chunk-Lebenszyklus: Laden von Disk (Placeholder), Generieren, Speichern.
-/// Zentraler Speicher für alle geladenen Chunks.
-///
-/// Für Multiplayer Client Server funktionalität muss generieren und meshen der chunks gesplitted werden
+/// Zentraler Speicher für alle geladenen Chunks einer Engine-Instanz.
 /// </summary>
-public class ChunkProvider
+public class ChunkProvider : IDisposable
 {
-    // Chunk Daten und Meshing Anfragen
-    public static ConcurrentDictionary<ChunkCoord, ChunkData> Chunkdata = new();//Die Blockdaten
-    public static ConcurrentDictionary<ChunkCoord, byte> QueuedForMeshing = new();// Nur damit nicht mehrere Threads denselben Chunk meshen. byte als dummy da der datentyp vorteile hat
+    // Instanzdaten: Chunk Daten und Meshing Anfragen
+    public ConcurrentDictionary<ChunkCoord, ChunkData> Chunkdata { get; } = new();
+    public ConcurrentDictionary<ChunkCoord, byte> QueuedForMeshing { get; } = new();
     
     // Buffer für Meshing
-    public static readonly ConcurrentQueue<PooledMeshBuffer> VramPool = new();
-    public static readonly ConcurrentQueue<List<byte>> VertexListPool = new();
-    public static readonly ConcurrentQueue<List<uint>> IndexListPool = new();
+    public ConcurrentQueue<PooledMeshBuffer> VramPool { get; } = new();
+    public ConcurrentQueue<List<byte>> VertexListPool { get; } = new();
+    public ConcurrentQueue<List<uint>> IndexListPool { get; } = new();
     
     // Meshing Anfragen
-    public static ConcurrentQueue<ChunkCoord> PendingMeshRequests = new();
+    public ConcurrentQueue<ChunkCoord> PendingMeshRequests { get; } = new();
 
-    // fertig zum Upload bereite meshes 
-    public ConcurrentQueue<BaseMesher> UploadQueue = new();
+    // Fertig zum Upload bereite Meshes 
+    public ConcurrentQueue<BaseMesher> UploadQueue { get; } = new();
     
-    //hochgeladene meshes
-    public static readonly ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks = new();
+    // Hochgeladene Meshes
+    public ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks { get; } = new();
     
-    // meshes die entladen werden müssen
-    public ConcurrentQueue<BaseMesher> UnloadQueue = new(); // Chunks die wieder aus der GPU rausmüssen
+    // Meshes die entladen werden müssen
+    public ConcurrentQueue<BaseMesher> UnloadQueue { get; } = new();
     
-    //Referenzen
-    private readonly TerrainGenerator _terrainGenerator;
-    private readonly JobScheduler _jobScheduler;
+    // Referenzen
+    private readonly JobScheduler? _jobScheduler;
+    private readonly GameSettings _settings;
+
+    public GameSettings Settings => _settings;
+    public JobScheduler? JobScheduler => _jobScheduler;
+
+    private GL? _gl;
     
-    private bool _isRunning = true;
-    
-    public ChunkProvider(JobScheduler jobScheduler)
+    public ChunkProvider(JobScheduler? jobScheduler = null, GameSettings? settings = null)
     {
         _jobScheduler = jobScheduler;
+        _settings = settings ?? EngineContext.Current?.Settings ?? GameSettings.Current;
+    }
+
+    public void AttachGraphicsContext(GL gl)
+    {
+        _gl = gl;
     }
 
     /// <summary>
@@ -59,23 +67,21 @@ public class ChunkProvider
         
         if (Chunkdata.ContainsKey(coord))
             return;
-        _jobScheduler.EnqueueLow(new ChunkLoadorGenerateJob(coord));
+
+        _jobScheduler?.EnqueueLow(new ChunkLoadorGenerateJob(coord));
     }
     
     /// <summary>
-    /// Wenn paar tausend meshes im ram liegen und warten bis der main thread es ins vram shiebt
-    /// Ehhh Ram kabumm
+    /// Holt Meshes aus der Warteschlange und schickt sie an den Scheduler
     /// </summary>
     public void RequestMeshes()
     {
-        int maxMeshesInRam = GameSettings.MaxChunkMeshesInRam;
+        int maxMeshesInRam = _settings.MaxChunkMeshesInRam;
 
-       //gucken ob noch platz im ram und rausziehen zum Meshen
         while (UploadQueue.Count < maxMeshesInRam && 
                PendingMeshRequests.TryDequeue(out ChunkCoord coord))
         {
-            // WorkerThreads
-            _jobScheduler.EnqueueLow(new MeshgenerateJob(coord));
+            _jobScheduler?.EnqueueLow(new MeshgenerateJob(coord));
         }
     }
 
@@ -122,20 +128,15 @@ public class ChunkProvider
     /// </summary>
     public bool ModifyBlock(int worldX, int worldY, int worldZ, ushort newBlockId)
     {
-        // Weltkoordinaten → ChunkCoord + lokale Koordinaten
         ChunkCoord chunkCoord = ChunkData.WorldToChunkCoord(worldX, worldY, worldZ);
         var (localX, localY, localZ) = ChunkData.WorldToLocal(worldX, worldY, worldZ);
 
         if (!Chunkdata.TryGetValue(chunkCoord, out ChunkData? chunkData))
-            return false; // Chunk nicht geladen
+            return false;
 
-        // Block ändern
         chunkData.SetBlock(localX, localY, localZ, newBlockId);
-
-        // Diesen Chunk neu meshen
         RemeshChunk(chunkCoord);
 
-        // Wenn der Block am Rand des Chunks liegt, müssen auch Nachbar-Chunks neu gemesht werden
         if (localX == 0)  RemeshChunk(new ChunkCoord(chunkCoord.X - 1, chunkCoord.Y, chunkCoord.Z, chunkCoord.LodLevel));
         if (localX == 15) RemeshChunk(new ChunkCoord(chunkCoord.X + 1, chunkCoord.Y, chunkCoord.Z, chunkCoord.LodLevel));
         if (localY == 0)  RemeshChunk(new ChunkCoord(chunkCoord.X, chunkCoord.Y - 1, chunkCoord.Z, chunkCoord.LodLevel));
@@ -147,7 +148,7 @@ public class ChunkProvider
     }
 
     /// <summary>
-    /// Schickt einen Chunk zum Re-Meshing. Das alte Mesh wird erst entladen, wenn das neue fertig ist
+    /// Schickt einen Chunk zum Re-Meshing. Das alte Mesh wird erst entladen, wenn das neue fertig ist.
     /// </summary>
     public void RemeshChunk(ChunkCoord coord)
     {
@@ -188,13 +189,9 @@ public class ChunkProvider
     {
         if (LoadedChunks.TryRemove(coord, out BaseMesher? chunk))
         {
-            // TODO: Chunk auf Festplatte speichern bevor er entladen wird
-            // SaveToDisk(coord, chunk);
-            
             UnloadQueue.Enqueue(chunk);
         }
         
-        //Chunks könnten auch ohne Mesh entladen werden
         Chunkdata.TryRemove(coord, out _);
         QueuedForMeshing.TryRemove(coord , out _);
     }
@@ -216,7 +213,7 @@ public class ChunkProvider
     }
 
     /// <summary>
-    /// Gibt alle Ressourcen frei.
+    /// Gibt alle Ressourcen frei und leert alle Caches und Queues.
     /// </summary>
     public void Dispose()
     {
@@ -225,5 +222,36 @@ public class ChunkProvider
             chunk.Dispose();
         }
         LoadedChunks.Clear();
+        Chunkdata.Clear();
+        QueuedForMeshing.Clear();
+
+        while (PendingMeshRequests.TryDequeue(out _)) { }
+        while (UploadQueue.TryDequeue(out var mesher)) { mesher.Dispose(); }
+        while (UnloadQueue.TryDequeue(out var mesher)) { mesher.Dispose(); }
+
+        while (VramPool.TryDequeue(out var pooled))
+        {
+            if (_gl != null)
+            {
+                _gl.DeleteVertexArray(pooled.Vao);
+                _gl.DeleteBuffer(pooled.Vbo);
+                _gl.DeleteBuffer(pooled.Ebo);
+            }
+        }
+
+        while (VertexListPool.TryDequeue(out _)) { }
+        while (IndexListPool.TryDequeue(out _)) { }
+    }
+
+
+    // =========================================================================
+    // --- Statische Fassade für Ergonomie und Abwärtskompatibilität ---
+    // =========================================================================
+
+    private static ChunkProvider? _fallbackInstance;
+    public static ChunkProvider Current
+    {
+        get => EngineContext.Current?.ChunkProvider ?? (_fallbackInstance ??= new ChunkProvider());
+        set => _fallbackInstance = value;
     }
 }

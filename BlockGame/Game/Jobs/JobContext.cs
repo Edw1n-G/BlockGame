@@ -1,3 +1,5 @@
+using Basics.Configurations;
+using Basics.Game.Configurations;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Logic.TerrainManaging.Generation;
 
@@ -12,11 +14,18 @@ public class JobContext
 {
     public TerrainGenerator TerrainGen { get; }
     public ChunkProvider Provider { get; }
-    // Hier kannst du später auch BlockRegistry, BiomeManager etc. reinlegen
+    public BlockRegistry BlockRegistry { get; }
+    
 
-    public JobContext(TerrainGenerator terrainGen, ChunkProvider provider)
+    public JobContext(TerrainGenerator terrainGen, ChunkProvider provider, BlockRegistry? blockRegistry = null)
     {
         TerrainGen = terrainGen;
         Provider = provider;
+        BlockRegistry = blockRegistry ?? EngineContext.Current?.BlockRegistry ?? BlockLoader.Current;
+        
+        if (BlockRegistry == null)
+        {
+            throw new InvalidOperationException("JobContext: BlockRegistry konnte nicht gefunden werden.");
+        }
     }
 }

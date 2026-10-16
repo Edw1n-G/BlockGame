@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Basics.Configurations;
+using Basics.Game.Configurations;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Utilities;
 
@@ -11,7 +12,8 @@ public class Lod2Mesher : BaseMesher
     private ushort[] _blockData = null!;
     private ushort[][] _neighborCache = new ushort[27][];
     
-    public Lod2Mesher(ChunkCoord position, ChunkData chunkData)
+    public Lod2Mesher(ChunkCoord position, ChunkData chunkData, ChunkProvider? provider = null, BlockRegistry? blockRegistry = null)
+    : base(provider, blockRegistry)
     {
         if (chunkData == null || chunkData.Blocks == null) return;
         this.ChunkPosition = position;
@@ -47,7 +49,7 @@ public class Lod2Mesher : BaseMesher
                     );
 
                     
-                    if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out ChunkData neighborChunk))
+                    if (_provider.Chunkdata.TryGetValue(neighborCoord, out ChunkData neighborChunk))
                     {
                         _neighborCache[cacheIndex] = neighborChunk.Blocks;
                     }
@@ -106,7 +108,7 @@ public class Lod2Mesher : BaseMesher
     private void CreateCubeFace(int x, int y, int z, int face)
     {
         int id = _blockData[x * 256 + y * 16 + z];
-        ushort textureLayer = BlockLoader.Get(id, face);
+        ushort textureLayer = _blockRegistry.Get(id, face);
         
         switch (face)
         {

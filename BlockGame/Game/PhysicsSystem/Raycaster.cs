@@ -37,15 +37,23 @@ public class Raycaster
         float tDeltaZ = stepZ != 0 ? MathF.Abs(1.0f / direction.Z) : float.PositiveInfinity;
 
         // Wie weit ist es bis zur ALLERERSTEN Block-Grenze?
-        float tMaxX = stepX > 0
-            ? (MathF.Floor(start.X) + 1.0f - start.X) * tDeltaX
-            : (start.X - MathF.Floor(start.X)) * tDeltaX;
-        float tMaxY = stepY > 0
-            ? (MathF.Floor(start.Y) + 1.0f - start.Y) * tDeltaY
-            : (start.Y - MathF.Floor(start.Y)) * tDeltaY;
-        float tMaxZ = stepZ > 0
-            ? (MathF.Floor(start.Z) + 1.0f - start.Z) * tDeltaZ
-            : (start.Z - MathF.Floor(start.Z)) * tDeltaZ;
+        float tMaxX = stepX != 0
+            ? (stepX > 0
+                ? (MathF.Floor(start.X) + 1.0f - start.X) * tDeltaX
+                : (start.X == MathF.Floor(start.X) ? 1.0f : (start.X - MathF.Floor(start.X))) * tDeltaX)
+            : float.PositiveInfinity;
+
+        float tMaxY = stepY != 0
+            ? (stepY > 0
+                ? (MathF.Floor(start.Y) + 1.0f - start.Y) * tDeltaY
+                : (start.Y == MathF.Floor(start.Y) ? 1.0f : (start.Y - MathF.Floor(start.Y))) * tDeltaY)
+            : float.PositiveInfinity;
+
+        float tMaxZ = stepZ != 0
+            ? (stepZ > 0
+                ? (MathF.Floor(start.Z) + 1.0f - start.Z) * tDeltaZ
+                : (start.Z == MathF.Floor(start.Z) ? 1.0f : (start.Z - MathF.Floor(start.Z))) * tDeltaZ)
+            : float.PositiveInfinity;
 
         Vector3D<int> hitNormal = new Vector3D<int>(0, 0, 0);
         float distanceTravelled = 0.0f;

@@ -1,7 +1,8 @@
-﻿using System.Numerics;
-using Basics.Configurations;
+using System.Numerics;
+using Basics.Game.Configurations;
 using Basics.Game;
 using Basics.Game.Graphics;
+using Basics.Game.Logic;
 using Basics.Game.Logic.Player;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Logic.TerrainManaging.Generation;
@@ -24,11 +25,12 @@ namespace Basics.EngineStates;
  */
 public class Game : IStates
 {
-    StateManager _manager;
+    private StateManager _manager;
+    private EngineContext _context = null!;
     
     //Spielwelt und Renderer
     private static Renderer _playerRenderer = null!;
-    private static TerrainGenerator _terrainGenerator  = null!;
+    private static TerrainGenerator _terrainGenerator = null!;
     private static ChunkProvider _chunkProvider = null!;
     private static ChunkRequestor _chunkRequestor = null!;
     public static float Fps = 0;//wird in der UI benutzt
@@ -38,15 +40,14 @@ public class Game : IStates
     // Spieler
     private static PlayerCharacter _player = null!;
     private static PlayerMovement _playerMovement = null!;
-    public static Camera PlayerCamera  = null!;
-    public static Camera? DebugCamera  = null!; // Zweite Free cam
+    public static Camera PlayerCamera = null!;
+    public static Camera? DebugCamera = null!; // Zweite Free cam
     private static readonly Vector3 PlayerStartPosition = new Vector3(0, 100, 0);
     
     //Ingame UI
     private static UIManager _uiManager = null!; // Das was die UI elemente definiert
     private static Context _uiContext = null!;
     private static SilkIntegration _uiIntegration = null!; // Verbindet Egui mit dem Silk.NET Fenster und zieht sich alle events
-    
     
     /**
      * Nach Erstellen des Fensters Renderer und InputManager initialisieren
@@ -56,23 +57,28 @@ public class Game : IStates
         //OpenGl local speichern
         _gl = gl;
         _manager = manager;
+
+        _context = new EngineContext(settings: GameSettings.Current);
+        EngineContext.SetGlobal(_context);
         
         //Kerne aufteilen und reservieren
-        CoreAvailability.Initialize();
-
-        // Datengetriebene Block- und Textur-Registries laden.
-        BlockLoader.Initialize(_gl, "Content");
+        _context.CoreAvailability.InitializeInstance();
+        _context.BlockRegistry.Initialize(_gl, "Content");
         
-        // Player mit eigener Kamera erstellen
-        _player = new PlayerCharacter(PlayerStartPosition);
+        // Subsystem-Referenzen aus dem Kontext beziehen
+        _chunkProvider = _context.ChunkProvider;
+        _terrainGenerator = _context.TerrainGenerator;
+
+        // Spieler mit eigener Kamera erstellen (injizierte Subsysteme)
+        _player = new PlayerCharacter(PlayerStartPosition, _context.World, _context.Physics);
         PlayerCamera = _player.Camera;
 
         //Main Camera und Renderer erstellen
-        _playerRenderer = new Renderer();
+        _playerRenderer = new Renderer(_chunkProvider);
         _playerRenderer.Setup(PlayerCamera, _gl);
 
         //Movement-Controller für Player/Debug Kamera
-        _playerMovement = new PlayerMovement(_player);
+        _playerMovement = new PlayerMovement(_player, _context.Settings);
 
         //Egui.NET
         _uiContext = new Context();
@@ -81,36 +87,17 @@ public class Game : IStates
         //Input Manager
         InputManager.Initialize(inputContext);
         InputManager.SetPlayerMovement(_playerMovement); //TODO: InputManager vom Player trennen
-
         InputManager.SetActionBindings(Actions.ToogleDebugCamera, ToggleDebugCamera);
         
-        //Multithreading System initializieren
-        var jobScheduler = new JobScheduler();
-        
-        // Terrain-Pipeline aufbauen:
-        // TerrainGenerator erzeugt Chunk-Daten
-        _terrainGenerator = new TerrainGenerator();
-        
-        // ChunkProvider verwaltet den Chunk-Lebenszyklus (Laden/Generieren/Speichern)
-        _chunkProvider = new ChunkProvider(jobScheduler);
-        Renderer.ChunkProvider = _chunkProvider;
-        
         // ChunkRequestor abonniert das Player-Event und berechnet welche Chunks geladen werden
-        // die Chunks werden dann vom Provider parallel erstellt und verwaltet
-        _chunkRequestor = new ChunkRequestor(_player, _chunkProvider);
+        _chunkRequestor = new ChunkRequestor(_player, _chunkProvider, _context.Settings);
         
         //Schedular starten mit context
-        var context = new JobContext(_terrainGenerator, _chunkProvider);
-        jobScheduler.Start(CoreAvailability.GetTaskCores(), context);
+        var jobContext = new JobContext(_terrainGenerator, _chunkProvider, _context.BlockRegistry);
+        _context.JobScheduler.Start(_context.CoreAvailability.GetCores(), jobContext);
         
         //UI erstellen
         _uiManager = new UIManager(_chunkRequestor);
-        
-        //====================================================================
-        //Nachdem Alle Objekte da sind globale ReferenzPunkte setzen, wo nötig
-        World.Initialize(_chunkProvider);
-        Physics.Initialize(new Raycaster(_chunkProvider));
-        //====================================================================
 
         // Initiales Laden der Chunks um die Startposition
         _player.ForceChunkUpdate();
@@ -147,10 +134,8 @@ public class Game : IStates
 
     public void Exit()
     {
-        //TODO: alles aus dem vram und ram löschen
-        // ChunkProvidorlisten und texturen
+        _context?.Dispose();
     }
-    
     
     // Debug-Camera toggeln
     private static void ToggleDebugCamera()

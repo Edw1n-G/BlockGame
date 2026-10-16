@@ -1,3 +1,4 @@
+using System;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Logic.TerrainManaging.Meshing;
 
@@ -7,15 +8,15 @@ public class MeshgenerateJob : IJob
 {
     public ChunkCoord ChunkCoord;
     
-    public MeshgenerateJob(ChunkCoord ChunkCoord)
+    public MeshgenerateJob(ChunkCoord chunkCoord)
     {
-        this.ChunkCoord = ChunkCoord;
+        this.ChunkCoord = chunkCoord;
     }
 
     public void Execute(JobContext context)
     {
-        //Hole Block-Daten aus dem RAM
-        if (!ChunkProvider.Chunkdata.TryGetValue(ChunkCoord, out var data))
+        // Hole Block-Daten aus dem RAM der zuständigen ChunkProvider-Instanz
+        if (!context.Provider.Chunkdata.TryGetValue(ChunkCoord, out var data))
         {
             // Chunk entladen oder nie dagewesen
             return;
@@ -23,19 +24,19 @@ public class MeshgenerateJob : IJob
         
         BaseMesher newMesh;
         
-        //Baue das Mesh
+        // Baue das Mesh mit dem injizierten ChunkProvider
         switch (ChunkCoord.LodLevel)
         {
             case 0:
-                newMesh = new Lod0Mesher(ChunkCoord, data);
+                newMesh = new Lod0Mesher(ChunkCoord, data, context.Provider, context.BlockRegistry);
                 break;
                     
             case 1:
-                newMesh = new Lod1Mesher(ChunkCoord, data);
+                newMesh = new Lod1Mesher(ChunkCoord, data, context.Provider, context.BlockRegistry);
                 break;
                     
             case 2:
-                newMesh = new Lod2Mesher(ChunkCoord, data);
+                newMesh = new Lod2Mesher(ChunkCoord, data, context.Provider, context.BlockRegistry);
                 break;
                     
             default:
@@ -43,6 +44,6 @@ public class MeshgenerateJob : IJob
         }  
         
         context.Provider.UploadQueue.Enqueue(newMesh);
-        ChunkProvider.QueuedForMeshing.TryRemove(ChunkCoord, out _);
+        context.Provider.QueuedForMeshing.TryRemove(ChunkCoord, out _);
     }
 }

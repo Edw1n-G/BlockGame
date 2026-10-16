@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Basics.Configurations;
+using Basics.Game.Configurations;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Utilities;
 
@@ -13,7 +14,8 @@ public class Lod0Mesher : BaseMesher
     
     // AO Level (0–3) wird als int an den Shader gesendet, Konvertierung in float passiert dort
     
-    public Lod0Mesher(ChunkCoord position, ChunkData chunkData)
+    public Lod0Mesher(ChunkCoord position, ChunkData chunkData, ChunkProvider? provider = null, BlockRegistry? blockRegistry = null)
+    : base(provider, blockRegistry)
     {
         this.ChunkPosition = position;
         if (chunkData.Blocks == null) return;
@@ -47,7 +49,7 @@ public class Lod0Mesher : BaseMesher
                 0
             );
 
-            if (ChunkProvider.Chunkdata.TryGetValue(neighborCoord, out ChunkData neighborChunk))
+            if (_provider.Chunkdata.TryGetValue(neighborCoord, out ChunkData neighborChunk))
             {
                 _neighborCache[cacheIndex] = neighborChunk.Blocks;
             }
@@ -109,7 +111,7 @@ public class Lod0Mesher : BaseMesher
     private void CreateCubeFace(int x, int y, int z, int face)
     {
         int id = _blockData[x * 256 + y * 16 + z];
-        ushort textureLayer = BlockLoader.Get(id, face);
+        ushort textureLayer = _blockRegistry.Get(id, face);
         
         // AO direkt als int berechnen (0–3)
         byte ao0 = CalcAoLevel(x, y, z, face, 0);

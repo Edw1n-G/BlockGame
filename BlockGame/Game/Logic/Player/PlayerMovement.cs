@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using Basics.Game.Logic;
 using Basics.Game.Logic.Player;
 using Basics.Input;
@@ -8,12 +8,14 @@ namespace Basics.Game.Player;
 public class PlayerMovement
 {
     private readonly PlayerCharacter _player;
+    private readonly GameSettings _settings;
     private Vector2 _lastMousePosition;
     private Camera _activeCamera;
 
-    public PlayerMovement(PlayerCharacter player)
+    public PlayerMovement(PlayerCharacter player, GameSettings? settings = null)
     {
         _player = player;
+        _settings = settings ?? EngineContext.Current?.Settings ?? GameSettings.Current;
         _activeCamera = player.Camera;
     }
 
@@ -51,9 +53,9 @@ public class PlayerMovement
         if (direction == Vector3.Zero)
             return;
 
-        direction = Vector3.Normalize(direction) * GameSettings.PlayerMoveSpeed * (float)deltaTime;
+        direction = Vector3.Normalize(direction) * _settings.PlayerMoveSpeed * (float)deltaTime;
         
-        //Nur neue Chunks wenn die Spieler Kamera und nicht die Debugkamera bewegt wird
+        // Nur neue Chunks wenn die Spieler Kamera und nicht die Debugkamera bewegt wird
         if (ReferenceEquals(_activeCamera, _player.Camera))
         {
             _player.Move(direction);
@@ -74,8 +76,8 @@ public class PlayerMovement
 
         _lastMousePosition = mousePosition;
 
-        float yaw = deltaX * GameSettings.MouseSensitivity;
-        float pitch = deltaY * GameSettings.MouseSensitivity;
+        float yaw = deltaX * _settings.MouseSensitivity;
+        float pitch = deltaY * _settings.MouseSensitivity;
 
         _activeCamera.Rotate(yaw, pitch);
     }

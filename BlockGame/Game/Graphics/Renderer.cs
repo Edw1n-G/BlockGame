@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Drawing;
 using Basics.Configurations;
 using Basics.Game.Logic.TerrainManaging;
@@ -17,15 +17,26 @@ public class Renderer
     private static TextureArray _terrainTexture = null!;//TODO: alles von terrain zu etwas algemeinem umbennenen
     private static Camera _camera = null!;
     
-    public static ChunkProvider ChunkProvider = null!;
+    public ChunkProvider ChunkProvider { get; set; }
+
+    public Renderer(ChunkProvider? chunkProvider = null)
+    {
+        ChunkProvider = chunkProvider ?? EngineContext.Current?.ChunkProvider ?? ChunkProvider.Current;
+    }
     
     /**
      * Setup Methode, alles was man fürs Rendern braucht.
      * Window, Camera, Shader und test chunks
      */
-    public unsafe void Setup(Camera camera, GL gl)
+    public unsafe void Setup(Camera camera, GL gl, ChunkProvider? chunkProvider = null)
     {
+        if (chunkProvider != null)
+        {
+            ChunkProvider = chunkProvider;
+        }
+
         _gl = gl;
+        ChunkProvider.AttachGraphicsContext(gl);
         _gl.ClearColor(Color.CornflowerBlue);
         
         _camera = camera;
@@ -41,8 +52,6 @@ public class Renderer
         _camera = camera;
     }
 
-
-    
     private int totalchunks;
     private int shownchunks;
     
@@ -52,13 +61,11 @@ public class Renderer
     /// damit der Main-Thread die Daten an die GPU bringen kann,
     /// wenn PCIe Uploads zu lange dauern wird der nächste Frame gerendert und der Upload wird im nächsten Frame fortgesetzt
     /// da ich gerade 16.6ms insgesamt habe benutze ich 5ms aber für schnelle gpus braucht man ein smarten upload timer
-    /// TODO worker thread der sich nur um das culling kümmert auch wenn es dann 1-2 frames latenz gibt. da ich ne smarte stopwatch machen wollte kann man auch ein low latenzy modus der automisch schaltet implementieren der das culling mit aktuellen daten macht
     ///</summary>
     public unsafe void Render()
     {
         long startTimestamp = Stopwatch.GetTimestamp();
         long maxTicks = (long)(5.0 / 1000.0 * Stopwatch.Frequency);
-        
         
         Frustum frustum = _terrainshader.Use(_gl, _camera);
         _terrainshader.BindTexture(_terrainTexture);
@@ -72,9 +79,8 @@ public class Renderer
                 continue;
             }
             
-            //Der (nicht) Upload von leeren chunks wird im basemesher gehandelt
+            // Der (nicht) Upload von leeren chunks wird im basemesher gehandelt
             chunk.UploadToGpu(_gl);
-            
 
             // Wenn der Chunk schon geladen ist ersetzen, sonst hinzufügen
             if (ChunkProvider.LoadedChunks.TryGetValue(chunk.ChunkPosition, out BaseMesher? oldMesh))
@@ -107,7 +113,6 @@ public class Renderer
         {
             chunk.Dispose();
         }
-
     }
     
     /// <summary>

@@ -1,31 +1,41 @@
+using System;
+using Basics.Game.Logic;
+
 namespace Basics.Game.Logic.TerrainManaging.Generation.Noise;
 
 public class NoiseCalculator : IDisposable
 {
-    //Das soll vieleicht maybe vehindern das jeder Chunk seine eigene Instanz von NoiseCalculator erstellt
-    private static readonly Lazy<NoiseCalculator> _instance = new(() => new NoiseCalculator());
-    public static NoiseCalculator Instance => _instance.Value;
+    private static readonly Lazy<NoiseCalculator> _fallbackInstance = new(() => new NoiseCalculator());
+    public static NoiseCalculator Instance =>
+        EngineContext.Current?.NoiseCalculator ?? _fallbackInstance.Value;
     
     private FastNoise? _Node;
+    private readonly GameSettings? _settings;
+    private readonly string? _customWorldtype;
+    private readonly int? _customSeed;
     
-    //TODO: mehrere noise maps generieren
-    //TODO: density anstatt absolut y benutzen für höhlen
-    //TODO: 3d terrain und am weltrand ein chunk als übergang interpoliert plazieren
-    //TODO: setting menü für nodes values mit maybe 2d map preview
-    
-    private NoiseCalculator()
+    public NoiseCalculator(GameSettings? settings = null)
     {
+        _settings = settings;
+        SetNoiseParameters();
+    }
+
+    public NoiseCalculator(string worldtype, int seed)
+    {
+        _customWorldtype = worldtype;
+        _customSeed = seed;
         SetNoiseParameters();
     }
     
     public void Dispose()
     {
-        _Node?.Dispose(); ;
+        _Node?.Dispose();
+        _Node = null;
     }
 
     private void SetNoiseParameters()
     {
-        string nodeTree = GameSettings.Worldtype;
+        string nodeTree = _customWorldtype ?? _settings?.Worldtype ?? GameSettings.Current.Worldtype;
         _Node = FastNoise.FromEncodedNodeTree(nodeTree);
     }
 
@@ -44,6 +54,8 @@ public class NoiseCalculator : IDisposable
         int totalCount = sizeX * sizeZ * sizeY;
         float[] noiseOutput = new float[totalCount];
 
+        int seed = _customSeed ?? _settings?.Seed ?? GameSettings.Current.Seed;
+
         _Node!.GenUniformGrid3D(
             noiseOutput,
             startX,
@@ -55,7 +67,7 @@ public class NoiseCalculator : IDisposable
             stepSize,
             stepSize,
             stepSize,
-            GameSettings.Seed);
+            seed);
 
         return noiseOutput;
     }

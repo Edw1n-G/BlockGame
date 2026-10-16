@@ -1,4 +1,8 @@
-﻿using Basics.Configurations;
+using System;
+using System.IO;
+using Basics.Configurations;
+using Basics.Game.Configurations;
+using Basics.Game.Logic;
 using Basics.Game.Logic.TerrainManaging.Generation.Noise;
 using Basics.Game.Utilities;
 using SixLabors.ImageSharp;
@@ -8,20 +12,26 @@ namespace Basics.Game.Logic.TerrainManaging.Generation;
 
 public class TerrainGenerator
 {
-    //Anstatt dass jeder Chunk seine eigenen NoiseCalculator erstellt greift jeder Chunk auf eine Instanz zu
-    private NoiseCalculator _noiseCalculator => NoiseCalculator.Instance;
+    private readonly NoiseCalculator _noiseCalculator;
+    private readonly GameSettings _settings;
     private readonly ushort _dirtId;
     private readonly ushort _grassId;
     private readonly ushort _stoneId;
     private readonly ushort _snowId;
     
-    //TODO:beim laden von "Content" alle Block ids automatisch laden
-    public TerrainGenerator()
+    public TerrainGenerator(
+        NoiseCalculator? noiseCalculator = null,
+        GameSettings? settings = null,
+        BlockRegistry? blockRegistry = null)
     {
-        _dirtId = BlockLoader.GetBlockId("core:dirt");
-        _grassId = BlockLoader.GetBlockId("core:grass");
-        _stoneId = BlockLoader.GetBlockId("core:stone");
-        _snowId = BlockLoader.GetBlockId("core:snow");
+        _noiseCalculator = noiseCalculator ?? EngineContext.Current?.NoiseCalculator ?? NoiseCalculator.Instance;
+        _settings = settings ?? EngineContext.Current?.Settings ?? GameSettings.Current;
+
+        BlockRegistry registry = blockRegistry ?? EngineContext.Current?.BlockRegistry ?? BlockLoader.Current;
+        _dirtId = registry.GetBlockId("core:dirt");
+        _grassId = registry.GetBlockId("core:grass");
+        _stoneId = registry.GetBlockId("core:stone");
+        _snowId = registry.GetBlockId("core:snow");
     }
     
     /// <summary>
@@ -33,7 +43,8 @@ public class TerrainGenerator
     public ChunkData GenerateChunk(ChunkCoord coord)
     {
         //Außerhalb der map
-        if (Math.Abs(coord.X) > GameSettings.MapSize || Math.Abs(coord.Z) > GameSettings.MapSize)
+        int mapSize = _settings.MapSize;
+        if (Math.Abs(coord.X) > mapSize || Math.Abs(coord.Z) > mapSize)
         {
             return new ChunkData(coord); // Alles Luft damit nachbarn gemesht werden können;
         }
@@ -121,12 +132,11 @@ public class TerrainGenerator
         return chunkData;
     }
     
-    
     //not usable because of 3d noise change
     // TODO: figure out how to make a 2D map out of 3D data
     public void DebugExportNoiseMap(string filename = "debug_noisemap.png", int steps = 16)
     {
-        int totalwidth = GameSettings.MapSize * 16;
+        int totalwidth = _settings.MapSize * 16;
         float[] noiseValues = _noiseCalculator.GetNoiseValues(1, 1, 1, 1, 1, 1);
         
         float minNoise = noiseValues[0];

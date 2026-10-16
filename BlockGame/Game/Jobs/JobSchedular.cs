@@ -55,11 +55,28 @@ public class JobScheduler
             // 2. Sobald er hier ankommt, WISSEN wir sicher, dass ein Job in einer der Queues liegt.
             if (_highPriority.TryDequeue(out IJob highJob))
             {
-                highJob.Execute(_jobContext);
+                try
+                {
+                    highJob.Execute(_jobContext);
+                }
+                catch (Exception e)
+                {
+                    //TODO: logging + diagnostics module compatability
+                    Console.Error.WriteLine($"[JobScheduler] Job {highJob.GetType().Name} failed: {e.Message}");
+                }
+                
             }
             else if (_lowPriority.TryDequeue(out IJob lowJob))
             {
-                lowJob.Execute(_jobContext);
+                try
+                {
+                    lowJob.Execute(_jobContext);
+                }
+                catch (Exception e)
+                {
+                    //TODO: logging + diagnostics module compatability
+                    Console.Error.WriteLine($"[JobScheduler] Job {lowJob.GetType().Name} failed: {e.Message}");
+                }
             }
         }
     }

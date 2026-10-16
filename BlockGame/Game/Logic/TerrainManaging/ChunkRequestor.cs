@@ -1,4 +1,4 @@
-﻿using Basics.Game.Logic.Player;
+using Basics.Game.Logic.Player;
 using Basics.Game.Player;
 using Basics.Game.Utilities;
 
@@ -12,21 +12,26 @@ public class ChunkRequestor
 {
     private readonly ChunkProvider _chunkProvider;
     private readonly PlayerCharacter _player;
-    private readonly ParallelOptions _parallelOptions;
-    private int _renderDistance = GameSettings.RenderDistance;
-    private int _lod1Distance = GameSettings.Lod1Distance;
-    private int _lod2Distance = GameSettings.Lod2Distance;
-    private int _verticalRenderDistance = GameSettings.VerticalRenderDistance;
+    private readonly GameSettings _settings;
+    private int _renderDistance;
+    private int _lod1Distance;
+    private int _lod2Distance;
+    private int _verticalRenderDistance;
     private HashSet<ChunkCoord> _activeChunks = new();
     private readonly object _chunkLock = new();
 
     private ChunkCoord _lastPlayerChunk;
     private bool _isUpdating = false;
 
-    public ChunkRequestor(PlayerCharacter player, ChunkProvider chunkProvider)
+    public ChunkRequestor(PlayerCharacter player, ChunkProvider chunkProvider, GameSettings? settings = null)
     {
         _player = player;
         _chunkProvider = chunkProvider;
+        _settings = settings ?? chunkProvider.Settings;
+        _renderDistance = _settings.RenderDistance;
+        _lod1Distance = _settings.Lod1Distance;
+        _lod2Distance = _settings.Lod2Distance;
+        _verticalRenderDistance = _settings.VerticalRenderDistance;
 
         // Event abonnieren: wird gefeuert, wenn der Spieler einen neuen Chunk betritt
         _player.OnChunkChanged += OnPlayerChunkChanged;
@@ -63,8 +68,8 @@ public class ChunkRequestor
             
             //TODO: dreifache for loop ersetzen durch z.B offsets oder nur ränder neu berechnen
             
-            int renderDistance = GameSettings.RenderDistance;
-            int verticalRenderDistance = GameSettings.VerticalRenderDistance;
+            int renderDistance = _settings.RenderDistance;
+            int verticalRenderDistance = _settings.VerticalRenderDistance;
             float renderDistanceSq = renderDistance * renderDistance;
             float verticalRenderDistanceSq = verticalRenderDistance * verticalRenderDistance;
 
@@ -136,11 +141,11 @@ public class ChunkRequestor
     {
         lock (_chunkLock)
         {
-            foreach (var chunk in ChunkProvider.LoadedChunks.Keys.ToList())
+            foreach (var chunk in _chunkProvider.LoadedChunks.Keys.ToList())
             {
                 _chunkProvider.UnloadChunk(chunk);
             }
-            foreach (var chunk in ChunkProvider.Chunkdata.Keys.ToList())
+            foreach (var chunk in _chunkProvider.Chunkdata.Keys.ToList())
             {
                 _chunkProvider.UnloadChunk(chunk);
             }

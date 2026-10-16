@@ -153,6 +153,10 @@ public class TextureArray : IDisposable
 
     public void Dispose()
     {
-        _gl.DeleteTexture(_handle);
+        if (_handle != 0)
+        {
+            _gl.DeleteTexture(_handle);
+            _handle = 0;
+        }
     }
 }

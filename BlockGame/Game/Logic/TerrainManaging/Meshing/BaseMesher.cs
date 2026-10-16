@@ -1,6 +1,8 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Basics.Game.Graphics;
+using Basics.Configurations;
+using Basics.Game.Configurations;
 using Basics.Game.Utilities;
 using Basics.Graphics;
 using Silk.NET.OpenGL;
@@ -39,10 +41,22 @@ public class BaseMesher : IDisposable
     private bool _disposed = false;
     public bool IsEmpty => _indicesCount == 0;
     
-    public BaseMesher()
+    protected readonly ChunkProvider _provider;
+    protected readonly BlockRegistry _blockRegistry;
+    public ChunkProvider Provider => _provider;
+
+    public BaseMesher(ChunkProvider? provider = null, BlockRegistry? blockRegistry = null)
     {
+        _provider = provider ?? EngineContext.Current?.ChunkProvider ?? ChunkProvider.Current;
+        _blockRegistry = blockRegistry ?? EngineContext.Current?.BlockRegistry ?? BlockLoader.Current;
+        
+        if (_blockRegistry == null)
+        {
+            throw new InvalidOperationException("BlockRegistry konnte nicht gefunden werden.");
+        }
+        
         // checken ob eine Liste im Pool frei ist
-        if (!ChunkProvider.VertexListPool.TryDequeue(out _vertices))
+        if (!_provider.VertexListPool.TryDequeue(out _vertices))
         {
             //Wenn der pool, leer ist, liste mit bestimmter größe erstellen um reallocation zu vermeiden
             _vertices = new List<byte>(60_000);
@@ -50,7 +64,7 @@ public class BaseMesher : IDisposable
         _vertices.Clear(); //gebrauchte liste leeren
 
         // Das gleiche für indexe
-        if (!ChunkProvider.IndexListPool.TryDequeue(out _indices))
+        if (!_provider.IndexListPool.TryDequeue(out _indices))
         {
             _indices = new List<uint>(10_000);
         }
@@ -152,8 +166,8 @@ public class BaseMesher : IDisposable
             this._indices?.Clear();
             
             //geliehende Listen wieder zum pool geben
-            if (this._vertices != null) ChunkProvider.VertexListPool.Enqueue(this._vertices);
-            if (this._indices != null) ChunkProvider.IndexListPool.Enqueue(this._indices);
+            if (this._vertices != null) _provider.VertexListPool.Enqueue(this._vertices);
+            if (this._indices != null) _provider.IndexListPool.Enqueue(this._indices);
             
             this._vertices = null!;
             this._indices = null!;
@@ -170,7 +184,7 @@ public class BaseMesher : IDisposable
         nuint neededEboSize = (nuint)(indexSpan.Length * sizeof(uint));
         
         // Buffer für die grafikkarten arrays leihen
-        if (ChunkProvider.VramPool.TryDequeue(out PooledMeshBuffer pool))
+        if (_provider.VramPool.TryDequeue(out PooledMeshBuffer pool))
         {
             _vao = pool.Vao;
             _vbo = pool.Vbo;
@@ -270,8 +284,8 @@ public class BaseMesher : IDisposable
         this._vertices.Clear();
         this._indices.Clear();
         
-        ChunkProvider.VertexListPool.Enqueue(_vertices);
-        ChunkProvider.IndexListPool.Enqueue(_indices);
+        _provider.VertexListPool.Enqueue(_vertices);
+        _provider.IndexListPool.Enqueue(_indices);
         
         this._vertices = null!;
         this._indices = null!;
@@ -301,13 +315,13 @@ public class BaseMesher : IDisposable
             if (_vertices != null)
             {
                 _vertices.Clear();
-                ChunkProvider.VertexListPool.Enqueue(_vertices);
+                _provider.VertexListPool.Enqueue(_vertices);
                 _vertices = null!;
             }
             if (_indices != null)
             {
                 _indices.Clear();
-                ChunkProvider.IndexListPool.Enqueue(_indices);
+                _provider.IndexListPool.Enqueue(_indices);
                 _indices = null!;
             }
         }
@@ -315,7 +329,7 @@ public class BaseMesher : IDisposable
         // Buffer in den pool nach dem GPU-Upload
         if (_vao != 0 && _vbo != 0 && _ebo != 0)
         {
-            ChunkProvider.VramPool.Enqueue(new PooledMeshBuffer 
+            _provider.VramPool.Enqueue(new PooledMeshBuffer 
             {
                 Vao = _vao,
                 Vbo = _vbo,

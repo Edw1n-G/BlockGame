@@ -7,6 +7,10 @@ using Basics.Game.Utilities;
 
 namespace Basics.Game.Logic.TerrainManaging.Meshing;
 
+/// <summary>
+/// Meshing-Implementierung für LOD-Level 2 (grobe Auflösung).
+/// Jeder Block repräsentiert 4x4x4 Weltblöcke.
+/// </summary>
 public class Lod2Mesher : BaseMesher
 {
     private ushort[] _blockData = null!;

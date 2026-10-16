@@ -9,15 +9,23 @@ namespace Basics.Configurations;
 
 /// <summary>
 /// Statische Fassade für Block- und Texturabfragen.
-/// Delegiert an die aktive BlockRegistry des aktuellen EngineContext bzw. die Standardinstanz.
+/// Delegiert alle Operationen an die aktive BlockRegistry des aktuellen EngineContexts
+/// oder erstellt eine Standardinstanz, wenn kein Context verfügbar ist.
 /// </summary>
 public static class BlockLoader
 {
     private static BlockRegistry? _defaultRegistry;
 
+    /// <summary>
+    /// Gibt die aktuelle BlockRegistry zurück.
+    /// Wenn kein EngineContext vorhanden ist, wird eine Standardinstanz erstellt.
+    /// </summary>
     public static BlockRegistry Current =>
         EngineContext.Current?.BlockRegistry ?? (_defaultRegistry ??= CreateDefaultRegistry());
 
+    /// <summary>
+    /// Erstellt eine neue BlockRegistry mit Headless-Initialisierung als Fallback.
+    /// </summary>
     private static BlockRegistry CreateDefaultRegistry()
     {
         var registry = new BlockRegistry();
@@ -35,47 +43,111 @@ public static class BlockLoader
         return registry;
     }
 
+    /// <summary>
+    /// Index des oberen Face (Top) in der Layer-Array.
+    /// </summary>
     public const int Top = BlockRegistry.Top;
+    
+    /// <summary>
+    /// Index des unteren Face (Bottom) in der Layer-Array.
+    /// </summary>
     public const int Bottom = BlockRegistry.Bottom;
+    
+    /// <summary>
+    /// Index des vorderen Face (Front) in der Layer-Array.
+    /// </summary>
     public const int Front = BlockRegistry.Front;
+    
+    /// <summary>
+    /// Index des hinteren Face (Back) in der Layer-Array.
+    /// </summary>
     public const int Back = BlockRegistry.Back;
+    
+    /// <summary>
+    /// Index des linken Face (Left) in der Layer-Array.
+    /// </summary>
     public const int Left = BlockRegistry.Left;
+    
+    /// <summary>
+    /// Index des rechten Face (Right) in der Layer-Array.
+    /// </summary>
     public const int Right = BlockRegistry.Right;
 
+    /// <summary>
+    /// Die Block-ID für Luft (Air).
+    /// </summary>
     public static ushort Air => 0;
 
+    /// <summary>
+    /// Gibt die Terrain-Textur zurück, die alle Texturen als Texture-Array enthält.
+    /// </summary>
     public static TextureArray TerrainTexture => Current.TerrainTexture;
 
+    /// <summary>
+    /// Initialisiert die BlockRegistry mit Texturen und Blockdefinitionen.
+    /// </summary>
+    /// <param name="gl">Die OpenGL-Instanz für die Textur-Erstellung.</param>
+    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
     public static void Initialize(GL gl, string contentRoot = "Content")
     {
         Current.Initialize(gl, contentRoot);
     }
 
+    /// <summary>
+    /// Initialisiert die BlockRegistry ohne GPU-Texturen (für headless-Betrieb).
+    /// </summary>
+    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
     public static void InitializeHeadless(string contentRoot = "Content")
     {
         Current.InitializeHeadless(contentRoot);
     }
 
+    /// <summary>
+    /// Setzt die BlockRegistry auf den Ausgangszustand zurück.
+    /// </summary>
     public static void Reset()
     {
         Current.Reset();
     }
 
+    /// <summary>
+    /// Gibt die Texture-ID (Layer-Index) für einen Block und ein Face zurück.
+    /// </summary>
+    /// <param name="blockId">Die ID des Blocks.</param>
+    /// <param name="faceIndex">Der Index des Faces (0-5).</param>
+    /// <returns>Der Layer-Index der Textur für dieses Face.</returns>
     public static ushort Get(int blockId, int faceIndex)
     {
         return Current.Get(blockId, faceIndex);
     }
 
+    /// <summary>
+    /// Gibt die ID eines Blocks anhand seines Namens zurück.
+    /// </summary>
+    /// <param name="blockName">Der Name des Blocks (z. B. "core:stone").</param>
+    /// <returns>Die ID des Blocks.</returns>
+    /// <exception cref="KeyNotFoundException">Wird ausgelöst, wenn der Block nicht gefunden wird.</exception>
     public static ushort GetBlockId(string blockName)
     {
         return Current.GetBlockId(blockName);
     }
 
+    /// <summary>
+    /// Prüft, ob ein Block den angegebenen Tag hat.
+    /// </summary>
+    /// <param name="blockId">Die ID des Blocks.</param>
+    /// <param name="tag">Der Tag, der überprüft werden soll.</param>
+    /// <returns><c>true</c>, wenn der Block den Tag hat; andernfalls <c>false</c>.</returns>
     public static bool HasTag(ushort blockId, string tag)
     {
         return Current.HasTag(blockId, tag);
     }
 
+    /// <summary>
+    /// Gibt alle Block-IDs zurück, die den angegebenen Tag haben.
+    /// </summary>
+    /// <param name="tag">Der Tag, nach dem gesucht werden soll.</param>
+    /// <returns>Ein schreibgeschütztes Kollektion mit Block-IDs.</returns>
     public static IReadOnlyCollection<ushort> GetByTag(string tag)
     {
         return Current.GetByTag(tag);

@@ -5,60 +5,75 @@ using Silk.NET.OpenGL;
 
 namespace Basics.Graphics
 {
-    /**
-     * Laden und Kompilieren von Shadern, sowie das Setzen von Uniforms.
-     */
+    /// <summary>
+    /// Lädt, kompiliert und verwaltet OpenGL-Shader sowie das Setzen von Uniform-Variablen.
+    /// Stellt Methoden zum Laden von Vertex- und Fragment-Shadern aus Dateien und zum Binden von Uniforms bereit.
+    /// </summary>
     public class Shader : IDisposable
     {
-        //Our handle and the GL instance this class will use, these are private because they have no reason to be public.
-        //Most of the time you would want to abstract items to make things like this invisible.
         private uint _handle;
         private GL _gl;
 
+        /// <summary>
+        /// Initialisiert eine neue Instanz des <see cref="Shader"/>-Klassens.
+        /// Lädt und kompiliert die Vertex- und Fragment-Shader, verknüpft sie zu einem Shader-Programm
+        /// und prüft auf Kompilierungs- und Verknüpfungsfehler.
+        /// </summary>
+        /// <param name="gl">Die OpenGL-Instanz.</param>
+        /// <param name="vertexPath">Der Pfad zur Vertex-Shader-Datei.</param>
+        /// <param name="fragmentPath">Der Pfad zur Fragment-Shader-Datei.</param>
+        /// <exception cref="Exception">Wird ausgelöst, wenn der Shader nicht kompiliert oder verknüpft werden kann.</exception>
         public Shader(GL gl, string vertexPath, string fragmentPath)
         {
             _gl = gl;
 
-            //Load the individual shaders.
             uint vertex = LoadShader(ShaderType.VertexShader, vertexPath);
             uint fragment = LoadShader(ShaderType.FragmentShader, fragmentPath);
-            //Create the shader program.
             _handle = _gl.CreateProgram();
-            //Attach the individual shaders.
             _gl.AttachShader(_handle, vertex);
             _gl.AttachShader(_handle, fragment);
             _gl.LinkProgram(_handle);
-            //Check for linking errors.
             _gl.GetProgram(_handle, GLEnum.LinkStatus, out var status);
             if (status == 0)
             {
                 throw new Exception($"Program failed to link with error: {_gl.GetProgramInfoLog(_handle)}");
             }
-            //Detach and delete the shaders
             _gl.DetachShader(_handle, vertex);
             _gl.DetachShader(_handle, fragment);
             _gl.DeleteShader(vertex);
             _gl.DeleteShader(fragment);
         }
 
+        /// <summary>
+        /// Bindet das Shader-Programm für die nachfolgenden Render-Aufrufe.
+        /// </summary>
         public void Use()
         {
-            //Using the program
             _gl.UseProgram(_handle);
         }
 
-        //Uniforms are properties that applies to the entire geometry
+        /// <summary>
+        /// Setzt einen Integer-Uniform im Shader.
+        /// </summary>
+        /// <param name="name">Der Name des Uniform-Variables im Shader.</param>
+        /// <param name="value">Der Wert, der gesetzt werden soll.</param>
+        /// <exception cref="Exception">Wird ausgelöst, wenn der Uniform nicht gefunden wird.</exception>
         public void SetUniform(string name, int value)
         {
-            //Setting a uniform on a shader using a name.
             int location = _gl.GetUniformLocation(_handle, name);
-            if (location == -1) //If GetUniformLocation returns -1 the uniform is not found.
+            if (location == -1)
             {
                 throw new Exception($"{name} uniform not found on shader.");
             }
             _gl.Uniform1(location, value);
         }
 
+        /// <summary>
+        /// Setzt einen Float-Uniform im Shader.
+        /// </summary>
+        /// <param name="name">Der Name des Uniform-Variables im Shader.</param>
+        /// <param name="value">Der Wert, der gesetzt werden soll.</param>
+        /// <exception cref="Exception">Wird ausgelöst, wenn der Uniform nicht gefunden wird.</exception>
         public void SetUniform(string name, float value)
         {
             int location = _gl.GetUniformLocation(_handle, name);
@@ -69,20 +84,27 @@ namespace Basics.Graphics
             _gl.Uniform1(location, value);
         }
         
-        
+        /// <summary>
+        /// Setzt einen Matrix4x4-Uniform im Shader.
+        /// </summary>
+        /// <param name="name">Der Name des Uniform-Variables im Shader.</param>
+        /// <param name="value">Der Wert der Matrix, der gesetzt werden soll.</param>
         public unsafe void SetUniform(string name, Matrix4x4 value)
         {
-            // Uniform Location finden
             int location = _gl.GetUniformLocation(_handle, name);
             if (location == -1)
             {
                 return;
             }
             
-            // Matrix an OpenGL senden (false = nicht transponieren)
             _gl.UniformMatrix4(location, 1, false, (float*) &value);
         }
         
+        /// <summary>
+        /// Setzt einen Vector3-Uniform im Shader.
+        /// </summary>
+        /// <param name="name">Der Name des Uniform-Variables im Shader.</param>
+        /// <param name="value">Der Wert des Vektors, der gesetzt werden soll.</param>
         public unsafe void SetUniform(string name, Vector3 value)
         {
             int location = _gl.GetUniformLocation(_handle, name);
@@ -93,6 +115,11 @@ namespace Basics.Graphics
             _gl.Uniform3(location, value.X, value.Y, value.Z);
         }
 
+        /// <summary>
+        /// Setzt einen Boolean-Uniform im Shader.
+        /// </summary>
+        /// <param name="name">Der Name des Uniform-Variables im Shader.</param>
+        /// <param name="value">Der Wert, der gesetzt werden soll.</param>
         public unsafe void SetUniform(string name, bool value)
         {
             int location = _gl.GetUniformLocation(_handle, name);
@@ -103,20 +130,23 @@ namespace Basics.Graphics
             _gl.Uniform1(location, value ? 1 : 0);
         }
 
+        /// <summary>
+        /// Gibt das Shader-Programm frei und löscht es von der GPU.
+        /// </summary>
         public void Dispose()
         {
-            //Remember to delete the program when we are done.
             _gl.DeleteProgram(_handle);
         }
 
+        /// <summary>
+        /// Lädt und kompiliert einen einzelnen Shader aus einer Datei.
+        /// </summary>
+        /// <param name="type">Der Typ des Shaders (Vertex, Fragment, etc.).</param>
+        /// <param name="path">Der Pfad zur Shader-Datei.</param>
+        /// <returns>Der Handle des kompilierten Shaders.</returns>
+        /// <exception cref="Exception">Wird ausgelöst, wenn der Shader nicht kompiliert werden kann.</exception>
         private uint LoadShader(ShaderType type, string path)
         {
-            //To load a single shader we need to:
-            //1) Load the shader from a file.
-            //2) Create the handle.
-            //3) Upload the source to opengl.
-            //4) Compile the shader.
-            //5) Check for errors.
             string src = File.ReadAllText(path);
             uint handle = _gl.CreateShader(type);
             _gl.ShaderSource(handle, src);

@@ -2,53 +2,79 @@ using Silk.NET.OpenGL;
 
 namespace Basics.Game.Graphics
 {
-    //The vertex array object abstraction.
+    /// <summary>
+    /// Verwaltet ein OpenGL-Vertex-Array-Objekt (VAO), das Vertex-Attribute und Indizes für das Rendern bündelt.
+    /// Bindet VertexBuffer (VBO) und ElementBuffer (EBO) und konfiguriert die Vertex-Attribute für den Shader.
+    /// </summary>
+    /// <typeparam name="TVertexType">Der Typ der Vertex-Daten.</typeparam>
+    /// <typeparam name="TIndexType">Der Typ der Index-Daten.</typeparam>
     public class VertexArrayObject<TVertexType, TIndexType> : IDisposable
         where TVertexType : unmanaged
         where TIndexType : unmanaged
     {
-        //Our handle and the GL instance this class will use, these are private because they have no reason to be public.
-        //Most of the time you would want to abstract items to make things like this invisible.
         private uint _handle;
         private GL _gl;
 
+        /// <summary>
+        /// Initialisiert eine neue Instanz des <see cref="VertexArrayObject{TVertexType, TIndexType}"/>-Klassens.
+        /// Erstellt ein VAO und bindet die angegebenen VBO und EBO.
+        /// </summary>
+        /// <param name="gl">Die OpenGL-Instanz.</param>
+        /// <param name="vbo">Das VertexBuffer-Objekt.</param>
+        /// <param name="ebo">Das ElementBuffer-Objekt.</param>
         public VertexArrayObject(GL gl, BufferObject<TVertexType> vbo, BufferObject<TIndexType> ebo)
         {
-            //Saving the GL instance.
             _gl = gl;
 
-            //Setting out handle and binding the VBO and EBO to this VAO.
             _handle = _gl.GenVertexArray();
             Bind();
             vbo.Bind();
             ebo.Bind();
         }
 
+        /// <summary>
+        /// Konfiguriert einen Vertex-Attribut-Pointer für Float-Daten.
+        /// </summary>
+        /// <param name="index">Der Index des Vertex-Attributes im Shader.</param>
+        /// <param name="count">Die Anzahl der Komponenten pro Attribut (z. B. 3 für Vector3).</param>
+        /// <param name="type">Der Typ der Daten (z. B. Float, Double).</param>
+        /// <param name="vertexSize">Die Gesamtgröße eines Vertex in Floats.</param>
+        /// <param name="offset">Der Offset des Attributs innerhalb eines Vertex in Bytes.</param>
         public unsafe void VertexAttributePointer(uint index, int count, VertexAttribPointerType type, uint vertexSize, int offSet)
         {
-            //Setting up a vertex attribute pointer
             _gl.VertexAttribPointer(index, count, type, false, vertexSize * (uint) sizeof(TVertexType), (void*) (offSet * sizeof(TVertexType)));
             _gl.EnableVertexAttribArray(index);
         }
         
-        //Um später die Layers und AO werte als Int8 zu übergeben
+        /// <summary>
+        /// Konfiguriert einen Vertex-Attribut-Pointer für Integer-Daten.
+        /// Wird verwendet, um Attributedaten wie Textur-IDs als Integer zu übergeben, damit sie nicht normalisiert werden.
+        /// </summary>
+        /// <param name="index">Der Index des Vertex-Attributes im Shader.</param>
+        /// <param name="count">Die Anzahl der Komponenten pro Attribut.</param>
+        /// <param name="type">Der Typ der Integer-Daten.</param>
+        /// <param name="vertexSize">Die Gesamtgröße eines Vertex.</param>
+        /// <param name="offSet">Der Offset des Attributs innerhalb eines Vertex in Bytes.</param>
         public unsafe void VertexAttributeIPointer(uint index, int count, VertexAttribIType type, uint vertexSize, int offSet)
         {
-            // Für Integer-Attribute, z.B. die Textur-IDs, damit sie nicht normalisiert werden
             _gl.VertexAttribIPointer(index, count, type, vertexSize * (uint) sizeof(TVertexType), (void*) (offSet * sizeof(TVertexType)));
             _gl.EnableVertexAttribArray(index);
         }
 
+        /// <summary>
+        /// Bindet das VAO für nachfolgende Render-Aufrufe.
+        /// </summary>
         public void Bind()
         {
-            //Binding the vertex array.
             _gl.BindVertexArray(_handle);
         }
 
+        /// <summary>
+        /// Gibt das VAO frei und löscht es von der GPU.
+        /// Die VBO und EBO werden nicht gelöscht, da sie auch von anderen VAOs verwendet werden können.
+        /// </summary>
         public void Dispose()
         {
-            //Remember to dispose this object so the data GPU side is cleared.
-            //We dont delete the VBO and EBO here, as you can have one VBO stored under multiple VAO's.
             _gl.DeleteVertexArray(_handle);
         }
     }

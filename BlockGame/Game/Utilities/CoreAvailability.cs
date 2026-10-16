@@ -4,11 +4,11 @@ using Basics.Game;
 
 namespace Basics.Game.Utilities;
 
-///<summary>
+/// <summary>
 /// Berechnet die optimale Aufteilung der Threads für verschiedene Aufgaben.
-/// Vorerst nur für Chunk-Generierung
-/// Später für Pathfinding und andere CPU-intensive Aufgaben
-///</summary>
+/// Vorerst nur für Chunk-Generierung.
+/// Später für Pathfinding und andere CPU-intensive Aufgaben.
+/// </summary>
 public class CoreAvailability
 {
     private int _taskCores;

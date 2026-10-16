@@ -8,33 +8,41 @@ using Shader = Basics.Graphics.Shader;
 
 namespace Basics.Game.Graphics;
 
-/**
- * Die Klasse verwaltet die Shaderdateien und die Texturen
- * Shader werden von der Shader Klasse kompiliert, dann hier benutzt.
- * Mit dem Camera Objekt wird die richtige Sicht gesetzt
- */
+/// <summary>
+/// Verwaltet Shader-Programme undTexturen für das Rendern.
+/// Lädt Shader-Dateien, aktiviert das Shader-Programm, setzt Uniforms für View- und Projection-Matrix
+/// und bindet Texturen für das Rendering.
+/// </summary>
 public class ShaderManager : IDisposable
 {
     
-    // Die Tutorial-Shader und Texture Klassen
     private readonly Shader _shader;
     private GL _gl; 
     
-    
+    /// <summary>
+    /// Initialisiert eine neue Instanz des <see cref="ShaderManager"/>-Klassens.
+    /// Lädt und kompiliert die angegebenen Vertex- und Fragment-Shader-Dateien.
+    /// </summary>
+    /// <param name="gl">Die OpenGL-Instanz.</param>
+    /// <param name="vertexShaderFile">Der Dateiname der Vertex-Shader-Datei.</param>
+    /// <param name="fragmentShaderFile">Der Dateiname der Fragment-Shader-Datei.</param>
     public ShaderManager(GL gl, string vertexShaderFile, string fragmentShaderFile)
     {
         _gl = gl;
-        
 
-        // 1. Shader laden
-        // Pfad anpassen, da deine Dateien im Graphics/Shader Ordner liegen könnten
         string vertPath = "Game/Graphics/Shader/" + vertexShaderFile;
         string fragPath = "Game/Graphics/Shader/" + fragmentShaderFile;
         
         _shader = new Shader(gl, vertPath, fragPath);
     }
     
-    //Shader "Aktivieren" und die Uniforms setzen
+    /// <summary>
+    /// Aktiviert das Shader-Programm, setzt die View- und Projection-Matrix als Uniforms
+    /// und gibt einen Frustum für das Culling zurück.
+    /// </summary>
+    /// <param name="gl">Die OpenGL-Instanz.</param>
+    /// <param name="camera">Die Kamera, deren View-Matrix verwendet werden soll.</param>
+    /// <returns>Ein Frustum-Objekt für das View-Frustum-Culling.</returns>
     public unsafe Frustum Use(GL gl, Camera camera)
     {
         gl.Enable(EnableCap.DepthTest);
@@ -43,18 +51,15 @@ public class ShaderManager : IDisposable
         gl.CullFace(GLEnum.Back);
         gl.FrontFace(FrontFaceDirection.Ccw);
         
-        // Shader aktivieren
         _shader.Use();
         
         var size = WindowSetup.Window.FramebufferSize;
         camera.AspectRatio = (float)size.X / size.Y; 
         
-        // Culling aus der Sicht der Hauptkamera behalten
-        var view = camera.GetViewMatrix(); // die debug camera wird jetzt auch als parameter übergeben es wird immer die gleiche matrix erstellt
+        var view = camera.GetViewMatrix();
         var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), camera.AspectRatio, camera.nearPlane, camera.farPlane);
         Frustum frustum = camera.CreateFrustum(view, projection);
         
-        //Wenn eine Debugkamera existiert, soll aus ihrer Sicht gerendert
         if (EngineStates.Game.DebugCamera != null)
         {
             EngineStates.Game.DebugCamera.AspectRatio = (float)size.X / size.Y;
@@ -69,24 +74,32 @@ public class ShaderManager : IDisposable
             _shader.SetUniform("uProjection", projection);
         }
 
-        // Dem Shader sagen, dass die Textur auf Slot 0 liegt
         _shader.SetUniform("uTexture", 0);
 
-        //Frustum an den Renderer zurückgeben, damit er die Chunks cullen kann
         return frustum;
     }
     
-    //Um ein Objekt and die richtige Stelle zu setzten.
+    /// <summary>
+    /// Setzt die Model-Matrix als Uniform im Shader.
+    /// </summary>
+    /// <param name="model">Die Model-Matrix, die gesetzt werden soll.</param>
     public void SetModelMatrix(Matrix4x4 model)
     {
         _shader.SetUniform("uModel", model);
     }
     
+    /// <summary>
+    /// Bindet die angegebene Textur an den Shader-Texture-Slot 0.
+    /// </summary>
+    /// <param name="texture">Die Textur, die gebunden werden soll.</param>
     public void BindTexture(TextureArray texture)
     {
         texture.Bind(TextureUnit.Texture0);
     }
 
+    /// <summary>
+    /// Gibt das Shader-Programm frei.
+    /// </summary>
     public void Dispose()
     {
         _shader.Dispose();

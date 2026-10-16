@@ -5,10 +5,20 @@ using Silk.NET.Windowing;
 
 namespace Basics.Window;
 
+/// <summary>
+/// Verwaltung und Konfiguration des Hauptfensters.
+/// Stellt Methoden zum Erstellen, Konfigurieren und Steuern des Windows bereit.
+/// </summary>
 public class WindowSetup
 {
+    /// <summary>
+    /// Das aktuell verwendete Window-Objekt.
+    /// </summary>
     public static IWindow Window { get; private set; } = null!;
     
+    /// <summary>
+    /// Erstellt und initialisiert das Hauptfenster mit den aktuellen Einstellungen.
+    /// </summary>
     public static void CreateWindow()
     {
         WindowOptions options = WindowOptions.Default;
@@ -31,12 +41,19 @@ public class WindowSetup
         InputManager.SetActionBindings(Actions.Borderless, ToggleBorderless);
     }
 
+    /// <summary>
+    /// Führt die Haupt-Loop des Windows aus.
+    /// </summary>
     public static void Run()
     {
         Window.Run();
     }
     
-    //Events die von GameSettings getriggert werden
+    /// <summary>
+    /// Event-Handler für FPS-Änderungen.
+    /// Aktualisiert die Frame-Rate des Windows.
+    /// </summary>
+    /// <param name="newFps">Die neue Frame-Rate in FPS.</param>
     private static void OnFpsChanged(int newFps)
     {
         if (Window == null) return;
@@ -46,6 +63,11 @@ public class WindowSetup
         Window.UpdatesPerSecond = newFps;
     }
     
+    /// <summary>
+    /// Event-Handler für VSync-Änderungen.
+    /// Aktualisiert den VSync-Modus des Windows.
+    /// </summary>
+    /// <param name="VSync">Der neue VSync-Status.</param>
     private static void OnVSyncChanged(bool VSync)
     {
         if (Window == null) return;
@@ -53,7 +75,9 @@ public class WindowSetup
         Window.VSync = VSync;
     }
     
-    //Funktionen die durch Tasten getriggert werden können.
+    /// <summary>
+    /// Schaltet zwischen Vollbild- und Fenstermodus um.
+    /// </summary>
     private static void ToggleFullscreen()
     {   
         if (Window.WindowState == WindowState.Fullscreen)
@@ -75,6 +99,9 @@ public class WindowSetup
         }
     }
 
+    /// <summary>
+    /// Schaltet zwischen Borderless-Windowed- und regulärem Fenstermodus um.
+    /// </summary>
     private static void ToggleBorderless()
     {
         

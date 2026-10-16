@@ -10,17 +10,49 @@ using StbImageSharp;
 
 namespace Basics.EngineStates;
 
+/// <summary>
+/// Der Hauptmenü-Zustand des Spiels.
+/// Zeigt Main-Menu, Einstellungen und Steuerungshinweise.
+/// </summary>
 public class Menu : IStates
 {
+    /// <summary>
+    /// Der OpenGL-Kontext für Render-Operationen.
+    /// </summary>
     private GL _gl;
-    private IInputContext  _inputContext;
+    
+    /// <summary>
+    /// Der Eingabe-Kontext für Input-Verarbeitung.
+    /// </summary>
+    private IInputContext _inputContext;
+    
+    /// <summary>
+    /// Der StateManager für Zustandswechsel.
+    /// </summary>
     private StateManager _manager;
     
+    /// <summary>
+    /// Der Egui-Kontext für UI-Rendering.
+    /// </summary>
     private Context _uiContext = null!;
+    
+    /// <summary>
+    /// Die Egui-Integration für Silk.NET.
+    /// </summary>
     private Basics.SilkGlIntegration _uiIntegration = null!;
     
+    /// <summary>
+    /// Gibt an, ob die Einstellungen angezeigt werden sollen.
+    /// </summary>
     private bool _showSettings = false;
     
+    /// <summary>
+    /// Wird aufgerufen, wenn der Menü-Zustand aktiviert wird.
+    /// Initialisiert UI-Kontext und setzt Mauszeiger auf Normal.
+    /// </summary>
+    /// <param name="gl">Der OpenGL-Kontext.</param>
+    /// <param name="inputContext">Der Eingabe-Kontext.</param>
+    /// <param name="manager">Der StateManager für Zustandswechsel.</param>
     public void Enter(GL gl, IInputContext inputContext, StateManager manager)
     {
         _gl = gl;
@@ -38,11 +70,20 @@ public class Menu : IStates
         _uiIntegration = new Basics.SilkGlIntegration(_uiContext, WindowSetup.Window, _inputContext);
     }
 
+    /// <summary>
+    /// Wird in jedem Update-Frame aufgerufen. Im Menü aktuell ohne Funktionalität.
+    /// </summary>
+    /// <param name="delta">Die Zeit in Sekunden seit dem letzten Frame.</param>
     public void Update(double delta)
     {
         
     }
 
+    /// <summary>
+    /// Wird in jedem Render-Frame aufgerufen.
+    /// Zeichnet den UI-Hintergrund und die UI-Elemente.
+    /// </summary>
+    /// <param name="delta">Die Zeit in Sekunden seit dem letzten Frame.</param>
     public void Render(double delta)
     {
         _gl.ClearColor(0.1f, 0.15f, 0.2f, 1.0f);
@@ -51,11 +92,20 @@ public class Menu : IStates
         _uiIntegration.Run(ctx => Draw(ctx));
     }
 
+    /// <summary>
+    /// Wird bei einer Größenänderung des Framebuffers aufgerufen.
+    /// Im Menü aktuell ohne Funktionalität.
+    /// </summary>
+    /// <param name="newSize">Die neue Größe des Framebuffers.</param>
     public void FramebufferResize(Vector2D<int> newSize)
     {
         
     }
 
+    /// <summary>
+    /// Wird aufgerufen, wenn der Menü-Zustand verlassen wird.
+    /// Bereitet das Aufräumen von UI-Ressourcen vor.
+    /// </summary>
     public void Exit()
     {
         Console.WriteLine("Exiting Menu State");
@@ -65,6 +115,10 @@ public class Menu : IStates
     }
     
     
+    /// <summary>
+    /// Zeichnet alle UI-Elemente des Menüs.
+    /// </summary>
+    /// <param name="ctx">Der Egui-Kontext.</param>
     public void Draw(Context ctx)
     {
         new Area("MainMenuArea")

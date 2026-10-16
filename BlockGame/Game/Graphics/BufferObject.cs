@@ -2,23 +2,30 @@ using Silk.NET.OpenGL;
 
 namespace Basics.Game.Graphics
 {
-    //Our buffer object abstraction.
+    /// <summary>
+    /// Verwaltet ein OpenGL-Buffer-Objekt (VBO) für Vertex-Daten.
+    /// Bietet eine abstrahierte Schnittstelle zum Erstellen, Binden und Freigeben von Pufferobjekten auf der GPU.
+    /// </summary>
+    /// <typeparam name="TDataType">Der Typ der im Puffer gespeicherten Daten. Muss ein unmanaged Typ sein.</typeparam>
     public class BufferObject<TDataType> : IDisposable
         where TDataType : unmanaged
     {
-        //Our handle, buffer type and the GL instance this class will use, these are private because they have no reason to be public.
-        //Most of the time you would want to abstract items to make things like this invisible.
         private uint _handle;
         private BufferTargetARB _bufferType;
         private GL _gl;
 
+        /// <summary>
+        /// Initialisiert eine neue Instanz des <see cref="BufferObject{TDataType}"/>-Klassens.
+        /// Erstellt einen neuen Puffer auf der GPU und lädt die angegebenen Daten hoch.
+        /// </summary>
+        /// <param name="gl">Die OpenGL-Instanz.</param>
+        /// <param name="data">Die Daten, die in den Puffer geladen werden sollen.</param>
+        /// <param name="bufferType">Der Typ des Puffers (z. B. VertexBuffer, ElementArrayBuffer).</param>
         public unsafe BufferObject(GL gl, ReadOnlySpan<TDataType> data, BufferTargetARB bufferType)
         {
-            //Setting the gl instance and storing our buffer type.
             _gl = gl;
             _bufferType = bufferType;
 
-            //Getting the handle, and then uploading the data to said handle.
             _handle = _gl.GenBuffer();
             Bind();
             fixed (void* d = data)
@@ -27,15 +34,19 @@ namespace Basics.Game.Graphics
             }
         }
 
+        /// <summary>
+        /// Bindet den Puffer für nachfolgende OpenGL-Operationen.
+        /// </summary>
         public void Bind()
         {
-            //Binding the buffer object, with the correct buffer type.
             _gl.BindBuffer(_bufferType, _handle);
         }
 
+        /// <summary>
+        /// Gibt den Puffer frei und löscht ihn von der GPU.
+        /// </summary>
         public void Dispose()
         {
-            //Remember to delete our buffer.
             _gl.DeleteBuffer(_handle);
         }
     }

@@ -4,19 +4,30 @@ using Silk.NET.Maths;
 
 namespace Basics.Game.PhysicsSystem;
 
+/// <summary>
+/// Implementiert den Raycasting-Algorithmus für Voxel-Welten.
+/// Wird verwendet, um zu ermitteln, welcher Block vom Kamerastandpunkt aus in einer bestimmten Richtung getroffen wird.
+/// </summary>
 public class Raycaster
 {
     private readonly ChunkProvider _chunkProvider;
 
+    /// <summary>
+    /// Initialisiert eine neue Instanz von <see cref="Raycaster"/>.
+    /// </summary>
+    /// <param name="chunkProvider">Der für den Raycast zu verwendende <see cref="ChunkProvider"/>.</param>
     public Raycaster(ChunkProvider chunkProvider)
     {
         _chunkProvider = chunkProvider;
     }
 
     /// <summary>
-    /// Gemini 3.1 hat diesen algorithmus gecookt.
-    /// Einfach hoffen, dass es first try funktioniert und ich hier nie was debuggen muss
+    /// Führt einen Raycast durch Voxel-Bloecke mithilfe des Amanatides-Woo-Algorithmus aus.
     /// </summary>
+    /// <param name="start">Startposition des Strahls in Weltkoordinaten.</param>
+    /// <param name="direction">Richtungsvektor des Strahls.</param>
+    /// <param name="maxDistance">Maximale Reichweite des Strahls.</param>
+    /// <returns>Ein <see cref="BlockResult"/> mit Trefferinformationen oder <c>Hit = false</c>.</returns>
     public BlockResult CastBlockRay(Vector3D<float> start, Vector3D<float> direction, float maxDistance)
     {
         direction = Vector3D.Normalize(direction);
@@ -61,7 +72,6 @@ public class Raycaster
         // Der Strahl wandert von Block zu Block!
         while (distanceTravelled <= maxDistance)
         {
-            // === DEINE NEUE ARCHITEKTUR IN AKTION ===
             // Wir holen die Block-ID an der aktuellen Raycast-Position
             ushort blockId = _chunkProvider.GetBlockAt(x, y, z);
 
@@ -115,10 +125,19 @@ public class Raycaster
         return new BlockResult { Hit = false };
     }
 
-    //nur Entities Gerade linie und AABB intersection
+    /// <summary>
+    /// Führt einen Raycast für Entity-Kollisionen aus (Vorbereitung für AABB-Schnitttest).
+    /// </summary>
+    /// <param name="start">Startposition des Strahls in Weltkoordinaten.</param>
+    /// <param name="dir">Richtungsvektor des Strahls.</param>
+    /// <param name="maxDist">Maximale Reichweite des Strahls.</param>
+    /// <returns>Ein <see cref="EntityResult"/> mit Trefferinformationen.</returns>
+    /// <remarks>
+    /// Diese Methode ist derzeit nicht implementiert. Sie dient als Platzhalter für die spätere Implementierung
+    /// von AABB-Raycasting für Entitys.
+    /// </remarks>
     public EntityResult CastEntityRay(Vector3D<float> start, Vector3D<float> dir, float maxDist)
     {
-        //TODO: AABB raycast für Entitys
         return new EntityResult { Hit = false };
     }
 }

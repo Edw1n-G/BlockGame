@@ -5,18 +5,32 @@ namespace Basics.Game.Utilities;
 using System.Collections.Concurrent;
 using System.Threading;
 
+/// <summary>
+/// Verwaltet die Ausführung von Jobs über einen Thread-Pool mit Prioritäten.
+/// Nutzt ein SemaphoreSlim für effizientes Thread-Waiting ohne CPU-Last.
+/// </summary>
 public class JobScheduler
 {
+    /// <summary>Queue für hochpriorisierte Jobs.</summary>
     private ConcurrentQueue<IJob> _highPriority = new ConcurrentQueue<IJob>();
+    /// <summary>Queue für niedrigpriorisierte Jobs.</summary>
     private ConcurrentQueue<IJob> _lowPriority = new ConcurrentQueue<IJob>();
     
-    // NEU: Das Semaphore. Startwert ist 0 (keine Jobs da).
+    /// <summary>Semaphore für die Steuerung der Worker-Thread-Aktivität.</summary>
+    /// <remarks>Startwert ist 0 (keine Jobs da). Releasen weckt einen Schlafenden Thread auf.</remarks>
     private SemaphoreSlim _jobAvailableSignal = new SemaphoreSlim(0);
     
+    /// <summary>Der für die Job-Ausführung verwendete Kontext.</summary>
     private JobContext _jobContext;
     
+    /// <summary>Gibt an, ob der Scheduler aktiv ist.</summary>
     private bool _isRunning = true;
 
+    /// <summary>
+    /// Startet den JobScheduler mit der angegebenen Anzahl von Worker-Threads.
+    /// </summary>
+    /// <param name="workerCount">Die Anzahl der Worker-Threads (Standard: Anzahl der CPU-Kerne).</param>
+    /// <param name="jobcontext">Der für die Job-Ausführung zu verwendende <see cref="JobContext"/>.</param>
     public void Start(int workerCount, JobContext jobcontext)
     {
         _jobContext = jobcontext;
@@ -28,21 +42,36 @@ public class JobScheduler
         }
     }
 
+    /// <summary>
+    /// Fügt einen hochpriorisierten Job der Warteschlange hinzu.
+    /// </summary>
+    /// <param name="job">Der hinzuzufügende <see cref="IJob"/>.</param>
     public void EnqueueHigh(IJob job)
     {
         _highPriority.Enqueue(job);
         
-        // NEU: Wir signalisieren dem OS, dass EIN neuer Job da ist.
+        // Wir signalisieren dem OS, dass EIN neuer Job da ist.
         // Das weckt sofort exakt EINEN schlafenden Worker-Thread auf!
         _jobAvailableSignal.Release(); 
     }
     
+    /// <summary>
+    /// Fügt einen niedrigpriorisierten Job der Warteschlange hinzu.
+    /// </summary>
+    /// <param name="job">Der hinzuzufügende <see cref="IJob"/>.</param>
     public void EnqueueLow(IJob job)
     {
         _lowPriority.Enqueue(job);
         _jobAvailableSignal.Release(); // Auch hier einen Worker wecken
     }
 
+    /// <summary>
+    /// Hauptschleife des Worker-Threads. Wartet auf Jobs und führt diese aus.
+    /// </summary>
+    /// <remarks>
+    /// Der Thread verbraucht 0.0% CPU-Leistung, solange keine Jobs vorhanden sind.
+    /// Beendet sich, wenn <see cref="_isRunning"/> auf <c>false</c> gesetzt wird.
+    /// </remarks>
     private void WorkerLoop()
     {
         while (_isRunning)
@@ -81,6 +110,13 @@ public class JobScheduler
         }
     }
 
+    /// <summary>
+    /// Stoppt den JobScheduler und weckt alle schlafenden Threads.
+    /// </summary>
+    /// <remarks>
+    /// Setzt <see cref="_isRunning"/> auf <c>false</c> und gibt ein Signal an alle Worker-Threads,
+    /// damit sie merken, dass sie sich beenden können.
+    /// </remarks>
     public void Stop()
     {
         _isRunning = false;

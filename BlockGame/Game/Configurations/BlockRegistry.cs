@@ -4,6 +4,12 @@ using Silk.NET.OpenGL;
 
 namespace Basics.Game.Configurations;
 
+/// <summary>
+/// Registriert und verwaltet Blockdefinitionen sowie deren Texturen.
+/// Lädt Blockdefinitionen aus JSON-Dateien, erkennt Texturen aus dem Content-Verzeichnis
+/// und berechnet die Texture-Layer-IDs für alle Blockfaces.
+/// Stellt eine zentrale Datenstruktur für alle Blöcke im Spiel bereit.
+/// </summary>
 public class BlockRegistry : IDisposable
 {
     private sealed class BlockFile
@@ -45,20 +51,59 @@ public class BlockRegistry : IDisposable
     private bool _initialized;
     private bool _texturesLoaded;
 
+    /// <summary>
+    /// Index des oberen Face (Top) in der Layer-Array.
+    /// </summary>
     public const int Top = 0;
+    
+    /// <summary>
+    /// Index des unteren Face (Bottom) in der Layer-Array.
+    /// </summary>
     public const int Bottom = 1;
+    
+    /// <summary>
+    /// Index des vorderen Face (Front) in der Layer-Array.
+    /// </summary>
     public const int Front = 2;
+    
+    /// <summary>
+    /// Index des hinteren Face (Back) in der Layer-Array.
+    /// </summary>
     public const int Back = 3;
+    
+    /// <summary>
+    /// Index des linken Face (Left) in der Layer-Array.
+    /// </summary>
     public const int Left = 4;
+    
+    /// <summary>
+    /// Index des rechten Face (Right) in der Layer-Array.
+    /// </summary>
     public const int Right = 5;
 
+    /// <summary>
+    /// Die Block-ID für Luft (Air).
+    /// </summary>
     public ushort Air => 0;
 
+    /// <summary>
+    /// Gibt an, ob die BlockRegistry initialisiert wurde.
+    /// </summary>
     public bool IsInitialized => _initialized;
 
+    /// <summary>
+    /// Gibt die Terrain-Textur zurück, die alle Texturen als Texture-Array enthält.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Wird ausgelöst, wenn die Textur noch nicht initialisiert wurde.</exception>
     public TextureArray TerrainTexture => _terrainTexture
         ?? throw new InvalidOperationException("BlockTextures wurde nicht initialisiert. Initialize() aufrufen.");
 
+    /// <summary>
+    /// Resolves den Content-Root-Pfad, der für das Laden von Blöcken und Texturen verwendet wird.
+    /// Prüft verschiedene Pfade (Content, BaseDirectory/Content, BlockGame/Content, etc.).
+    /// </summary>
+    /// <param name="contentRoot">Der optionale Basis-Content-Pfad.</param>
+    /// <returns>Der vollständige Pfad zum Content-Verzeichnis.</returns>
     public static string ResolveContentRoot(string contentRoot = "Content")
     {
         if (Directory.Exists(contentRoot)) return contentRoot;
@@ -75,6 +120,12 @@ public class BlockRegistry : IDisposable
         return contentRoot;
     }
 
+    /// <summary>
+    /// Initialisiert die BlockRegistry mit Texturen und Blockdefinitionen.
+    /// Lädt Texturen und Blöcke aus dem Content-Verzeichnis.
+    /// </summary>
+    /// <param name="gl">Die OpenGL-Instanz für die Textur-Erstellung.</param>
+    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
     public void Initialize(GL gl, string contentRoot = "Content")
     {
         string root = ResolveContentRoot(contentRoot);
@@ -92,6 +143,11 @@ public class BlockRegistry : IDisposable
         _texturesLoaded = true;
     }
 
+    /// <summary>
+    /// Initialisiert die BlockRegistry ohne GPU-Texturen (für headless-Betrieb).
+    /// Lädt nur die Blockdefinitionen und erkennt Texturen, erstellt aber keine Textur-Arrays.
+    /// </summary>
+    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
     public void InitializeHeadless(string contentRoot = "Content")
     {
         if (_initialized)
@@ -114,6 +170,9 @@ public class BlockRegistry : IDisposable
         _initialized = true;
     }
 
+    /// <summary>
+    /// Lädt Standard-Fallback-Blöcke, wenn kein Content vorhanden ist.
+    /// </summary>
     private void LoadDefaultFallbackBlocks()
     {
         _definitions = new List<BlockDefinition>
@@ -131,6 +190,10 @@ public class BlockRegistry : IDisposable
         _blockIdByName["core:snow"] = 4;
     }
 
+    /// <summary>
+    /// Setzt die BlockRegistry auf den Ausgangszustand zurück.
+    /// Gibt Texturen frei und löscht alle gespeicherten Definitionen.
+    /// </summary>
     public void Reset()
     {
         _blockIdByName.Clear();
@@ -143,6 +206,13 @@ public class BlockRegistry : IDisposable
         _texturesLoaded = false;
     }
 
+    /// <summary>
+    /// Gibt die Texture-ID (Layer-Index) für einen Block und ein Face zurück.
+    /// </summary>
+    /// <param name="blockId">Die ID des Blocks.</param>
+    /// <param name="faceIndex">Der Index des Faces (0-5).</param>
+    /// <returns>Der Layer-Index der Textur für dieses Face.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Wird ausgelöst, wenn faceIndex außerhalb des gültigen Bereichs liegt.</exception>
     public ushort Get(int blockId, int faceIndex)
     {
         if (!_initialized)
@@ -163,6 +233,12 @@ public class BlockRegistry : IDisposable
         return _definitions[blockId].Layers[faceIndex];
     }
 
+    /// <summary>
+    /// Gibt die ID eines Blocks anhand seines Namens zurück.
+    /// </summary>
+    /// <param name="blockName">Der Name des Blocks (z. B. "core:stone").</param>
+    /// <returns>Die ID des Blocks.</returns>
+    /// <exception cref="KeyNotFoundException">Wird ausgelöst, wenn der Block nicht gefunden wird.</exception>
     public ushort GetBlockId(string blockName)
     {
         if (!_initialized)
@@ -179,6 +255,12 @@ public class BlockRegistry : IDisposable
         return id;
     }
 
+    /// <summary>
+    /// Prüft, ob ein Block den angegebenen Tag hat.
+    /// </summary>
+    /// <param name="blockId">Die ID des Blocks.</param>
+    /// <param name="tag">Der Tag, der überprüft werden soll.</param>
+    /// <returns><c>true</c>, wenn der Block den Tag hat; andernfalls <c>false</c>.</returns>
     public bool HasTag(ushort blockId, string tag)
     {
         if (!_initialized)
@@ -194,6 +276,11 @@ public class BlockRegistry : IDisposable
         return _definitions[blockId].Tags.Contains(NormalizeId(tag));
     }
 
+    /// <summary>
+    /// Gibt alle Block-IDs zurück, die den angegebenen Tag haben.
+    /// </summary>
+    /// <param name="tag">Der Tag, nach dem gesucht werden soll.</param>
+    /// <returns>Ein schreibgeschütztes Kollektion mit Block-IDs.</returns>
     public IReadOnlyCollection<ushort> GetByTag(string tag)
     {
         if (!_initialized)
@@ -207,6 +294,11 @@ public class BlockRegistry : IDisposable
             : Array.Empty<ushort>();
     }
 
+    /// <summary>
+    /// Sucht alle Texturen im Content-Verzeichnis und weist ihnen Layer-IDs zu.
+    /// Wird für headless-Modus verwendet.
+    /// </summary>
+    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
     private void DiscoverTextureLayers(string contentRoot)
     {
         if (!Directory.Exists(contentRoot))
@@ -238,6 +330,14 @@ public class BlockRegistry : IDisposable
         }
     }
 
+    /// <summary>
+    /// Lädt alle Texturen in ein TextureArray und weist ihnen Layer-IDs zu.
+    /// Wird während der regulären Initialisierung verwendet.
+    /// </summary>
+    /// <param name="gl">Die OpenGL-Instanz.</param>
+    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
+    /// <exception cref="DirectoryNotFoundException">Wird ausgelöst, wenn der Content-Root nicht gefunden wird.</exception>
+    /// <exception cref="InvalidDataException">Wird ausgelöst, wenn keine Texturen gefunden werden.</exception>
     private void LoadTextures(GL gl, string contentRoot)
     {
         if (!Directory.Exists(contentRoot))
@@ -278,6 +378,10 @@ public class BlockRegistry : IDisposable
         }
     }
 
+    /// <summary>
+    /// Lädt alle Blockdefinitionen aus JSON-Dateien im Content-Verzeichnis.
+    /// </summary>
+    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
     private void LoadBlocks(string contentRoot)
     {
         _definitions = new List<BlockDefinition>
@@ -354,6 +458,13 @@ public class BlockRegistry : IDisposable
         }
     }
 
+    /// <summary>
+    /// Resolves die Texture-IDs für alle Faces eines Blocks.
+    /// </summary>
+    /// <param name="blockId">Die ID des Blocks.</param>
+    /// <param name="textures">Die Texturen, die im Block definiert sind.</param>
+    /// <param name="sourcePath">Der Pfad zur Block-Datei.</param>
+    /// <returns>Ein Array mit 6 Layer-IDs (eine pro Face).</returns>
     private ushort[] ResolveLayers(string blockId, BlockTextureFaces textures, string sourcePath)
     {
         return new ushort[]
@@ -367,6 +478,15 @@ public class BlockRegistry : IDisposable
         };
     }
 
+    /// <summary>
+    /// Resolves die Texture-ID für ein bestimmtes Face.
+    /// </summary>
+    /// <param name="textureName">Der Name der Textur.</param>
+    /// <param name="blockId">Die ID des Blocks.</param>
+    /// <param name="faceName">Der Name des Faces.</param>
+    /// <param name="sourcePath">Der Pfad zur Block-Datei.</param>
+    /// <returns>Der Layer-Index der Textur.</returns>
+    /// <exception cref="InvalidDataException">Wird ausgelöst, wenn die Textur nicht gefunden wird.</exception>
     private ushort ResolveTextureId(string? textureName, string blockId, string faceName, string sourcePath)
     {
         if (string.IsNullOrWhiteSpace(textureName))
@@ -387,13 +507,22 @@ public class BlockRegistry : IDisposable
         return layer;
     }
 
+    /// <summary>
+    /// Normalisiert einen Block- oder Textur-Bezeichner.
+    /// Trimmt Whitespace und konvertiert zu Kleinbuchstaben.
+    /// </summary>
+    /// <param name="value">Der zu normalisierende Wert.</param>
+    /// <returns>Der normalisierte Bezeichner.</returns>
     private static string NormalizeId(string value)
     {
         return value.Trim().ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Gibt alle Ressourcen frei.
+    /// </summary>
     public void Dispose()
     {
-        Reset(); // Reset() already disposes _terrainTexture correctly
+        Reset();
     }
 }

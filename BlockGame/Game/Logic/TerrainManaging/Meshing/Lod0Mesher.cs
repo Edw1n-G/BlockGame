@@ -7,6 +7,11 @@ using Basics.Game.Utilities;
 
 namespace Basics.Game.Logic.TerrainManaging.Meshing;
 
+/// <summary>
+/// Meshing-Implementierung für LOD-Level 0 (feine Auflösung).
+/// Jeder Block repräsentiert 1x1x1 Weltblock.
+/// Berechnet Ambient Occlusion (AO) für realistische Schattierung.
+/// </summary>
 public class Lod0Mesher : BaseMesher
 {
     private ushort[] _blockData;

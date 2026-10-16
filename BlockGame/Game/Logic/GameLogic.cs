@@ -1,9 +1,9 @@
 ﻿namespace Basics.Game.Logic;
 
-/**
- * Noch ungenutzte Klasse,
- * Soll später physics und gedroppte Items verwalten.
- */
+/// <summary>
+/// Noch nicht verwendete Klasse für zukünftige Game-Logik.
+/// Soll später Physics und gedroppte Items verwalten.
+/// </summary>
 public class GameLogic
 {
     

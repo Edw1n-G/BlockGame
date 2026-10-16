@@ -13,42 +13,88 @@ namespace Basics.Game.Logic.TerrainManaging;
 /// </summary>
 public class ChunkProvider : IDisposable
 {
-    // Instanzdaten: Chunk Daten und Meshing Anfragen
+    /// <summary>
+    /// Enthält alle Chunk-Daten für geladene Chunks.
+    /// </summary>
     public ConcurrentDictionary<ChunkCoord, ChunkData> Chunkdata { get; } = new();
+    
+    /// <summary>
+    /// Chunks, die für das Meshing in die Warteschlange gestellt wurden.
+    /// </summary>
     public ConcurrentDictionary<ChunkCoord, byte> QueuedForMeshing { get; } = new();
     
-    // Buffer für Meshing
+    /// <summary>
+    /// Pool für Mesh-Puffer (VBO, EBO, VAO) für das Speichermanagement.
+    /// </summary>
     public ConcurrentQueue<PooledMeshBuffer> VramPool { get; } = new();
+    
+    /// <summary>
+    /// Pool für Vertex-Listen zur Vermeidung von GC-Allocations.
+    /// </summary>
     public ConcurrentQueue<List<byte>> VertexListPool { get; } = new();
+    
+    /// <summary>
+    /// Pool für Index-Listen zur Vermeidung von GC-Allocations.
+    /// </summary>
     public ConcurrentQueue<List<uint>> IndexListPool { get; } = new();
     
-    // Meshing Anfragen
+    /// <summary>
+    /// Anfragen für Meshing, die noch bearbeitet werden müssen.
+    /// </summary>
     public ConcurrentQueue<ChunkCoord> PendingMeshRequests { get; } = new();
 
-    // Fertig zum Upload bereite Meshes 
+    /// <summary>
+    /// Meshes, die für den Upload zur GPU bereit sind.
+    /// </summary>
     public ConcurrentQueue<BaseMesher> UploadQueue { get; } = new();
     
-    // Hochgeladene Meshes
+    /// <summary>
+    /// Alle aktuell auf der GPU geladenen Chunks.
+    /// </summary>
     public ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks { get; } = new();
     
-    // Meshes die entladen werden müssen
+    /// <summary>
+    /// Chunks, die zur Entladung von der GPU vorgesehen sind.
+    /// </summary>
     public ConcurrentQueue<BaseMesher> UnloadQueue { get; } = new();
     
-    // Referenzen
+    /// <summary>
+    /// Der Job-Scheduler für Hintergrundarbeiten.
+    /// </summary>
     private readonly JobScheduler? _jobScheduler;
+    
+    /// <summary>
+    /// Globale Spiel-Einstellungen.
+    /// </summary>
     private readonly GameSettings _settings;
 
+    /// <summary>
+    /// Zugriff auf die Spiel-Einstellungen.
+    /// </summary>
     public GameSettings Settings => _settings;
+    
+    /// <summary>
+    /// Zugriff auf den Job-Scheduler.
+    /// </summary>
     public JobScheduler? JobScheduler => _jobScheduler;
 
     private GL? _gl;
     
+    /// <summary>
+    /// Initialisiert einen neuen ChunkProvider.
+    /// </summary>
+    /// <param name="jobScheduler">Optionaler Job-Scheduler für Hintergrundarbeiten.</param>
+    /// <param name="settings">Optionale Spiel-Einstellungen. Falls nicht angegeben, werden Standardwerte verwendet.</param>
     public ChunkProvider(JobScheduler? jobScheduler = null, GameSettings? settings = null)
     {
         _jobScheduler = jobScheduler;
         _settings = settings ?? EngineContext.Current?.Settings ?? GameSettings.Current;
     }
 
+    /// <summary>
+    /// Bindet den OpenGL-Kontext an den Provider für GPU-Operationen.
+    /// </summary>
+    /// <param name="gl">Der OpenGL-Kontext.</param>
     public void AttachGraphicsContext(GL gl)
     {
         _gl = gl;
@@ -59,6 +105,7 @@ public class ChunkProvider : IDisposable
     /// dann ob er von der Festplatte geladen werden kann,
     /// und generiert ihn ansonsten neu.
     /// </summary>
+    /// <param name="coord">Die Koordinaten desChunks.</param>
     public void RequestChunk(ChunkCoord coord)
     {
         // Bereits geladen oder Daten bereits generiert? → nichts tun
@@ -72,7 +119,8 @@ public class ChunkProvider : IDisposable
     }
     
     /// <summary>
-    /// Holt Meshes aus der Warteschlange und schickt sie an den Scheduler
+    /// Fordert Meshes aus der Upload-Warteschlange an und sendet sie an den Scheduler.
+    /// Berücksichtigt die maximale Anzahl an Chunks im RAM.
     /// </summary>
     public void RequestMeshes()
     {
@@ -85,6 +133,11 @@ public class ChunkProvider : IDisposable
         }
     }
 
+    /// <summary>
+    /// Prüft, ob alle 26 Nachbarn (3x3x3) eines Chunks geladen sind.
+    /// </summary>
+    /// <param name="c">Der zu prüfende Chunk.</param>
+    /// <returns><c>true</c>, wenn alle Nachbarn geladen sind, andernfalls <c>false</c>.</returns>
     private bool HasAllNeighbors(ChunkCoord c)
     {
         // 6 direkte Nachbarn
@@ -126,6 +179,11 @@ public class ChunkProvider : IDisposable
     /// Ändert einen Block an einer Weltposition und löst Re-Meshing aus.
     /// Gibt true zurück wenn der Block erfolgreich geändert wurde.
     /// </summary>
+    /// <param name="worldX">X-Koordinate im Weltkoordinatensystem.</param>
+    /// <param name="worldY">Y-Koordinate im Weltkoordinatensystem.</param>
+    /// <param name="worldZ">Z-Koordinate im Weltkoordinatensystem.</param>
+    /// <param name="newBlockId">Die neue Block-ID.</param>
+    /// <returns><c>true</c>, wenn der Block erfolgreich geändert wurde, andernfalls <c>false</c>.</returns>
     public bool ModifyBlock(int worldX, int worldY, int worldZ, ushort newBlockId)
     {
         ChunkCoord chunkCoord = ChunkData.WorldToChunkCoord(worldX, worldY, worldZ);
@@ -150,6 +208,7 @@ public class ChunkProvider : IDisposable
     /// <summary>
     /// Schickt einen Chunk zum Re-Meshing. Das alte Mesh wird erst entladen, wenn das neue fertig ist.
     /// </summary>
+    /// <param name="coord">Die Koordinaten des zu re-meschenden Chunks.</param>
     public void RemeshChunk(ChunkCoord coord)
     {
         if (!Chunkdata.ContainsKey(coord)) return;
@@ -164,6 +223,8 @@ public class ChunkProvider : IDisposable
     /// <summary>
     /// Gibt die ChunkData an einer Weltposition zurück oder null, wenn nicht geladen.
     /// </summary>
+    /// <param name="coord">Die Koordinaten des Chunks.</param>
+    /// <returns>Die Chunk-Daten oder <c>null</c>, wenn der Chunk nicht geladen ist.</returns>
     public ChunkData? GetChunkData(ChunkCoord coord)
     {
         Chunkdata.TryGetValue(coord, out ChunkData? data);
@@ -173,6 +234,10 @@ public class ChunkProvider : IDisposable
     /// <summary>
     /// Gibt die Block-ID an einer Weltposition zurück (0 = Luft/nicht geladen).
     /// </summary>
+    /// <param name="worldX">X-Koordinate im Weltkoordinatensystem.</param>
+    /// <param name="worldY">Y-Koordinate im Weltkoordinatensystem.</param>
+    /// <param name="worldZ">Z-Koordinate im Weltkoordinatensystem.</param>
+    /// <returns>Die Block-ID oder 0, wenn der Block nicht geladen ist.</returns>
     public ushort GetBlockAt(int worldX, int worldY, int worldZ)
     {
         ChunkCoord chunkCoord = ChunkData.WorldToChunkCoord(worldX, worldY, worldZ);
@@ -185,6 +250,7 @@ public class ChunkProvider : IDisposable
     /// <summary>
     /// Entfernt einen Chunk aus dem Speicher und gibt seine Ressourcen frei.
     /// </summary>
+    /// <param name="coord">Die Koordinaten des zu entladenden Chunks.</param>
     public void UnloadChunk(ChunkCoord coord)
     {
         if (LoadedChunks.TryRemove(coord, out BaseMesher? chunk))
@@ -199,6 +265,7 @@ public class ChunkProvider : IDisposable
     /// <summary>
     /// Gibt alle aktuell geladenen Chunks zurück (für den Renderer).
     /// </summary>
+    /// <returns>Ein Enumerabler über alle geladenen Chunks.</returns>
     public IEnumerable<BaseMesher> GetLoadedChunks()
     {
         return LoadedChunks.Values;
@@ -207,6 +274,8 @@ public class ChunkProvider : IDisposable
     /// <summary>
     /// Prüft ob ein Chunk bereits geladen ist.
     /// </summary>
+    /// <param name="coord">Die Koordinaten des zu prüfenden Chunks.</param>
+    /// <returns><c>true</c>, wenn der Chunk geladen ist, andernfalls <c>false</c>.</returns>
     public bool IsChunkLoaded(ChunkCoord coord)
     {
         return LoadedChunks.ContainsKey(coord);
@@ -249,6 +318,11 @@ public class ChunkProvider : IDisposable
     // =========================================================================
 
     private static ChunkProvider? _fallbackInstance;
+    
+    /// <summary>
+    /// Zugriff auf den aktuellen ChunkProvider über eine globale Fassade.
+    /// Fallback-Instanz, falls kein EngineContext verfügbar ist.
+    /// </summary>
     public static ChunkProvider Current
     {
         get => EngineContext.Current?.ChunkProvider ?? (_fallbackInstance ??= new ChunkProvider());

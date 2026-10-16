@@ -5,6 +5,9 @@ using Basics.Input;
 
 namespace Basics.Game.Player;
 
+/// <summary>
+/// Verwaltet die Spielerbewegung basierend auf Eingabe und Kamera.
+/// </summary>
 public class PlayerMovement
 {
     private readonly PlayerCharacter _player;
@@ -12,6 +15,11 @@ public class PlayerMovement
     private Vector2 _lastMousePosition;
     private Camera _activeCamera;
 
+    /// <summary>
+    /// Initialisiert eine neue Instanz von <see cref="PlayerMovement"/>.
+    /// </summary>
+    /// <param name="player">Der zu steuernde <see cref="PlayerCharacter"/>.</param>
+    /// <param name="settings">Die optionalen <see cref="GameSettings"/> für Bewegungsparameter.</param>
     public PlayerMovement(PlayerCharacter player, GameSettings? settings = null)
     {
         _player = player;
@@ -19,18 +27,29 @@ public class PlayerMovement
         _activeCamera = player.Camera;
     }
 
+    /// <summary>
+    /// Legt die aktive Kamera für die Bewegung fest.
+    /// </summary>
+    /// <param name="camera">Die neue aktive <see cref="Camera"/>.</param>
     public void SetActiveCamera(Camera camera)
     {
         _activeCamera = camera;
         _lastMousePosition = default;
     }
 
+    /// <summary>
+    /// Setzt die Spielerkamera als aktive Kamera zurück.
+    /// </summary>
     public void UsePlayerCamera()
     {
         _activeCamera = _player.Camera;
         _lastMousePosition = default;
     }
 
+    /// <summary>
+    /// Führt die Bewegungsaktualisierung basierend auf Tastatureingabe aus.
+    /// </summary>
+    /// <param name="deltaTime">Die Zeit in Sekunden seit dem letzten Frame.</param>
     public void MovementUpdate(double deltaTime)
     {
         Vector3 direction = Vector3.Zero;
@@ -66,6 +85,10 @@ public class PlayerMovement
         MoveCamera(_activeCamera, direction);
     }
 
+    /// <summary>
+    /// Verarbeitet Mausbewegungen für die Kamerasteuerung.
+    /// </summary>
+    /// <param name="mousePosition">Die aktuelle Mausposition.</param>
     public void LookUpdate(Vector2 mousePosition)
     {
         if (_lastMousePosition == default)
@@ -82,6 +105,12 @@ public class PlayerMovement
         _activeCamera.Rotate(yaw, pitch);
     }
 
+    /// <summary>
+    /// Bewegt die Kamera unabhängig von der Spielerbewegung.
+    /// Wird für die Debug-Kamera verwendet.
+    /// </summary>
+    /// <param name="camera">Die zu bewegende <see cref="Camera"/>.</param>
+    /// <param name="direction">Die Bewegungsrichtung.</param>
     private static void MoveCamera(Camera camera, Vector3 direction)
     {
         Vector3 groundedFront = Vector3.Normalize(new Vector3(camera.Front.X, 0, camera.Front.Z));

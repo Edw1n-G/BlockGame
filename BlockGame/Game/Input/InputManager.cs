@@ -5,45 +5,77 @@ using Basics.Game.Player;
 
 namespace Basics.Input;
 
-// Fenstereinstelungen
-using Silk.NET.Input; //Für die Tastatureingabe
+using Silk.NET.Input; // Für die Tastatureingabe
 using System.Linq;
 using System;
 
-//Liste an Aktionen die durch Tasten getriggert werden können.
+/// <summary>
+/// Definiert alle verfügbaren Aktionen, die durch Tasten oder Maus ausgelöst werden können.
+/// </summary>
 public enum Actions
 {
+    /// <summary>Beendet die Anwendung.</summary>
     Close,
+    /// <summary>Schaltet den Vollbildmodus ein/aus.</summary>
     Fullscreen,
+    /// <summary>Schaltet den randlosen Vollbildmodus ein/aus.</summary>
     Borderless,
+    /// <summary>Schaltet die Debug-Kamera ein/aus.</summary>
     ToogleDebugCamera,
+    /// <summary>Bewegt den Spieler nach oben.</summary>
     Up,
+    /// <summary>Bewegt den Spieler nach unten.</summary>
     Down,
+    /// <summary>Bewegt den Spieler nach links.</summary>
     Left,
+    /// <summary>Bewegt den Spieler nach rechts.</summary>
     Right,
+    /// <summary>Bewegt den Spieler vorwärts.</summary>
     Forward,
+    /// <summary>Bewegt den Spieler rückwärts.</summary>
     Backward,
+    /// <summary>Sperrt/entsperrt die Maus.</summary>
     ToggleMouseLock,
+    /// <summary>Zerstört den Block in der Blickrichtung.</summary>
     DestroyBlock,
+    /// <summary>Plaziert einen Block in der Blickrichtung.</summary>
     PlaceBlock
 }
 
+/// <summary>
+/// Verwaltet alle Eingabeoperationen (Tastatur und Maus) und bindet sie an Aktionen.
+/// </summary>
+/// <remarks>
+/// Der InputManager übersetzt physische Tasten- und Mausbewegungen in semantische Aktionen,
+/// die von anderen Systemen (Player, UI, etc.) verwendet werden können.
+/// </remarks>
 public class InputManager
 {
     private static IKeyboard _keyboard;
     private static IMouse _mouse;
     
+    /// <summary>Gibt an, ob die Maus aktuell gesperrt ist (unbegrenzt im Raum).</summary>
     private static Boolean _isMouseLocked = false;
-    public static bool IsMouseLocked => _isMouseLocked; //getter um ui interaktion zu locken
+    /// <summary>Die aktuelle Sperrung der Maus.</summary>
+    public static bool IsMouseLocked => _isMouseLocked;
     
+    /// <summary>Das für die Spielerbewegung verwendete <see cref="PlayerMovement"/> oder null.</summary>
     private static PlayerMovement? _playerMovement;
     
-    //TODO: InputManager komplett vom Spieler trennen damit es nur als Translation von Input zu Aktionen dient.
+    /// <summary>
+    /// Legt das für die Spielerbewegung verwendete <see cref="PlayerMovement"/> fest.
+    /// </summary>
+    /// <param name="playerMovement">Das festzulegende <see cref="PlayerMovement"/>.</param>
     public static void SetPlayerMovement(PlayerMovement playerMovement)
     {
         _playerMovement = playerMovement;
     }
 
+    /// <summary>
+    /// Initialisiert den InputManager mit den bereitgestellten Eingabegeräten.
+    /// Bindet Tastatur- und Maus-Ereignisse an die internen Handler.
+    /// </summary>
+    /// <param name="input">Der Eingabe-Kontext mit verfügbaren Tastatur- und Mausgeräten.</param>
     public static void Initialize(IInputContext input)
     {
         _keyboard = input.Keyboards.FirstOrDefault();
@@ -56,7 +88,7 @@ public class InputManager
         _mouse = input.Mice.FirstOrDefault();
         if (_mouse != null)
         {
-            _mouse.Cursor.CursorMode = CursorMode.Raw; //Mauszeiger unsichtbar und unbegrenzt
+            _mouse.Cursor.CursorMode = CursorMode.Raw; // Mauszeiger unsichtbar und unbegrenzt
             _isMouseLocked = true;
             _mouse.MouseMove += OnMouseMove;
             _mouse.Scroll += OnMouseWheel;
@@ -69,11 +101,13 @@ public class InputManager
         SetActionBindings(Actions.ToggleMouseLock, ToggleMouseLock);
     }
     
-    //Funktionen zum Verwalten der Tastenbelegung Mapping Key -> Aktion
-    //==========================================================
-    private static Dictionary<Actions, Key> _keyBindings = new Dictionary<Actions, Key>(); //leere Dictionary
+    // Funktionen zum Verwalten der Tastenbelegung Mapping Key -> Aktion
+    // ==========================================================
+    /// <summary>Dictionary für die Tastenbelegung (Aktion → Taste).</summary>
+    private static Dictionary<Actions, Key> _keyBindings = new Dictionary<Actions, Key>();
     
-    private static void DefaultKeyBindings() //Dictionary Füllen mit Standardbelegung
+    /// <summary>Fügt die Standard-Tastenbelegungen in das <see cref="_keyBindings"/> Dictionary ein.</summary>
+    private static void DefaultKeyBindings()
     {
         _keyBindings.Add(Actions.Close, Key.Escape);
         _keyBindings.Add(Actions.Fullscreen, Key.F11);
@@ -86,10 +120,12 @@ public class InputManager
         _keyBindings.Add(Actions.Forward, Key.W);
         _keyBindings.Add(Actions.Backward, Key.S);
         _keyBindings.Add(Actions.ToggleMouseLock, Key.F);
-        
     }
     
-    public static void SetkeyBindings(Actions action, Key key) //Dictonary Updaten
+    /// <summary>Aktualisiert die Tastenbelegung für eine Aktion.</summary>
+    /// <param name="action">Die Aktion, deren Belegung geändert werden soll.</param>
+    /// <param name="key">Die neue Taste für diese Aktion.</param>
+    public static void SetkeyBindings(Actions action, Key key)
     {
         if (_keyBindings.ContainsKey(action))
         {
@@ -101,19 +137,25 @@ public class InputManager
         }
     }
     
+    /// <summary>Dictionary für die Maustastenbelegung (Aktion → Maustaste).</summary>
     private static Dictionary<Actions, MouseButton> _mouseBindings = new Dictionary<Actions, MouseButton>();
     
+    /// <summary>Fügt die Standard-Mausbelegungen in das <see cref="_mouseBindings"/> Dictionary ein.</summary>
     private static void DefaultMouseBindings()
     {
         _mouseBindings.Add(Actions.DestroyBlock, MouseButton.Left);
         _mouseBindings.Add(Actions.PlaceBlock, MouseButton.Right);
     }
-    //==========================================================
+    // ==========================================================
     
-    //Mapping Aktion -> Methode (Action = void Methode, Actions = Enum)
-    //==========================================================
+    // Mapping Aktion → Methode (Action = void Methode, Actions = Enum)
+    // ==========================================================
+    /// <summary>Dictionary für die Aktionen-Zuordnung (Aktion → Methode).</summary>
     private static Dictionary<Actions, Action> _actionBindings = new Dictionary<Actions, Action>();
     
+    /// <summary>Fügt oder aktualisiert die Methode für eine Aktion hinzu.</summary>
+    /// <param name="action">Die Aktion, deren Methode gesetzt werden soll.</param>
+    /// <param name="method">Die für diese Aktion aufzurufende <see cref="Action"/>.</param>
     public static void SetActionBindings(Actions action, Action method)
     {
         if (_actionBindings.ContainsKey(action))
@@ -125,16 +167,23 @@ public class InputManager
             _actionBindings.Add(action, method);
         }
     }
-    //==========================================================
+    // ==========================================================
     
-    //Funktionen zum Abfragen von Tasten
-    //==========================================================
+    // Funktionen zum Abfragen von Tasten
+    // ==========================================================
+    /// <summary>Prüft, ob eine Taste auf der Tastatur gedrückt ist.</summary>
+    /// <param name="keyboard">Die zu überprüfende <see cref="IKeyboard"/>.</param>
+    /// <param name="key">Die zu prüfende <see cref="Key"/>.</param>
+    /// <returns><c>true</c>, wenn die Taste gedrückt ist, andernfalls <c>false</c>.</returns>
     public static bool IsKeyPressed(IKeyboard keyboard, Key key)
     {
         if (_keyboard == null) return false;
         return _keyboard.IsKeyPressed(key);
     }
     
+    /// <summary>Prüft, ob eine Aktion (durch Taste oder Maus) ausgeführt wird.</summary>
+    /// <param name="action">Die zu prüfende <see cref="Actions"/>.</param>
+    /// <returns><c>true</c>, wenn die Aktion ausgeführt wird, andernfalls <c>false</c>.</returns>
     public static bool IsActionPressed(Actions action)
     {
         if (_keyboard == null) return false;
@@ -150,13 +199,16 @@ public class InputManager
         
         return false;
     }
-    //==========================================================
+    // ==========================================================
     
     
     // Funktionen zum Verarbeiten von Tasten
+    /// <summary>Handler für Tastatur-KeyDown-Ereignisse.</summary>
+    /// <param name="keyboard">Die auslösende <see cref="IKeyboard"/>.</param>
+    /// <param name="key">Die gedrückte <see cref="Key"/>.</param>
+    /// <param name="arg3">Weitere Daten (nicht verwendet).</param>
     private static void KeyDown(IKeyboard keyboard, Key key, int arg3)
     {
-        
         // Wir suchen rückwärts: Welche Aktion gehört zu dieser Taste?
         foreach (var binding in _keyBindings)
         {
@@ -166,29 +218,41 @@ public class InputManager
                 if (_actionBindings.TryGetValue(binding.Key, out Action callback))
                 {
                     callback?.Invoke();
-                    
                 }
             }
         }
     }
 
+    /// <summary>Handler für Tastatur-KeyUp-Ereignisse (aktuell nicht implementiert).</summary>
+    /// <param name="keyboard">Die auslösende <see cref="IKeyboard"/>.</param>
+    /// <param name="key">Die losgelassene <see cref="Key"/>.</param>
+    /// <param name="arg3">Weitere Daten (nicht verwendet).</param>
     private static void KeyUp(IKeyboard keyboard, Key key, int arg3)
     {
         
     }
     
-    //Funktionen zum Verarbeiten von Mausbewegungen
+    // Funktionen zum Verarbeiten von Mausbewegungen
+    /// <summary>Handler für Mausbewegungs-Ereignisse.</summary>
+    /// <param name="mouse">Die auslösende <see cref="IMouse"/>.</param>
+    /// <param name="position">Die aktuelle Mausposition.</param>
     private static void OnMouseMove(IMouse mouse, Vector2 position)
     {
-        //TODO: Herausfinden ob ich das hier haben will
         _playerMovement?.LookUpdate(position);
     }
 
+    /// <summary>Handler für Maus-Scroll-Ereignisse (aktuell nicht implementiert).</summary>
+    /// <param name="mouse">Die auslösende <see cref="IMouse"/>.</param>
+    /// <param name="scrollWheel">Die ScrollWheel-Informationen.</param>
     private static unsafe void OnMouseWheel(IMouse mouse, ScrollWheel scrollWheel)
     {
         
     }
     
+    /// <summary>Handler für Maus-Klick-Ereignisse.</summary>
+    /// <param name="mouse">Die auslösende <see cref="IMouse"/>.</param>
+    /// <param name="button">Die gedrückte <see cref="MouseButton"/>.</param>
+    /// <param name="pos">Die Mausposition beim Klick.</param>
     private static void OnMouseClick(IMouse mouse, MouseButton button, Vector2 pos)
     {
         // Check if the clicked button is bound to an action
@@ -205,18 +269,19 @@ public class InputManager
         }
     }
     
+    /// <summary>Schaltet die Mauspfeil-Sperrung um (sichtbar/unbegrenzt).</summary>
     private static void ToggleMouseLock()
     {
         if (_mouse == null) return;
         
         if (_isMouseLocked)
         {
-            _mouse.Cursor.CursorMode = CursorMode.Normal; //Mauszeiger sichtbar und begrenzt
+            _mouse.Cursor.CursorMode = CursorMode.Normal; // Mauszeiger sichtbar und begrenzt
             _isMouseLocked = false;
         }
         else
         {
-            _mouse.Cursor.CursorMode = CursorMode.Raw; //Mauszeiger unsichtbar und unbegrenzt
+            _mouse.Cursor.CursorMode = CursorMode.Raw; // Mauszeiger unsichtbar und unbegrenzt
             _isMouseLocked = true;
         }
     }

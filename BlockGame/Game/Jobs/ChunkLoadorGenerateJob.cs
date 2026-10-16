@@ -3,15 +3,29 @@ using Basics.Game.Logic.TerrainManaging.Meshing;
 
 namespace Basics.Game.Utilities;
 
+/// <summary>
+/// Job zum Laden oder Generieren eines Chunks.
+/// Prüft zuerst, ob der Chunk von der Festplatte geladen werden kann,
+/// andernfalls wird er mit dem <see cref="TerrainGenerator"/> generiert.
+/// </summary>
 public class ChunkLoadorGenerateJob : IJob
 {
+    /// <summary>Die Koordinaten des zu ladenden/generierenden Chunks.</summary>
     private ChunkCoord ChunkCoord;
     
+    /// <summary>
+    /// Initialisiert eine neue Instanz von <see cref="ChunkLoadorGenerateJob"/>.
+    /// </summary>
+    /// <param name="chunkCoord">Die Koordinaten des zu ladenden/generierenden Chunks.</param>
     public ChunkLoadorGenerateJob(ChunkCoord chunkCoord)
     {
         this.ChunkCoord = chunkCoord;
     }
     
+    /// <summary>
+    /// Führt den Chunk-Lade- oder Generierungs-Job aus.
+    /// </summary>
+    /// <param name="context">Der <see cref="JobContext"/> mit den notwendigen Ressourcen.</param>
     public void Execute(JobContext context)
     {
         // Versuch von Festplatte zu laden (Placeholder)
@@ -28,9 +42,11 @@ public class ChunkLoadorGenerateJob : IJob
     }
     
     /// <summary>
-    /// Placeholder: Versucht einen Chunk von der Festplatte zu laden.
-    /// Gibt vorerst immer false zurück.
+    /// Versucht, einen Chunk von der Festplatte zu laden (derzeit nicht implementiert).
     /// </summary>
+    /// <param name="chunkCoord">Die Koordinaten des zu ladenden Chunks.</param>
+    /// <param name="chunk">Der geladene Chunk oder null.</param>
+    /// <returns>Immer <c>false</c>, da die Festplatten-Integration noch nicht implementiert ist.</returns>
     private bool TryLoadFromDisk(ChunkCoord chunkCoord, out BaseMesher? chunk)
     {
         // TODO: Implementierung für Chunk-Laden von der Festplatte
@@ -38,6 +54,12 @@ public class ChunkLoadorGenerateJob : IJob
         return false;
     }
     
+    /// <summary>
+    /// Wird nach der Chunk-Datengenerierung aufgerufen.
+    /// Prüft, ob der Chunk und seine Nachbarn für das Meshing vorbereitet werden können.
+    /// </summary>
+    /// <param name="provider">Der <see cref="ChunkProvider"/> für die Meshing-Anfragen.</param>
+    /// <param name="coord">Die Koordinaten des gerade generierten Chunks.</param>
     public void OnChunkDataGenerated(ChunkProvider provider, ChunkCoord coord)
     {
         // chunk selbst prüfen
@@ -74,6 +96,11 @@ public class ChunkLoadorGenerateJob : IJob
         TryQueueForMeshing(provider, new ChunkCoord(coord.X - 1, coord.Y - 1, coord.Z - 1, coord.LodLevel));
     }
     
+    /// <summary>
+    /// Prüft, ob ein Chunk für das Meshing in die Warteschlange eingereiht werden soll.
+    /// </summary>
+    /// <param name="provider">Der <see cref="ChunkProvider"/> für die Meshing-Anfragen.</param>
+    /// <param name="coord">Die Koordinaten des zu prüfenden Chunks.</param>
     private void TryQueueForMeshing(ChunkProvider provider, ChunkCoord coord)
     {
         // Selbstcheck um existenzkrisen zu vermeiden
@@ -88,6 +115,12 @@ public class ChunkLoadorGenerateJob : IJob
         }
     }
     
+    /// <summary>
+    /// Prüft, ob der angegebene Chunk alle notwendigen Nachbarn (26 Nachbarn) geladen hat.
+    /// </summary>
+    /// <param name="provider">Der <see cref="ChunkProvider"/> für die Chunk-Daten.</param>
+    /// <param name="c">Die Koordinaten des zu prüfenden Chunks.</param>
+    /// <returns><c>true</c>, wenn alle Nachbarn geladen sind, andernfalls <c>false</c>.</returns>
     private bool HasAllNeighbors(ChunkProvider provider, ChunkCoord c)
     {
         // 6 direkte Nachbarn

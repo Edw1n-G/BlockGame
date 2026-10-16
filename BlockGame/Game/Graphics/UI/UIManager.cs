@@ -6,23 +6,38 @@ using Egui;
 
 namespace Basics.Graphics.UI
 {
-    
+    /// <summary>
+    /// Verwaltet die Egui-basierte Benutzeroberfläche (UI).
+    /// Zeichnet UI-Elemente wie Kameraansicht, Settings-Fenster, Spielerinformationen und Render-Distance-Steuerung.
+    /// </summary>
     public class UIManager
     {
         private ChunkRequestor _chunkRequestor;
         private readonly GameSettings _settings;
+        
+        /// <summary>
+        /// Ereignis, das ausgelöst wird, wenn sich die Render-Distance geändert hat.
+        /// </summary>
         public static event Action OnRenderDistanceChanged;
 
+        /// <summary>
+        /// Initialisiert eine neue Instanz des <see cref="UIManager"/>-Klassens.
+        /// </summary>
+        /// <param name="requestor">Der ChunkRequestor, der zum Entladen von Chunks verwendet wird.</param>
+        /// <param name="settings">Optional die zu verwendenden GameSettings. Wenn nicht angegeben, werden die aktuellen Settings verwendet.</param>
         public UIManager(ChunkRequestor requestor, GameSettings? settings = null)
         {
             _chunkRequestor = requestor;
             _settings = settings ?? EngineContext.Current?.Settings ?? GameSettings.Current;
         }
 
-        // Diese Methode wird aus dem Integration.Run() aufgerufen
+        /// <summary>
+        /// Zeichnet alle UI-Elemente.
+        /// Wird aus dem Egui-Integration.Run()-Methoden aufgerufen.
+        /// </summary>
+        /// <param name="ctx">Der Egui-Kontext für das Zeichnen.</param>
         public void Draw(Context ctx)
         {
-            // Globale Settings. style und ctx sind bitches die man nicht direkt bearbeiten kann
             var style = ctx.Style;
             var visuals = style.Visuals;
             visuals.WindowShadow = Shadow.None;
@@ -30,13 +45,10 @@ namespace Basics.Graphics.UI
             style.Visuals = visuals;
             ctx.SetStyle(style);
             
-            //Normal Ohne alles
             new Egui.Containers.Area("crosshair")
                 .Anchor(Align2.CenterCenter, new EVec2(0, 0))
                 .Show(ctx, ui => { ui.Label("+"); });
         
-            
-            // Window haben ctx default settings aber mit schatten overwritten
             new Egui.Containers.Window("Engine Settings")
                 .Resizable((false, false))
                 .Show(ctx, ui =>
@@ -77,51 +89,42 @@ namespace Basics.Graphics.UI
                     }
                 });
             
-            // Hier ist mit einem Frame wo dann lokal extra Sachen gesezt werden
             new Egui.Containers.Area("PlayerInformation")
                 .Anchor(Align2.RightTop, new EVec2(-10, 10))
                 .Show(ctx, ui =>
                 {
-                    // Einen Frame definieren. Hier kannst du Farbe, Rundungen und Abstände (Margin) anpassen.
                     var backgroundFrame = new Egui.Containers.Frame
                     {
                         Fill = Color32.Black,
                         CornerRadius = new CornerRadius { Nw = 5, Ne = 5, Sw = 5, Se = 5 }
                     };
 
-                    // Den Frame in das 'ui' der Area zeichnen. 
                     backgroundFrame.Show(ui, frameUi =>
                     {
                         frameUi.Heading("Player Information");
 
-                        // Ein Grid für tabellarische Ausrichtung erstellen
                         new Egui.Grid("player_info_grid")
-                            .Striped(true) // Optional: Fügt einen leichten Hintergrund für jede zweite Zeile hinzu
+                            .Striped(true)
                             .Show(frameUi, gridUi =>
                             {
-                                // Zeile 1: X-Koordinate
                                 gridUi.Label("X:");
                                 gridUi.Label(EngineStates.Game.PlayerCamera.Position.X.ToString("0.00"));
-                                gridUi.EndRow(); // Beendet die aktuelle Zeile im Raster
+                                gridUi.EndRow();
 
-                                // Zeile 2: Y-Koordinate
                                 gridUi.Label("Y:");
                                 gridUi.Label(EngineStates.Game.PlayerCamera.Position.Y.ToString("0.00"));
                                 gridUi.EndRow();
 
-                                // Zeile 3: Z-Koordinate
                                 gridUi.Label("Z:");
                                 gridUi.Label(EngineStates.Game.PlayerCamera.Position.Z.ToString("0.00"));
                                 gridUi.EndRow();
 
-                                // Zeile 4: Chunk
                                 gridUi.Label("Chunk:");
                                 ChunkCoord currentChunk =
                                     EngineStates.Game.PlayerCamera.GetChunkCoord(EngineStates.Game.PlayerCamera.Position);
                                 gridUi.Label(currentChunk.ToString());
                                 gridUi.EndRow();
 
-                                // Zeile 5: FPS
                                 gridUi.Label("FPS:");
                                 gridUi.Label(EngineStates.Game.Fps.ToString("0.00"));
                                 gridUi.EndRow();

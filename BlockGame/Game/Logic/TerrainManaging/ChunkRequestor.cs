@@ -10,19 +10,60 @@ namespace Basics.Game.Logic.TerrainManaging;
 /// </summary>
 public class ChunkRequestor
 {
+    /// <summary>
+    /// Der ChunkProvider für Chunk-Operationen.
+    /// </summary>
     private readonly ChunkProvider _chunkProvider;
+    
+    /// <summary>
+    /// Der Spieler-Charakter.
+    /// </summary>
     private readonly PlayerCharacter _player;
+    
+    /// <summary>
+    /// Globale Spiel-Einstellungen.
+    /// </summary>
     private readonly GameSettings _settings;
+    
+    /// <summary>
+    /// Render-Entfernung in Chunks.
+    /// </summary>
     private int _renderDistance;
+    
+    /// <summary>
+    /// Entfernung für Level-of-Detail Level 1.
+    /// </summary>
     private int _lod1Distance;
+    
+    /// <summary>
+    /// Entfernung für Level-of-Detail Level 2.
+    /// </summary>
     private int _lod2Distance;
+    
+    /// <summary>
+    /// Vertikale Render-Entfernung in Chunks.
+    /// </summary>
     private int _verticalRenderDistance;
+    
+    /// <summary>
+    /// Menge aller aktiven Chunks.
+    /// </summary>
     private HashSet<ChunkCoord> _activeChunks = new();
+    
+    /// <summary>
+    /// Lock-Objekt für Thread-Synchronisation.
+    /// </summary>
     private readonly object _chunkLock = new();
 
     private ChunkCoord _lastPlayerChunk;
     private bool _isUpdating = false;
 
+    /// <summary>
+    /// Initialisiert einen neuen ChunkRequestor.
+    /// </summary>
+    /// <param name="player">Der Spieler-Charakter.</param>
+    /// <param name="chunkProvider">Der ChunkProvider für Chunk-Operationen.</param>
+    /// <param name="settings">Optionale Spiel-Einstellungen. Falls nicht angegeben, werden Standardwerte verwendet.</param>
     public ChunkRequestor(PlayerCharacter player, ChunkProvider chunkProvider, GameSettings? settings = null)
     {
         _player = player;
@@ -41,6 +82,7 @@ public class ChunkRequestor
     /// Event-Handler: Wird aufgerufen, wenn der Spieler in einen neuen Chunk wechselt.
     /// Berechnet welche Chunks im Render-Radius liegen und fordert sie an.
     /// </summary>
+    /// <param name="playerChunk">Die Chunk-Koordinaten, in die der Spieler gewechselt ist.</param>
     private void OnPlayerChunkChanged(ChunkCoord playerChunk)
     {
         lock (_chunkLock)
@@ -125,6 +167,7 @@ public class ChunkRequestor
     /// <summary>
     /// Entlädt Chunks, die nicht mehr im aktiven Set sind.
     /// </summary>
+    /// <param name="newActiveChunks">Die Menge der neuen aktiven Chunks.</param>
     private void UnloadDistantChunks(HashSet<ChunkCoord> newActiveChunks)
     {
         // Alle Chunks finden, die vorher aktiv waren aber jetzt nicht mehr
@@ -137,6 +180,9 @@ public class ChunkRequestor
         }
     }
     
+    /// <summary>
+    /// Entlädt alle aktuell geladenen Chunks und leert die aktiven Chunks.
+    /// </summary>
     public void UnloadAllChunks()
     {
         lock (_chunkLock)

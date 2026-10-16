@@ -9,42 +9,111 @@ using Silk.NET.OpenGL;
 
 namespace Basics.Game.Logic.TerrainManaging.Meshing;
 
+/// <summary>
+/// Basisklasse für alle Meshing-Implementierungen.
+/// Stellt gemeinsame Funktionalität für Vertex- und Index-Verwaltung sowie GPU-Upload bereit.
+/// </summary>
 public class BaseMesher : IDisposable
 {
-    // Vertex Layout: 3 floats (12 Bytes) + ushort (2 Bytes for Layer) + 1 byte (AO) + 1 byte (padding) = 16 Bytes per Vertex
+    /// <summary>
+    /// Layout eines Vertices: 3 floats (12 Bytes) + ushort (2 Bytes für Texture-Layer) + 1 byte (AO) + 1 byte (Padding) = 16 Bytes pro Vertex.
+    /// </summary>
     protected const int VertexStride = 16;
+    /// <summary>
+    /// Geschätzte Anzahl sichtbarer Flächen pro Chunk (maximale Schätzung für Speicherallokation).
+    /// </summary>
     protected static readonly int EstimatedSurfaceFaces = 6 * 16 * 16;
+    /// <summary>
+    /// Geschätzte Gesamtbytes für Vertices (bei maximaler Flächenanzahl).
+    /// </summary>
     protected static readonly int EstimatedVertexBytes = EstimatedSurfaceFaces * 4 * VertexStride;
+    /// <summary>
+    /// Geschätzte Anzahl von Indices (6 indices pro Fläche).
+    /// </summary>
     protected static readonly int EstimatedIndices = EstimatedSurfaceFaces * 6;
     
-    public ChunkCoord ChunkPosition; // Position des Chunks in Chunk-Koordinaten (z.B. 0/0, 1/0, -1/0, etc.)
+    /// <summary>
+    /// Position des Chunks in Chunk-Koordinaten (z.B. 0/0, 1/0, -1/0, etc.).
+    /// </summary>
+    public ChunkCoord ChunkPosition;
     
-    //Listen um mit der geometriy komplexität zu wachsen
+    /// <summary>
+    /// Listen für Vertex- und Index-Daten, wachsen mit der Geometriekomplexität.
+    /// </summary>
     protected List<uint> _indices;
     protected List<byte> _vertices;
     
+    /// <summary>
+    /// Aktuelle Anzahl der Vertices im Mesh.
+    /// </summary>
     protected int _vertexCount;
+    /// <summary>
+    /// Aktuelle Anzahl der Indices im Mesh.
+    /// </summary>
     protected uint _indicesCount;
     
+    /// <summary>
+    /// Model-Matrix für die World-Transformation dieses Chunks.
+    /// </summary>
     protected Matrix4x4 model;
     
-    // Die OpenGL Handles für diesen spezifischen Chunk
+    /// <summary>
+    /// Die OpenGL-Instanz für diesen spezifischen Chunk.
+    /// </summary>
     private GL? _gl;
     
+    /// <summary>
+    /// Vertex Buffer Object Handle für diesen Chunk.
+    /// </summary>
     private uint _vbo;
+    /// <summary>
+    /// Element Buffer Object Handle für diesen Chunk.
+    /// </summary>
     private uint _ebo;
+    /// <summary>
+    /// Vertex Array Object Handle für diesen Chunk.
+    /// </summary>
     private uint _vao;
+    /// <summary>
+    /// Aktuelle Kapazität des VBO in Bytes.
+    /// </summary>
     private nuint _vboCapacity;
+    /// <summary>
+    /// Aktuelle Kapazität des EBO in Bytes.
+    /// </summary>
     private nuint _eboCapacity;
     
+    /// <summary>
+    /// Gibt an, ob die Mesh-Daten bereits auf die GPU hochgeladen wurden.
+    /// </summary>
     private bool _uploaded = false;
+    /// <summary>
+    /// Gibt an, ob dieser Mesher verworfen wurde.
+    /// </summary>
     private bool _disposed = false;
+    /// <summary>
+    /// Gibt an, ob dieses Mesh leer ist (keine Indices).
+    /// </summary>
     public bool IsEmpty => _indicesCount == 0;
     
+    /// <summary>
+    /// Der ChunkProvider für diesen Mesher.
+    /// </summary>
     protected readonly ChunkProvider _provider;
+    /// <summary>
+    /// Der BlockRegistry für diesen Mesher.
+    /// </summary>
     protected readonly BlockRegistry _blockRegistry;
+    /// <summary>
+    /// Der ChunkProvider für diesen Mesher.
+    /// </summary>
     public ChunkProvider Provider => _provider;
 
+    /// <summary>
+    /// Initialisiert einen neuen Mesher mit optionalen Provider und Registry.
+    /// </summary>
+    /// <param name="provider">Der zu verwendende ChunkProvider. Wenn null, wird der aktuelle EngineContext verwendet.</param>
+    /// <param name="blockRegistry">Die zu verwendende BlockRegistry. Wenn null, wird der aktuelle EngineContext verwendet.</param>
     public BaseMesher(ChunkProvider? provider = null, BlockRegistry? blockRegistry = null)
     {
         _provider = provider ?? EngineContext.Current?.ChunkProvider ?? ChunkProvider.Current;
@@ -55,21 +124,28 @@ public class BaseMesher : IDisposable
             throw new InvalidOperationException("BlockRegistry konnte nicht gefunden werden.");
         }
         
-        // checken ob eine Liste im Pool frei ist
+        // Prüfen, ob eine Liste im Pool frei ist
         if (!_provider.VertexListPool.TryDequeue(out _vertices))
         {
-            //Wenn der pool, leer ist, liste mit bestimmter größe erstellen um reallocation zu vermeiden
+            // Wenn der Pool leer ist, Liste mit bestimmter Größe erstellen, um Reallocation zu vermeiden
             _vertices = new List<byte>(60_000);
         }
-        _vertices.Clear(); //gebrauchte liste leeren
+        _vertices.Clear(); // Gebrauchte Liste leeren
 
-        // Das gleiche für indexe
+        // Das gleiche für Indizes
         if (!_provider.IndexListPool.TryDequeue(out _indices))
         {
             _indices = new List<uint>(10_000);
         }
         _indices.Clear();
     }
+    
+    /// <summary>
+    /// Fügt Indices für Quads ohne AO hinzu.
+    /// Verwendet für Chunks, die keine Ambient Occlusion benutzen.
+    /// </summary>
+    /// <param name="baseIndex">Der Basis-Index für die vier Vertices.</param>
+    protected void AddIndices(uint baseIndex)
     
     
     // Für Chunks die keine AO benutzten
@@ -79,7 +155,14 @@ public class BaseMesher : IDisposable
         _indices.Add(baseIndex);     _indices.Add(baseIndex + 2); _indices.Add(baseIndex + 3);
     }
     
-    // Für Chunks die AO benutzten
+    /// <summary>
+    /// Fügt einen Vertex mit AO-Level hinzu (für LOD0).
+    /// </summary>
+    /// <param name="x">X-Koordinate des Vertices.</param>
+    /// <param name="y">Y-Koordinate des Vertices.</param>
+    /// <param name="z">Z-Koordinate des Vertices.</param>
+    /// <param name="layer">Texture-Layer (Index in der Texture2DArray).</param>
+    /// <param name="aoLevel">Ambient Occlusion Level (0-3).</param>
     protected void AddVertex(float x, float y, float z, ushort layer, byte aoLevel)
     {
         // X Float in 4 Bytes zerlegen und sofort hinzufügen (keine Arrays, kein AddRange!)
@@ -112,7 +195,13 @@ public class BaseMesher : IDisposable
         _vertexCount++;
     }
     
-    // Für Chunks die keine AO benutzten
+    /// <summary>
+    /// Fügt einen Vertex ohne AO hinzu (für LOD1-3).
+    /// </summary>
+    /// <param name="x">X-Koordinate des Vertices.</param>
+    /// <param name="y">Y-Koordinate des Vertices.</param>
+    /// <param name="z">Z-Koordinate des Vertices.</param>
+    /// <param name="layer">Texture-Layer (Index in der Texture2DArray).</param>
     protected void AddVertex(float x, float y, float z, ushort layer)
     {
         // X Float
@@ -153,8 +242,9 @@ public class BaseMesher : IDisposable
     
     /// <summary>
     /// Lädt die berechneten Mesh-Daten auf die GPU hoch.
-    /// MUSS auf dem Main-Thread (OpenGL-Kontext) aufgerufen werden
+    /// MUS auf dem Main-Thread (OpenGL-Kontext) aufgerufen werden.
     /// </summary>
+    /// <param name="gl">Die OpenGL-Instanz für den GPU-Upload.</param>
     public unsafe void UploadToGpu(GL gl)
     {
         if (_uploaded) return;
@@ -292,19 +382,17 @@ public class BaseMesher : IDisposable
         _uploaded = true;
     }
     
+    /// <summary>
+    /// Rendert den Mesh mit dem angegebenen Shader-Manager.
+    /// </summary>
+    /// <param name="shaderManager">Der ShaderManager für das Rendern.</param>
     public unsafe void Render(ShaderManager shaderManager)
-    {
-        if (!_uploaded || _disposed || _vao == 0 || _gl is null) return;
-        
-        // Dem Shader die Weltposition geben
-        shaderManager.SetModelMatrix(model);
-        
-        _gl.BindVertexArray(_vao);
-        // Das EBO ist im VAO gebunden, wir können direkt zeichnen
-        _gl.DrawElements(PrimitiveType.Triangles, _indicesCount, DrawElementsType.UnsignedInt, (void*)0);
-    }
     
-    // Unloading
+    /// <summary>
+    /// Gibt alle Ressourcen frei.
+    /// Entweder gibt sie die Listen zum Pool zurück (wenn nicht hochgeladen)
+    /// oder die Buffer-Handles (wenn auf der GPU).
+    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;

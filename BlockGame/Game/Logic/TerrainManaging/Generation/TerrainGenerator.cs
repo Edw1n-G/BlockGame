@@ -10,6 +10,10 @@ using SixLabors.ImageSharp.PixelFormats;
 
 namespace Basics.Game.Logic.TerrainManaging.Generation;
 
+/// <summary>
+/// Generiert Terraindaten für Chunks mithilfe von 3D-Noise-Algorithmus.
+/// Wird im Hintergrund von Worker-Threads ausgeführt und erstellt <see cref="ChunkData"/> für den Meshing-Prozess.
+/// </summary>
 public class TerrainGenerator
 {
     private readonly NoiseCalculator _noiseCalculator;
@@ -19,6 +23,12 @@ public class TerrainGenerator
     private readonly ushort _stoneId;
     private readonly ushort _snowId;
     
+    /// <summary>
+    /// Initialisiert eine neue Instanz von <see cref="TerrainGenerator"/>.
+    /// </summary>
+    /// <param name="noiseCalculator">Der für den Noise-Generierung zu verwendende <see cref="NoiseCalculator"/>. Falls nicht angegeben, wird der aktuelle Context verwendet.</param>
+    /// <param name="settings">Die für die Generierung zu verwendenden <see cref="GameSettings"/>. Falls nicht angegeben, werden die aktuellen Settings verwendet.</param>
+    /// <param name="blockRegistry">Das für die Block-ID-Auflösung zu verwendende <see cref="BlockRegistry"/>. Falls nicht angegeben, wird der aktuelle Context verwendet.</param>
     public TerrainGenerator(
         NoiseCalculator? noiseCalculator = null,
         GameSettings? settings = null,
@@ -35,11 +45,14 @@ public class TerrainGenerator
     }
     
     /// <summary>
-    /// Bekommt den Index des Chunkes
-    /// rechnet den ChunkIndex in die Weltposition
-    /// generiert alle Blöcke des Chunkes mit 3D Noise
-    /// wird in @param ChunkBlocks gespeichert und an den ChunkMesher übergeben, der die Geometrie erstellt
+    /// Generiert alle Blöcke für einen Chunk basierend auf 3D-Noise-Werten.
     /// </summary>
+    /// <param name="coord">Die Koordinaten des zu generierenden Chunks.</param>
+    /// <returns>Ein <see cref="ChunkData"/>-Objekt mit den generierten Blockdaten.</returns>
+    /// <remarks>
+    /// Wenn der Chunk außerhalb der Map-Größe liegt, wird ein leerer Chunk (nur Luft) zurückgegeben.
+    /// Die Methode wird im Hintergrund von Worker-Threads ausgeführt und ist nicht Thread-sicher für GPU-Interaktionen.
+    /// </remarks>
     public ChunkData GenerateChunk(ChunkCoord coord)
     {
         //Außerhalb der map

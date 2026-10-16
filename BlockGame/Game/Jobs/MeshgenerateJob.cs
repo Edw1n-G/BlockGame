@@ -4,15 +4,28 @@ using Basics.Game.Logic.TerrainManaging.Meshing;
 
 namespace Basics.Game.Utilities;
 
+/// <summary>
+/// Job zum Generieren des Meshes eines Chunks basierend auf seinem LOD-Level.
+/// </summary>
 public class MeshgenerateJob : IJob
 {
+    /// <summary>Die Koordinaten des zu meshenden Chunks.</summary>
     public ChunkCoord ChunkCoord;
     
+    /// <summary>
+    /// Initialisiert eine neue Instanz von <see cref="MeshgenerateJob"/>.
+    /// </summary>
+    /// <param name="chunkCoord">Die Koordinaten des zu meshenden Chunks.</param>
     public MeshgenerateJob(ChunkCoord chunkCoord)
     {
         this.ChunkCoord = chunkCoord;
     }
 
+    /// <summary>
+    /// Führt den Mesh-Generierungs-Job aus.
+    /// Erstellt das passende Mesh-Objekt (Lod0/1/2Mesher) basierend auf dem LOD-Level des Chunks.
+    /// </summary>
+    /// <param name="context">Der <see cref="JobContext"/> mit den notwendigen Ressourcen.</param>
     public void Execute(JobContext context)
     {
         // Hole Block-Daten aus dem RAM der zuständigen ChunkProvider-Instanz

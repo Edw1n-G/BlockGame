@@ -9,25 +9,40 @@ using Silk.NET.OpenGL;
 
 namespace Basics.Game.Graphics;
 
+/// <summary>
+/// Verwaltet das Rendern der Welt und aller Chunks.
+/// Stellt Methoden zum Einrichten, Rendern und Aufräumen der Grafikressourcen bereit.
+/// Alle GPU-Interaktionen laufen über den Main-Thread.
+/// </summary>
 public class Renderer
 {
     private static GL _gl = null!;
 
     private static ShaderManager _terrainshader = null!;
-    private static TextureArray _terrainTexture = null!;//TODO: alles von terrain zu etwas algemeinem umbennenen
+    private static TextureArray _terrainTexture = null!;
     private static Camera _camera = null!;
     
+    /// <summary>
+    /// Stellt den ChunkProvider bereit, der die Chunks verwaltet und den Upload-Queue bereitstellt.
+    /// </summary>
     public ChunkProvider ChunkProvider { get; set; }
 
+    /// <summary>
+    /// Initialisiert eine neue Instanz des <see cref="Renderer"/>-Klassens mit einem optionalen ChunkProvider.
+    /// </summary>
+    /// <param name="chunkProvider">Der zu verwendende ChunkProvider. Wenn nicht angegeben, wird der aktuelle Context oder der Standard-Provider verwendet.</param>
     public Renderer(ChunkProvider? chunkProvider = null)
     {
         ChunkProvider = chunkProvider ?? EngineContext.Current?.ChunkProvider ?? ChunkProvider.Current;
     }
     
-    /**
-     * Setup Methode, alles was man fürs Rendern braucht.
-     * Window, Camera, Shader und test chunks
-     */
+    /// <summary>
+    /// Richtet alle erforderlichen Ressourcen für das Rendern ein.
+    /// Initialisiert Shader, Texturen und aktiviert Multisampling.
+    /// </summary>
+    /// <param name="camera">Die Kamera, die für das Rendern verwendet werden soll.</param>
+    /// <param name="gl">Die OpenGL-Instanz.</param>
+    /// <param name="chunkProvider">Optional ein neuer ChunkProvider, der verwendet werden soll.</param>
     public unsafe void Setup(Camera camera, GL gl, ChunkProvider? chunkProvider = null)
     {
         if (chunkProvider != null)
@@ -43,10 +58,13 @@ public class Renderer
         _terrainshader = new ShaderManager(_gl, "shader.vert", "shader.frag");
         _terrainTexture = BlockLoader.TerrainTexture;
         
-        // Ka ob hierhin oder in den shader manager
         _gl.Enable(EnableCap.Multisample);
     }
 
+    /// <summary>
+    /// Legt die Kamera für das Rendern fest.
+    /// </summary>
+    /// <param name="camera">Die neue Kamera, die verwendet werden soll.</param>
     public void SetCamera(Camera camera)
     {
         _camera = camera;
@@ -55,13 +73,15 @@ public class Renderer
     private int totalchunks;
     private int shownchunks;
     
-    ///<summary>
-    /// Abstraktion für rendern
-    /// jeder Chunk aus dem ChunkProvider wird durchgegangen und auf IsUploaded geprüft
-    /// damit der Main-Thread die Daten an die GPU bringen kann,
-    /// wenn PCIe Uploads zu lange dauern wird der nächste Frame gerendert und der Upload wird im nächsten Frame fortgesetzt
-    /// da ich gerade 16.6ms insgesamt habe benutze ich 5ms aber für schnelle gpus braucht man ein smarten upload timer
-    ///</summary>
+    /// <summary>
+    /// Führt den Rendervorgang durch. Lädt Chunks aus der Upload-Queue in die GPU,
+    /// rendert alle sichtbaren Chunks innerhalb der Zeitbeschränkung von ca. 5ms pro Frame
+    /// und entlädt Chunks aus der Unload-Queue.
+    /// </summary>
+    /// <remarks>
+    /// Diese Methode ist zeitlich begrenzt auf etwa 5ms pro Frame, um eine gleichmäßige Frame-Rate sicherzustellen.
+    /// Wenn die Upload-Operationen zu lange dauern, wird der nächste Frame gerendert und die Uploads im nächsten Frame fortgesetzt.
+    /// </remarks>
     public unsafe void Render()
     {
         long startTimestamp = Stopwatch.GetTimestamp();
@@ -72,20 +92,16 @@ public class Renderer
 
         while (ChunkProvider.UploadQueue.TryDequeue(out BaseMesher? chunk))
         {
-            // Wenn der Chunk nicht mehr in Chunk data ist, wurde er schon entladen
             if (!ChunkProvider.Chunkdata.ContainsKey(chunk.ChunkPosition))
             {
                 chunk.Dispose();
                 continue;
             }
             
-            // Der (nicht) Upload von leeren chunks wird im basemesher gehandelt
             chunk.UploadToGpu(_gl);
 
-            // Wenn der Chunk schon geladen ist ersetzen, sonst hinzufügen
             if (ChunkProvider.LoadedChunks.TryGetValue(chunk.ChunkPosition, out BaseMesher? oldMesh))
             {
-                // Neues Mesh an alte Position setzen
                 ChunkProvider.LoadedChunks[chunk.ChunkPosition] = chunk;
                 ChunkProvider.UnloadQueue.Enqueue(oldMesh);
             }
@@ -116,7 +132,7 @@ public class Renderer
     }
     
     /// <summary>
-    /// Color und Depth Buffer löschen, damit der vorherige Frame nicht mehr sichtbar ist.
+    /// Löscht den Farb- und Tiefenpuffer, damit der vorherige Frame nicht mehr sichtbar ist.
     /// </summary>
     public void Clear()
     {
@@ -124,7 +140,8 @@ public class Renderer
     }
     
     /// <summary>
-    /// Jeden Shader und Chunk gefolgt vom GL Kontext entfernen
+    /// Gibt alle vom Renderer verwendeten Ressourcen frei.
+    /// Entlädt alle Shader, Texturen, den ChunkProvider und die OpenGL-Instanz.
     /// </summary>
     public void Dispose()
     {
@@ -135,8 +152,10 @@ public class Renderer
     }
     
     /// <summary>
-    ///  Fenstergröße weitergeben damit die Viewportgröße angepasst werden kann.
+    /// Benachrichtigt den Renderer über eine Größenänderung des Framebuffers.
+    /// Passt die Viewport-Größe an und aktualisiert das AspectRatio der Kamera.
     /// </summary>
+    /// <param name="size">Die neue Größe des Framebuffers in Pixeln.</param>
     public void FramebufferResize(Vector2D<int> size)
     {
         _gl.Viewport(size);

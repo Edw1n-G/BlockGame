@@ -3,11 +3,23 @@ using StbImageSharp;
 
 namespace Basics.Game.texture;
 
+/// <summary>
+/// Verwaltet ein Texture-Array (Texture2DArray) für das Batch-Rendering mehrerer Texturen.
+/// Ermöglicht das Laden mehrerer Texturen als einzelnes Array und schnelles Wechseln der Textur-Layer im Shader.
+/// </summary>
 public class TextureArray : IDisposable
 {
     private uint _handle;
     private GL _gl;
 
+    /// <summary>
+    /// Initialisiert eine neue Instanz des <see cref="TextureArray"/>-Klassens.
+    /// Lädt mehrere Texturen aus einzelnen Dateien und erstellt ein Texture-Array.
+    /// </summary>
+    /// <param name="gl">Die OpenGL-Instanz.</param>
+    /// <param name="texturePaths">Ein schreibgeschütztes Kollektion mit Pfaden zu den Texturen.</param>
+    /// <exception cref="ArgumentException">Wird ausgelöst, wenn keine Texturen angegeben wurden.</exception>
+    /// <exception cref="InvalidDataException">Wird ausgelöst, wenn Texturen unterschiedliche Größen haben.</exception>
     public TextureArray(GL gl, IReadOnlyList<string> texturePaths)
     {
         if (texturePaths == null || texturePaths.Count == 0)
@@ -46,13 +58,17 @@ public class TextureArray : IDisposable
         SetSamplerParameters();
     }
 
+    /// <summary>
+    /// Initialisiert eine neue Instanz des <see cref="TextureArray"/>-Klassens aus einem Texture-Atlas.
+    /// Teilt eine große Textur in gleichgroße Tiles auf und erstellt ein Texture-Array.
+    /// </summary>
+    /// <param name="gl">Die OpenGL-Instanz.</param>
+    /// <param name="atlasPath">Der Pfad zur Texture-Atlas-Datei.</param>
+    /// <param name="tileSize">Die Größe jedes Tiles in Pixeln (standardmäßig 32).</param>
     public TextureArray(GL gl, string atlasPath, int tileSize = 32)
     {
         _gl = gl;
         
-        //Das Flippen dreht die Texturen richtig aber die Indexierung der Tiles ist dann falschrum
-        //Deswegen müssen textures einzelnd gedreht werden, damit die Indexierung der Tiles stimmt
-        //StbImage.stbi_set_flip_vertically_on_load(1);
         ImageResult result = ImageResult.FromMemory(File.ReadAllBytes(atlasPath), ColorComponents.RedGreenBlueAlpha);
 
         int tilesX = result.Width / tileSize;
@@ -102,11 +118,22 @@ public class TextureArray : IDisposable
         SetSamplerParameters();
     }
 
+    /// <summary>
+    /// Lädt ein Bild aus einer Datei.
+    /// </summary>
+    /// <param name="path">Der Pfad zur Bild-Datei.</param>
+    /// <returns>Das geladene Bild als ImageResult.</returns>
     private static ImageResult LoadImage(string path)
     {
         return ImageResult.FromMemory(File.ReadAllBytes(path), ColorComponents.RedGreenBlueAlpha);
     }
 
+    /// <summary>
+    /// Flipped die Bildzeilen, um die Textur-Koordinatenrichtung korrekt zu machen.
+    /// Wird verwendet, bevor Textur-Daten an die GPU übertragen werden.
+    /// </summary>
+    /// <param name="image">Das zu spiegelnde Bild.</param>
+    /// <returns>Das gespiegelte Bild als Byte-Array.</returns>
     private static byte[] FlipRows(ImageResult image)
     {
         int rowBytes = image.Width * 4;
@@ -121,6 +148,12 @@ public class TextureArray : IDisposable
         return flipped;
     }
 
+    /// <summary>
+    /// Lädt einen einzelnen Layer in das Texture-Array.
+    /// </summary>
+    /// <param name="gl">Die OpenGL-Instanz.</param>
+    /// <param name="image">Das Bild, das als Layer geladen werden soll.</param>
+    /// <param name="layerIndex">Der Index des Layers im Array.</param>
     private static unsafe void UploadLayer(GL gl, ImageResult image, int layerIndex)
     {
         byte[] flipped = FlipRows(image);
@@ -132,6 +165,11 @@ public class TextureArray : IDisposable
         }
     }
 
+    /// <summary>
+    /// Legt die Sampler-Parameter für Wrapping und Filtering fest.
+    /// Verwendet ClampToEdge für Wrapping, Nearest für Magnification
+    /// und NearestMipmapNearest für Minification mit Mipmaps.
+    /// </summary>
     private void SetSamplerParameters()
     {
         _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
@@ -145,12 +183,19 @@ public class TextureArray : IDisposable
         _gl.GenerateMipmap(TextureTarget.Texture2DArray);
     }
 
+    /// <summary>
+    /// Bindet das Texture-Array an den angegebenen Texture-Slot.
+    /// </summary>
+    /// <param name="textureSlot">Der Texture-Slot, an den gebunden werden soll (standardmäßig Texture0).</param>
     public void Bind(TextureUnit textureSlot = TextureUnit.Texture0)
     {
         _gl.ActiveTexture(textureSlot);
         _gl.BindTexture(TextureTarget.Texture2DArray, _handle);
     }
 
+    /// <summary>
+    /// Gibt das Texture-Array frei und löscht es von der GPU.
+    /// </summary>
     public void Dispose()
     {
         if (_handle != 0)

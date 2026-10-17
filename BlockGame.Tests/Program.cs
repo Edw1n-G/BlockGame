@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using Basics.Configurations;
 using Basics.Game;
+using Basics.Game.Configurations;
 using Basics.Game.Logic;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Logic.TerrainManaging.Generation;
@@ -57,6 +58,45 @@ class Program
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"[FAIL] TestFiftyBenchmarkIterationsLoop failed: {ex}");
+            Console.ResetColor();
+            failed++;
+        }
+
+        try
+        {
+            TestPaletteIdsStableAcrossLoadOrders();
+            Console.WriteLine("[PASS] TestPaletteIdsStableAcrossLoadOrders passed.\n");
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FAIL] TestPaletteIdsStableAcrossLoadOrders failed: {ex}");
+            Console.ResetColor();
+            failed++;
+        }
+
+        try
+        {
+            TestPaletteRemapSurvivesLoadOrderChange();
+            Console.WriteLine("[PASS] TestPaletteRemapSurvivesLoadOrderChange passed.\n");
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FAIL] TestPaletteRemapSurvivesLoadOrderChange failed: {ex}");
+            Console.ResetColor();
+            failed++;
+        }
+
+        try
+        {
+            TestRegisterBlockExtension();
+            Console.WriteLine("[PASS] TestRegisterBlockExtension passed.\n");
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FAIL] TestRegisterBlockExtension failed: {ex}");
             Console.ResetColor();
             failed++;
         }
@@ -253,6 +293,177 @@ class Program
 
         sw.Stop();
         Console.WriteLine($"Completed {iterations} benchmark iterations in {sw.ElapsedMilliseconds} ms (avg {sw.ElapsedMilliseconds / (double)iterations:F2} ms/iter).");
+    }
+
+    /// <summary>
+    /// Test 4: Palette-Stabilität über Load-Pfade hinweg.
+    /// Verifies that the content path and the fallback path assign identical IDs for the same
+    /// block names, and that merging real content into a fallback-initialized registry keeps
+    /// already-assigned IDs stable (palette principle).
+    /// </summary>
+    static void TestPaletteIdsStableAcrossLoadOrders()
+    {
+        Console.WriteLine("Running TestPaletteIdsStableAcrossLoadOrders...");
+
+        string[] coreBlocks = { "core:air", "core:dirt", "core:grass", "core:snow", "core:stone" };
+
+        // Registry mit echtem Content (headless: JSON-Definitionen werden geladen)
+        var contentRegistry = new BlockRegistry();
+        contentRegistry.InitializeHeadless("Content");
+
+        // Registry ohne erreichbaren Content (Fallback-Definitionen)
+        var fallbackRegistry = new BlockRegistry();
+        fallbackRegistry.InitializeHeadless("definitely/not/a/content/dir");
+
+        // Beide Load-Pfade müssen für dieselben Namen dieselben IDs vergeben
+        foreach (string name in coreBlocks)
+        {
+            Assert(contentRegistry.GetBlockId(name) == fallbackRegistry.GetBlockId(name),
+                $"Block-ID für '{name}' muss in beiden Load-Pfaden identisch sein " +
+                $"(content={contentRegistry.GetBlockId(name)}, fallback={fallbackRegistry.GetBlockId(name)})");
+        }
+
+        // IDs müssen unabhängig von der Reihenfolge der Initialisierung sein
+        var lateContentRegistry = new BlockRegistry();
+        lateContentRegistry.InitializeHeadless("definitely/not/a/content/dir");
+        foreach (string name in coreBlocks)
+        {
+            Assert(lateContentRegistry.GetBlockId(name) == contentRegistry.GetBlockId(name),
+                $"Block-ID für '{name}' darf nicht von der Initialisierungsreihenfolge abhängen");
+        }
+
+        // Merge: Echten Content in die Fallback-Registry laden — bereits vergebene IDs
+        // dürfen sich nicht verschieben (Palette-Prinzip)
+        ushort fallbackSnowBefore = fallbackRegistry.GetBlockId("core:snow");
+        ushort fallbackStoneBefore = fallbackRegistry.GetBlockId("core:stone");
+        fallbackRegistry.InitializeHeadless("Content");
+
+        Assert(fallbackRegistry.GetBlockId("core:snow") == fallbackSnowBefore,
+            "Nach dem Content-Merge darf die ID von core:snow nicht verschoben werden");
+        Assert(fallbackRegistry.GetBlockId("core:stone") == fallbackStoneBefore,
+            "Nach dem Content-Merge darf die ID von core:stone nicht verschoben werden");
+
+        // Nach dem Merge müssen beide Registries weiterhin identische IDs haben
+        foreach (string name in coreBlocks)
+        {
+            Assert(contentRegistry.GetBlockId(name) == fallbackRegistry.GetBlockId(name),
+                $"Nach dem Merge muss die ID für '{name}' mit dem Content-Pfad übereinstimmen");
+        }
+
+        // Palette-Rücklookup: Name → ID → Name
+        foreach (string name in coreBlocks)
+        {
+            ushort id = contentRegistry.GetBlockId(name);
+            Assert(contentRegistry.GetName(id) == name,
+                $"GetName({id}) muss '{name}' zurückgeben, war '{contentRegistry.GetName(id)}'");
+        }
+    }
+
+    /// <summary>
+    /// Test 5: Palette-Remapping für gespeicherte Daten.
+    /// Verifies that a saved palette from an older session (with different load order and an
+    /// extension block) can be remapped onto the current registry, and that unknown blocks
+    /// become air.
+    /// </summary>
+    static void TestPaletteRemapSurvivesLoadOrderChange()
+    {
+        Console.WriteLine("Running TestPaletteRemapSurvivesLoadOrderChange...");
+
+        var registry = new BlockRegistry();
+        registry.InitializeHeadless("Content");
+
+        // Simulierte gespeicherte Palette einer älteren Sitzung: andere Reihenfolge
+        // (stone vor snow) plus ein Mod-Block, den es aktuell nicht mehr gibt
+        string[] savedPalette =
+        {
+            "core:air", "core:dirt", "core:grass", "core:stone", "core:snow", "oldmod:glowstone"
+        };
+
+        int[] remap = registry.CreateRemapTable(savedPalette);
+
+        for (int i = 0; i < savedPalette.Length - 1; i++)
+        {
+            Assert(remap[i] == registry.GetBlockId(savedPalette[i]),
+                $"Remap-Eintrag {i} ('{savedPalette[i]}') muss auf die aktuelle ID " +
+                $"{registry.GetBlockId(savedPalette[i])} mappen, war {remap[i]}");
+        }
+
+        Assert(remap[5] == 0, "Unbekannte Blöcke ('oldmod:glowstone') müssen auf Luft (0) gemappt werden");
+
+        // Chunk-Daten (alte IDs) auf die aktuelle Registry remappen
+        ushort[] oldChunkBlocks = { 0, 1, 2, 3, 4, 5, 5, 0 };
+        ushort[] expected = new ushort[oldChunkBlocks.Length];
+        for (int i = 0; i < oldChunkBlocks.Length; i++)
+        {
+            expected[i] = oldChunkBlocks[i] < savedPalette.Length
+                ? (ushort)remap[oldChunkBlocks[i]]
+                : (ushort)0;
+        }
+
+        BlockRegistry.RemapBlockArray(oldChunkBlocks, remap);
+
+        for (int i = 0; i < expected.Length; i++)
+        {
+            Assert(oldChunkBlocks[i] == expected[i],
+                $"Remappter Block an Position {i} muss {expected[i]} sein, war {oldChunkBlocks[i]}");
+        }
+
+        // Export: Index = ID, Wert = Name
+        string[] exported = registry.ExportPalette();
+        Assert(exported[registry.GetBlockId("core:stone")] == "core:stone",
+            "ExportPalette muss am Index der Block-ID den Namen zurückgeben");
+        Assert(exported[0] == "core:air", "ExportPalette[0] muss 'core:air' sein (hartes Invariant)");
+    }
+
+    /// <summary>
+    /// Test 6: Laufzeit-Registrierung modularer Erweiterungen.
+    /// Verifies that RegisterBlock assigns stable, idempotent handles for new blocks and
+    /// that existing blocks (including core:air = 0) are not affected.
+    /// </summary>
+    static void TestRegisterBlockExtension()
+    {
+        Console.WriteLine("Running TestRegisterBlockExtension...");
+
+        var registry = new BlockRegistry();
+        registry.InitializeHeadless("Content");
+
+        ushort airBefore = registry.GetBlockId("core:air");
+        ushort stoneBefore = registry.GetBlockId("core:stone");
+        int definitionCountBefore = registry.ExportPalette().Length;
+
+        // Neuen Mod-Block registrieren
+        ushort glowstoneId = registry.RegisterBlock("testmod:glowstone");
+        Assert(registry.GetBlockId("testmod:glowstone") == glowstoneId,
+            "Registrierter Mod-Block muss über den Namen auflösbar sein");
+        Assert(registry.GetName(glowstoneId) == "testmod:glowstone",
+            "GetName muss den registrierten Namen zurückgeben");
+        Assert(glowstoneId >= definitionCountBefore,
+            "Neue Blöcke müssen hinter den bestehenden Definitionen eingereiht werden");
+
+        // Idempotent: erneutes Registrieren liefert dieselbe stabile ID
+        ushort glowstoneIdAgain = registry.RegisterBlock("TESTMOD:Glowstone");
+        Assert(glowstoneIdAgain == glowstoneId,
+            "Erneutes Registrieren (Groß-/Kleinschreibung egal) muss dieselbe ID liefern");
+
+        // Bestehende Blöcke dürfen sich nicht verschieben
+        Assert(registry.GetBlockId("core:air") == airBefore && airBefore == 0,
+            "core:air muss ID 0 behalten (hartes Invariant)");
+        Assert(registry.GetBlockId("core:stone") == stoneBefore,
+            "Bestehende Block-IDs dürfen sich durch Mod-Registrierung nicht verschieben");
+
+        // Tags bei der Laufzeit-Registrierung
+        ushort lampId = registry.RegisterBlock("testmod:lamp", tags: new[] { "tag:light" });
+        Assert(registry.HasTag(lampId, "tag:light"), "Registrierter Block muss seinen Tag haben");
+        Assert(registry.GetByTag("tag:light").Contains(lampId),
+            "GetByTag muss den registrierten Block liefern");
+
+        // Registry zurücksetzen und neu aufbauen: Content-Blöcke behalten ihre IDs
+        // (Laufzeit-Registrierungen sind sitzungsspezifisch und verschwinden mit dem Reset)
+        registry.Reset();
+        registry.InitializeHeadless("Content");
+        Assert(registry.GetBlockId("core:stone") == stoneBefore,
+            "Nach Reset+Reload müssen Content-Blöcke dieselben IDs haben");
+        Assert(registry.GetBlockId("core:air") == 0, "Nach Reset+Reload muss core:air weiterhin ID 0 haben");
     }
 
     static void TestConcurrentSessionsWithDifferentRegistriesMeshCorrectly()

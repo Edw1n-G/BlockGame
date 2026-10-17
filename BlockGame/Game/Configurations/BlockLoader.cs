@@ -29,7 +29,7 @@ public static class BlockLoader
     private static BlockRegistry CreateDefaultRegistry()
     {
         var registry = new BlockRegistry();
-        if (System.IO.Directory.Exists("Content"))
+        if (System.IO.Directory.Exists(BlockRegistry.ResolveContentRoot("Content")))
         {
             try
             {
@@ -86,9 +86,9 @@ public static class BlockLoader
     /// <summary>
     /// Initialisiert die BlockRegistry mit Texturen und Blockdefinitionen.
     /// </summary>
-    /// <param name="gl">Die OpenGL-Instanz für die Textur-Erstellung.</param>
+    /// <param name="gl">Die OpenGL-Instanz für die Textur-Erstellung oder null für headless-Betrieb.</param>
     /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
-    public static void Initialize(GL gl, string contentRoot = "Content")
+    public static void Initialize(GL? gl, string contentRoot = "Content")
     {
         Current.Initialize(gl, contentRoot);
     }
@@ -151,5 +151,73 @@ public static class BlockLoader
     public static IReadOnlyCollection<ushort> GetByTag(string tag)
     {
         return Current.GetByTag(tag);
+    }
+
+    /// <summary>
+    /// Registriert einen Block zur Laufzeit (z. B. durch modulare Erweiterungen) und gibt seine ID zurück.
+    /// Idempotent: Wird der Name bereits registriert, wird die vorhandene ID zurückgegeben.
+    /// </summary>
+    /// <param name="blockId">Der Namespaced-Name des Blocks (z. B. "mymod:glowstone").</param>
+    /// <param name="textures">Die Texturen des Blocks (optional; ohne Texturen werden Layer 0 verwendet).</param>
+    /// <param name="tags">Optionale Tags des Blocks.</param>
+    /// <returns>Die stabile ID des Blocks für diese Sitzung.</returns>
+    /// <remarks>Nur vom Main-Thread aus aufrufen, niemals während Worker-Threads Chunks generieren.</remarks>
+    public static ushort RegisterBlock(string blockId, BlockTextureFaces? textures = null, IEnumerable<string>? tags = null)
+    {
+        return Current.RegisterBlock(blockId, textures, tags);
+    }
+
+    /// <summary>
+    /// Gibt den Namespaced-Namen eines Blocks anhand seiner ID zurück (Palette-Rücklookup).
+    /// </summary>
+    /// <param name="blockId">Die ID des Blocks.</param>
+    /// <returns>Der Namespaced-Name des Blocks (z. B. "core:stone").</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Wird ausgelöst, wenn die Block-ID nicht existiert.</exception>
+    public static string GetName(ushort blockId)
+    {
+        return Current.GetName(blockId);
+    }
+
+    /// <summary>
+    /// Versucht, den Namespaced-Namen eines Blocks anhand seiner ID zu ermitteln.
+    /// </summary>
+    /// <param name="blockId">Die ID des Blocks.</param>
+    /// <param name="name">Der gefundene Name oder null.</param>
+    /// <returns><c>true</c>, wenn die ID existiert, andernfalls <c>false</c>.</returns>
+    public static bool TryGetName(ushort blockId, out string? name)
+    {
+        return Current.TryGetName(blockId, out name);
+    }
+
+    /// <summary>
+    /// Exportiert die aktuelle Palette (ID → Namespaced-Name) als Snapshot.
+    /// Für Serialisierung: Zusammen mit den Blockdaten speichern.
+    /// </summary>
+    /// <returns>Ein Array, in dem der Index die Block-ID und der Wert der Namespaced-Name ist.</returns>
+    public static string[] ExportPalette()
+    {
+        return Current.ExportPalette();
+    }
+
+    /// <summary>
+    /// Erstellt eine Remap-Tabelle, die Block-IDs einer gespeicherten Palette auf die
+    /// IDs der aktuellen Registry abbildet. Unbekannte Namen werden auf Luft (0) abgebildet.
+    /// </summary>
+    /// <param name="previousPalette">Die gespeicherte Palette (Index = alte ID, Wert = Name).</param>
+    /// <returns>Die Remap-Tabelle für <see cref="RemapBlockArray"/>.</returns>
+    public static int[] CreateRemapTable(IReadOnlyList<string> previousPalette)
+    {
+        return Current.CreateRemapTable(previousPalette);
+    }
+
+    /// <summary>
+    /// Mappt ein Block-ID-Array (z. B. <see cref="ChunkData.Blocks"/>) mit der Remap-Tabelle
+    /// auf die IDs der aktuellen Registry. Arbeitet in-place ohne Allokation.
+    /// </summary>
+    /// <param name="blocks">Das Block-ID-Array, das in-place remappt wird.</param>
+    /// <param name="remapTable">Die Remap-Tabelle von <see cref="CreateRemapTable"/>.</param>
+    public static void RemapBlockArray(ushort[] blocks, int[] remapTable)
+    {
+        BlockRegistry.RemapBlockArray(blocks, remapTable);
     }
 }

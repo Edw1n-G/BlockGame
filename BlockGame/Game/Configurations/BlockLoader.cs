@@ -14,14 +14,17 @@ namespace Basics.Configurations;
 /// </summary>
 public static class BlockLoader
 {
-    private static BlockRegistry? _defaultRegistry;
+    /// <summary>
+    /// Thread-sichere, verzögert erstellte Standard-Registry (Lazy Default: ExecutionAndPublication).
+    /// </summary>
+    private static readonly Lazy<BlockRegistry> _defaultRegistry = new(CreateDefaultRegistry);
 
     /// <summary>
     /// Gibt die aktuelle BlockRegistry zurück.
     /// Wenn kein EngineContext vorhanden ist, wird eine Standardinstanz erstellt.
     /// </summary>
     public static BlockRegistry Current =>
-        EngineContext.Current?.BlockRegistry ?? (_defaultRegistry ??= CreateDefaultRegistry());
+        EngineContext.Current?.BlockRegistry ?? _defaultRegistry.Value;
 
     /// <summary>
     /// Erstellt eine neue BlockRegistry mit Headless-Initialisierung als Fallback.
@@ -100,14 +103,6 @@ public static class BlockLoader
     public static void InitializeHeadless(string contentRoot = "Content")
     {
         Current.InitializeHeadless(contentRoot);
-    }
-
-    /// <summary>
-    /// Setzt die BlockRegistry auf den Ausgangszustand zurück.
-    /// </summary>
-    public static void Reset()
-    {
-        Current.Reset();
     }
 
     /// <summary>
@@ -197,7 +192,7 @@ public static class BlockLoader
     }
 
     /// <summary>
-    /// Mappt ein Block-ID-Array (z. B. <see cref="ChunkData.Blocks"/>) mit der Remap-Tabelle
+    /// Mappt ein Block-ID-Array (z. B. ChunkData.Blocks) mit der Remap-Tabelle
     /// auf die IDs der aktuellen Registry. Arbeitet in-place ohne Allokation.
     /// </summary>
     /// <param name="blocks">Das Block-ID-Array, das in-place remappt wird.</param>

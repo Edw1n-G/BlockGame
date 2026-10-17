@@ -55,14 +55,20 @@ public class BlockRegistry : IDisposable
         PropertyNameCaseInsensitive = true
     };
 
-    private readonly Dictionary<string, ushort> _blockIdByName = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, HashSet<ushort>> _blockIdsByTag = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, ushort> _textureLayersByName = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, ushort> _blockIdByName = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, HashSet<ushort>> _blockIdsByTag = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, ushort> _textureLayersByName = new(StringComparer.OrdinalIgnoreCase);
     private List<BlockDefinition> _definitions = new();
 
     private TextureArray? _terrainTexture;
     private bool _initialized;
     private bool _texturesLoaded;
+    /// <summary>
+    /// Gibt an, ob die Registry verworfen wurde. Nach dem Verwerfen wird jeglicher Zugriff
+    /// mit einer <see cref="ObjectDisposedException"/> abgelehnt — insbesondere damit ein
+    /// Worker-Thread während Game.Exit die Palette nicht über InitializeHeadless neu aufbauen kann.
+    /// </summary>
+    private bool _disposed;
 
     /// <summary>
     /// Index des oberen Face (Top) in der Layer-Array.
@@ -146,6 +152,8 @@ public class BlockRegistry : IDisposable
     /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
     public void Initialize(GL? gl, string contentRoot = "Content")
     {
+        ThrowIfDisposed();
+
         string root = ResolveContentRoot(contentRoot);
         bool hasContent = Directory.Exists(root);
 
@@ -217,7 +225,7 @@ public class BlockRegistry : IDisposable
             ushort id = _blockIdByName[definition.Name];
             foreach (string tag in definition.Tags)
             {
-                IndexTag(tag, id);
+                IndexTag(_blockIdsByTag, tag, id);
             }
         }
     }
@@ -225,9 +233,13 @@ public class BlockRegistry : IDisposable
     /// <summary>
     /// Setzt die BlockRegistry auf den Ausgangszustand zurück.
     /// Gibt Texturen frei und löscht alle gespeicherten Definitionen.
+    /// Bewusst nicht über die statische Fassade <see cref="BlockLoader"/> erreichbar:
+    /// Die Palette eines Engine-Prozesses soll nicht zur Laufzeit neu aufgebaut werden können.
     /// </summary>
     public void Reset()
     {
+        ThrowIfDisposed();
+
         _blockIdByName.Clear();
         _blockIdsByTag.Clear();
         _textureLayersByName.Clear();
@@ -247,6 +259,8 @@ public class BlockRegistry : IDisposable
     /// <exception cref="ArgumentOutOfRangeException">Wird ausgelöst, wenn faceIndex außerhalb des gültigen Bereichs liegt.</exception>
     public ushort Get(int blockId, int faceIndex)
     {
+        ThrowIfDisposed();
+
         if (!_initialized)
         {
             InitializeHeadless();
@@ -273,6 +287,8 @@ public class BlockRegistry : IDisposable
     /// <exception cref="KeyNotFoundException">Wird ausgelöst, wenn der Block nicht gefunden wird.</exception>
     public ushort GetBlockId(string blockName)
     {
+        ThrowIfDisposed();
+
         if (!_initialized)
         {
             InitializeHeadless();
@@ -295,6 +311,8 @@ public class BlockRegistry : IDisposable
     /// <returns><c>true</c>, wenn der Block den Tag hat; andernfalls <c>false</c>.</returns>
     public bool HasTag(ushort blockId, string tag)
     {
+        ThrowIfDisposed();
+
         if (!_initialized)
         {
             InitializeHeadless();
@@ -310,11 +328,15 @@ public class BlockRegistry : IDisposable
 
     /// <summary>
     /// Gibt alle Block-IDs zurück, die den angegebenen Tag haben.
+    /// Gibt eine Momentaufnahme zurück — Aufrufer können die Palette nicht über den
+    /// Rückgabewert verändern.
     /// </summary>
     /// <param name="tag">Der Tag, nach dem gesucht werden soll.</param>
     /// <returns>Ein schreibgeschütztes Kollektion mit Block-IDs.</returns>
     public IReadOnlyCollection<ushort> GetByTag(string tag)
     {
+        ThrowIfDisposed();
+
         if (!_initialized)
         {
             InitializeHeadless();
@@ -322,7 +344,7 @@ public class BlockRegistry : IDisposable
 
         string normalized = NormalizeId(tag);
         return _blockIdsByTag.TryGetValue(normalized, out HashSet<ushort>? ids)
-            ? ids
+            ? ids.ToArray()
             : Array.Empty<ushort>();
     }
 
@@ -334,6 +356,8 @@ public class BlockRegistry : IDisposable
     /// <exception cref="ArgumentOutOfRangeException">Wird ausgelöst, wenn die Block-ID nicht existiert.</exception>
     public string GetName(ushort blockId)
     {
+        ThrowIfDisposed();
+
         if (!_initialized)
         {
             InitializeHeadless();
@@ -355,6 +379,8 @@ public class BlockRegistry : IDisposable
     /// <returns><c>true</c>, wenn die ID existiert, andernfalls <c>false</c>.</returns>
     public bool TryGetName(ushort blockId, out string? name)
     {
+        ThrowIfDisposed();
+
         if (!_initialized)
         {
             InitializeHeadless();
@@ -379,6 +405,8 @@ public class BlockRegistry : IDisposable
     /// <returns>Ein Array, in dem der Index die Block-ID und der Wert der Namespaced-Name ist.</returns>
     public string[] ExportPalette()
     {
+        ThrowIfDisposed();
+
         if (!_initialized)
         {
             InitializeHeadless();
@@ -396,32 +424,57 @@ public class BlockRegistry : IDisposable
     /// <summary>
     /// Erstellt eine Remap-Tabelle, die Block-IDs einer gespeicherten Palette auf die
     /// IDs dieser Registry abbildet (Index = alte ID, Wert = neue ID).
-    /// Unbekannte Namen werden auf Luft (0) abgebildet — entfernte Blöcke werden zu Luft,
-    /// analog zu anderen Voxel-Engines. Dadurch sind gespeicherte Welten immun gegen
-    /// geänderte Load-Reihenfolgen, umbenannte Blöcke oder entfernte Mod-Erweiterungen.
+    /// Unbekannte Namen (auch null/leer) werden auf Luft (0) abgebildet — entfernte Blöcke
+    /// werden zu Luft, analog zu anderen Voxel-Engines. Dadurch sind gespeicherte Welten
+    /// immun gegen geänderte Load-Reihenfolgen, umbenannte Blöcke oder entfernte
+    /// Mod-Erweiterungen. Über nicht mehr existierende Namen wird auf Console.Error gewarnt,
+    /// damit ein fehlender Mod beim nächsten Speichern nicht unbemerkt Blöcke verliert.
     /// </summary>
     /// <param name="previousPalette">Die gespeicherte Palette (Index = alte ID, Wert = Name).</param>
     /// <returns>Die Remap-Tabelle für <see cref="RemapBlockArray"/>.</returns>
     public int[] CreateRemapTable(IReadOnlyList<string> previousPalette)
     {
+        ThrowIfDisposed();
+
         if (!_initialized)
         {
             InitializeHeadless();
         }
 
         var remap = new int[previousPalette.Count];
+        List<string>? unknownNames = null;
         for (int i = 0; i < previousPalette.Count; i++)
         {
-            remap[i] = _blockIdByName.TryGetValue(NormalizeId(previousPalette[i]), out ushort id)
-                ? id
-                : Air;
+            string? name = previousPalette[i];
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                remap[i] = Air;
+                continue;
+            }
+
+            if (_blockIdByName.TryGetValue(NormalizeId(name), out ushort id))
+            {
+                remap[i] = id;
+            }
+            else
+            {
+                remap[i] = Air;
+                (unknownNames ??= new List<string>()).Add(name);
+            }
+        }
+
+        if (unknownNames != null)
+        {
+            Console.Error.WriteLine(
+                $"BlockRegistry: {unknownNames.Count} Blockname(n) aus der gespeicherten Palette " +
+                $"existieren nicht mehr und werden zu Luft gemappt: {string.Join(", ", unknownNames)}");
         }
 
         return remap;
     }
 
     /// <summary>
-    /// Mappt ein Block-ID-Array (z. B. <see cref="ChunkData.Blocks"/>) mit der Remap-Tabelle
+    /// Mappt ein Block-ID-Array (z. B. ChunkData.Blocks) mit der Remap-Tabelle
     /// auf die IDs der aktuellen Registry. Arbeitet in-place ohne Allokation.
     /// </summary>
     /// <param name="blocks">Das Block-ID-Array, das in-place remappt wird.</param>
@@ -439,7 +492,8 @@ public class BlockRegistry : IDisposable
 
     /// <summary>
     /// Sucht alle Texturen im Content-Verzeichnis und weist ihnen Layer-IDs zu.
-    /// Wird für headless-Modus verwendet.
+    /// Wird für headless-Modus verwendet. Der Textur-Layer-Map wird erst nach vollständigem
+    /// Erfolg zugewiesen, damit ein fehlgeschlagener Load keinen halb gefüllten Zustand hinterlässt.
     /// </summary>
     /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
     private void DiscoverTextureLayers(string contentRoot)
@@ -449,6 +503,28 @@ public class BlockRegistry : IDisposable
             return;
         }
 
+        List<(string textureId, string fullPath)> textureFiles = CollectTextureFiles(contentRoot);
+
+        var layersByName = new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase);
+        for (ushort i = 0; i < textureFiles.Count; i++)
+        {
+            layersByName[textureFiles[i].textureId] = i;
+        }
+
+        _textureLayersByName = layersByName;
+    }
+
+    /// <summary>
+    /// Sammelt alle Texturdateien (namespace/Textures/**/*.png) und sortiert sie ordinal.
+    /// Die sortierte Reihenfolge definiert die Layer-Indizes.
+    /// Doppelte Textur-IDs (z. B. gleicher Dateiname in Unterordnern) führen zu einer
+    /// <see cref="InvalidDataException"/>, damit keine Textur stillschweigend als unbenutzter
+    /// Layer endet und der Name nicht von der Sortierreihenfolge abhängt.
+    /// </summary>
+    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
+    /// <returns>Die sortierte Liste der Texturdateien.</returns>
+    private static List<(string textureId, string fullPath)> CollectTextureFiles(string contentRoot)
+    {
         var textureFiles = new List<(string textureId, string fullPath)>();
         foreach (string namespaceDir in Directory.EnumerateDirectories(contentRoot))
         {
@@ -467,15 +543,25 @@ public class BlockRegistry : IDisposable
         }
 
         textureFiles.Sort((a, b) => string.CompareOrdinal(a.textureId, b.textureId));
-        for (ushort i = 0; i < textureFiles.Count; i++)
+
+        // Da sortiert, stehen Duplikate direkt nebeneinander
+        for (int i = 1; i < textureFiles.Count; i++)
         {
-            _textureLayersByName[textureFiles[i].textureId] = i;
+            if (textureFiles[i].textureId == textureFiles[i - 1].textureId)
+            {
+                throw new InvalidDataException(
+                    $"Doppelte Textur-ID '{textureFiles[i].textureId}': {textureFiles[i].fullPath} " +
+                    $"kollidiert mit {textureFiles[i - 1].fullPath}.");
+            }
         }
+
+        return textureFiles;
     }
 
     /// <summary>
     /// Lädt alle Texturen in ein TextureArray und weist ihnen Layer-IDs zu.
-    /// Wird während der regulären Initialisierung verwendet.
+    /// Wird während der regulären Initialisierung verwendet. Sowohl das TextureArray als
+    /// auch die Layer-Map werden erst nach vollständigem Erfolg zugewiesen.
     /// </summary>
     /// <param name="gl">Die OpenGL-Instanz.</param>
     /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
@@ -488,37 +574,26 @@ public class BlockRegistry : IDisposable
             throw new DirectoryNotFoundException($"Content root nicht gefunden: {Path.GetFullPath(contentRoot)}");
         }
 
-        var textureFiles = new List<(string textureId, string fullPath)>();
-
-        foreach (string namespaceDir in Directory.EnumerateDirectories(contentRoot))
-        {
-            string namespaceName = Path.GetFileName(namespaceDir).ToLowerInvariant();
-            string textureDir = Path.Combine(namespaceDir, "Textures");
-            if (!Directory.Exists(textureDir))
-            {
-                continue;
-            }
-
-            foreach (string file in Directory.EnumerateFiles(textureDir, "*.png", SearchOption.AllDirectories))
-            {
-                string textureName = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
-                textureFiles.Add(($"{namespaceName}:{textureName}", file));
-            }
-        }
+        List<(string textureId, string fullPath)> textureFiles = CollectTextureFiles(contentRoot);
 
         if (textureFiles.Count == 0)
         {
             throw new InvalidDataException($"Keine Texturen unter '{contentRoot}/<namespace>/Textures' gefunden.");
         }
 
-        textureFiles.Sort((a, b) => string.CompareOrdinal(a.textureId, b.textureId));
-        string[] orderedPaths = textureFiles.Select(x => x.fullPath).ToArray();
-        _terrainTexture = new TextureArray(gl, orderedPaths);
-
+        var layersByName = new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase);
         for (ushort i = 0; i < textureFiles.Count; i++)
         {
-            _textureLayersByName[textureFiles[i].textureId] = i;
+            layersByName[textureFiles[i].textureId] = i;
         }
+
+        string[] orderedPaths = textureFiles.Select(x => x.fullPath).ToArray();
+        TextureArray terrainTexture = new TextureArray(gl, orderedPaths);
+
+        // Erst nach vollständigem Erfolg zuweisen — ein Fehlschlag im TextureArray-Konstruktor
+        // hinterlässt keinen halb gefüllten Zustand.
+        _terrainTexture = terrainTexture;
+        _textureLayersByName = layersByName;
     }
 
     /// <summary>
@@ -527,105 +602,127 @@ public class BlockRegistry : IDisposable
     /// vergeben — ohne Bevorzugung einzelner Erweiterungen oder Namespaces. Ein späteres
     /// Load-Order-System würde ausschließlich diese Zuweisung ersetzen; ein
     /// Block-Overwriting-System würde die Duplicate-Prüfung durch Override-Semantik ersetzen.
-    /// Doppelte Block-IDs (z. B. zwei Dateien mit gleichem Dateinamen im selben Namespace)
-    /// führen zu einer <see cref="InvalidDataException"/> — die Palette bleibt dadurch
-    /// für die gesamte Laufzeit des Engine-Prozesses eindeutig und unveränderlich.
+    /// Doppelte Blocknamen (z. B. zwei Dateien mit gleichem Dateinamen im selben Namespace,
+    /// oder ein core:air.json, da Luft intern zuerst registriert wird) führen zu einer
+    /// <see cref="InvalidDataException"/>, die beide kollidierenden Dateien nennt.
+    /// Der Zustand wird lokal aufgebaut und erst nach vollständigem Erfolg zugewiesen —
+    /// ein fehlgeschlagener Load hinterlässt keinen halb gefüllten Zustand, dessen Retry
+    /// irreführend als Duplikat-Fehler fehlschlagen würde.
     /// </summary>
     /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
     private void LoadBlocks(string contentRoot)
     {
-        if (_definitions.Count == 0)
+        // Lokal aufbauen, erst am Ende zuweisen.
+        var definitions = new List<BlockDefinition>
         {
-            // Luft ist immer ID 0 — hartes Invariant, Physics und Mesher prüfen direkt auf 0.
-            _definitions.Add(new BlockDefinition
+            new()
             {
                 Name = "core:air",
                 Layers = new ushort[6],
                 Tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "tag:air" }
-            });
-            _blockIdByName["core:air"] = Air;
-            IndexTag("tag:air", Air);
-        }
-
-        if (!Directory.Exists(contentRoot))
+            }
+        };
+        var blockIdByName = new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase)
         {
-            return;
-        }
-
-        // Phase 1 — Entdeckung: alle Blockdateien sammeln. Die Sortierung macht die
-        // Entdeckungsreihenfolge deterministisch; sie definiert die ID-Vergabe.
-        var blockFiles = new List<(string blockId, string fullPath)>();
-        foreach (string namespaceDir in Directory.EnumerateDirectories(contentRoot))
+            ["core:air"] = Air
+        };
+        var blockIdsByTag = new Dictionary<string, HashSet<ushort>>(StringComparer.OrdinalIgnoreCase);
+        IndexTag(blockIdsByTag, "tag:air", Air);
+        var blockPathByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            string namespaceName = Path.GetFileName(namespaceDir).ToLowerInvariant();
-            string blocksDir = Path.Combine(namespaceDir, "Blocks");
-            if (!Directory.Exists(blocksDir))
-            {
-                continue;
-            }
+            ["core:air"] = "(interner Luft-Block, kein core:air.json erlaubt)"
+        };
 
-            foreach (string file in Directory.EnumerateFiles(blocksDir, "*.json", SearchOption.AllDirectories))
-            {
-                string blockName = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
-                blockFiles.Add(($"{namespaceName}:{blockName}", file));
-            }
-        }
-
-        blockFiles.Sort((a, b) => string.CompareOrdinal(a.blockId, b.blockId));
-
-        // Phase 2 — Zuweisung: Parsen, validieren, IDs first come first serve vergeben.
-        foreach ((string blockId, string fullPath) in blockFiles)
+        if (Directory.Exists(contentRoot))
         {
-            if (_blockIdByName.ContainsKey(blockId))
+            // Phase 1 — Entdeckung: alle Blockdateien sammeln. Die Sortierung macht die
+            // Entdeckungsreihenfolge deterministisch; sie definiert die ID-Vergabe.
+            var blockFiles = new List<(string blockId, string fullPath)>();
+            foreach (string namespaceDir in Directory.EnumerateDirectories(contentRoot))
             {
-                throw new InvalidDataException(
-                    $"Doppelte Block-ID '{blockId}': {fullPath} kollidiert mit einer bereits registrierten Blockdatei.");
-            }
-
-            BlockFile? block = JsonSerializer.Deserialize<BlockFile>(File.ReadAllText(fullPath), JsonOptions);
-            if (block?.Textures == null)
-            {
-                throw new InvalidDataException($"Blockdatei ohne gültige 'textures': {fullPath}");
-            }
-
-            ushort id = (ushort)_definitions.Count;
-            ushort[] layers = ResolveLayers(blockId, block.Textures, fullPath);
-            var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (block.Tags != null)
-            {
-                foreach (string tag in block.Tags)
+                string namespaceName = Path.GetFileName(namespaceDir).ToLowerInvariant();
+                string blocksDir = Path.Combine(namespaceDir, "Blocks");
+                if (!Directory.Exists(blocksDir))
                 {
-                    tags.Add(NormalizeId(tag));
+                    continue;
+                }
+
+                foreach (string file in Directory.EnumerateFiles(blocksDir, "*.json", SearchOption.AllDirectories))
+                {
+                    string blockName = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
+                    blockFiles.Add(($"{namespaceName}:{blockName}", file));
                 }
             }
 
-            _definitions.Add(new BlockDefinition
-            {
-                Name = blockId,
-                Layers = layers,
-                Tags = tags
-            });
+            blockFiles.Sort((a, b) => string.CompareOrdinal(a.blockId, b.blockId));
 
-            _blockIdByName[blockId] = id;
-
-            foreach (string tag in tags)
+            // Phase 2 — Zuweisung: Parsen, validieren, IDs first come first serve vergeben.
+            foreach ((string blockId, string fullPath) in blockFiles)
             {
-                IndexTag(tag, id);
+                if (blockIdByName.ContainsKey(blockId))
+                {
+                    throw new InvalidDataException(
+                        $"Doppelter Blockname '{blockId}': {fullPath} kollidiert mit {blockPathByName[blockId]}.");
+                }
+
+                BlockFile? block = JsonSerializer.Deserialize<BlockFile>(File.ReadAllText(fullPath), JsonOptions);
+                if (block?.Textures == null)
+                {
+                    throw new InvalidDataException($"Blockdatei ohne gültige 'textures': {fullPath}");
+                }
+
+                if (definitions.Count >= ushort.MaxValue)
+                {
+                    throw new InvalidOperationException(
+                        $"Zu viele Blöcke definiert ({definitions.Count}): Das ushort-ID-Limit ist erreicht.");
+                }
+
+                ushort id = (ushort)definitions.Count;
+                ushort[] layers = ResolveLayers(blockId, block.Textures, fullPath);
+                var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (block.Tags != null)
+                {
+                    foreach (string tag in block.Tags)
+                    {
+                        tags.Add(NormalizeId(tag));
+                    }
+                }
+
+                definitions.Add(new BlockDefinition
+                {
+                    Name = blockId,
+                    Layers = layers,
+                    Tags = tags
+                });
+
+                blockIdByName[blockId] = id;
+                blockPathByName[blockId] = fullPath;
+
+                foreach (string tag in tags)
+                {
+                    IndexTag(blockIdsByTag, tag, id);
+                }
             }
         }
+
+        // Erst nach vollständigem Erfolg zuweisen.
+        _definitions = definitions;
+        _blockIdByName = blockIdByName;
+        _blockIdsByTag = blockIdsByTag;
     }
 
     /// <summary>
     /// Registriert einen normalisierten Tag im Tag-Index.
     /// </summary>
+    /// <param name="index">Der Tag-Index, der gefüllt wird.</param>
     /// <param name="normalizedTag">Der bereits normalisierte Tag.</param>
     /// <param name="id">Die Block-ID, die den Tag besitzt.</param>
-    private void IndexTag(string normalizedTag, ushort id)
+    private static void IndexTag(Dictionary<string, HashSet<ushort>> index, string normalizedTag, ushort id)
     {
-        if (!_blockIdsByTag.TryGetValue(normalizedTag, out HashSet<ushort>? entries))
+        if (!index.TryGetValue(normalizedTag, out HashSet<ushort>? entries))
         {
             entries = new HashSet<ushort>();
-            _blockIdsByTag[normalizedTag] = entries;
+            index[normalizedTag] = entries;
         }
 
         entries.Add(id);
@@ -652,14 +749,18 @@ public class BlockRegistry : IDisposable
     }
 
     /// <summary>
-    /// Resolves die Texture-ID für ein bestimmtes Face.
+    /// Resolves die Textur-ID für ein bestimmtes Face.
+    /// Strikt: Eine Blockdatei, die eine Textur referenziert, die nicht existiert, ist ein
+    /// Content-Fehler und führt zu einer <see cref="InvalidDataException"/> — auch headless.
+    /// Die Textur-Map ist zu diesem Zeitpunkt immer gefüllt, da LoadTextures bzw.
+    /// DiscoverTextureLayers immer vor LoadBlocks läuft.
     /// </summary>
     /// <param name="textureName">Der Name der Textur.</param>
     /// <param name="blockId">Die ID des Blocks.</param>
     /// <param name="faceName">Der Name des Faces.</param>
     /// <param name="sourcePath">Der Pfad zur Block-Datei.</param>
     /// <returns>Der Layer-Index der Textur.</returns>
-    /// <exception cref="InvalidDataException">Wird ausgelöst, wenn die Textur nicht gefunden wird.</exception>
+    /// <exception cref="InvalidDataException">Wird ausgelöst, wenn die Textur fehlt oder nicht gefunden wird.</exception>
     private ushort ResolveTextureId(string? textureName, string blockId, string faceName, string sourcePath)
     {
         if (string.IsNullOrWhiteSpace(textureName))
@@ -670,10 +771,6 @@ public class BlockRegistry : IDisposable
         string normalized = NormalizeId(textureName);
         if (!_textureLayersByName.TryGetValue(normalized, out ushort layer))
         {
-            if (!_texturesLoaded && !_textureLayersByName.ContainsKey(normalized))
-            {
-                return 0;
-            }
             throw new InvalidDataException($"Unbekannte Textur '{textureName}' für {blockId}:{faceName} in {sourcePath}");
         }
 
@@ -692,10 +789,39 @@ public class BlockRegistry : IDisposable
     }
 
     /// <summary>
-    /// Gibt alle Ressourcen frei.
+    /// Gibt alle Ressourcen frei. Danach wird jeglicher Zugriff mit einer
+    /// <see cref="ObjectDisposedException"/> abgelehnt.
     /// </summary>
     public void Dispose()
     {
-        Reset();
+        if (_disposed)
+        {
+            return;
+        }
+
+        // Zuerst als verworfen markieren: Ein Worker-Thread, der während Game.Exit
+        // noch Get() aufruft, darf die Palette nicht über InitializeHeadless neu aufbauen.
+        _disposed = true;
+
+        _blockIdByName.Clear();
+        _blockIdsByTag.Clear();
+        _textureLayersByName.Clear();
+        _definitions.Clear();
+        _terrainTexture?.Dispose();
+        _terrainTexture = null;
+        _initialized = false;
+        _texturesLoaded = false;
+    }
+
+    /// <summary>
+    /// Stellt sicher, dass die Registry nicht verworfen wurde.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">Wird ausgelöst, wenn die Registry verworfen wurde.</exception>
+    private void ThrowIfDisposed()
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(BlockRegistry));
+        }
     }
 }

@@ -101,6 +101,45 @@ class Program
             failed++;
         }
 
+        try
+        {
+            TestFailedInitReportsOriginalErrorOnRetry();
+            Console.WriteLine("[PASS] TestFailedInitReportsOriginalErrorOnRetry passed.\n");
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FAIL] TestFailedInitReportsOriginalErrorOnRetry failed: {ex}");
+            Console.ResetColor();
+            failed++;
+        }
+
+        try
+        {
+            TestGetAfterDisposeThrows();
+            Console.WriteLine("[PASS] TestGetAfterDisposeThrows passed.\n");
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FAIL] TestGetAfterDisposeThrows failed: {ex}");
+            Console.ResetColor();
+            failed++;
+        }
+
+        try
+        {
+            TestDuplicateTextureNamesThrow();
+            Console.WriteLine("[PASS] TestDuplicateTextureNamesThrow passed.\n");
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FAIL] TestDuplicateTextureNamesThrow failed: {ex}");
+            Console.ResetColor();
+            failed++;
+        }
+
         if (failed == 0)
         {
             Console.ForegroundColor = ConsoleColor.Green;
@@ -311,6 +350,15 @@ class Program
         var contentRegistry = new BlockRegistry();
         contentRegistry.InitializeHeadless("Content");
 
+        // Zweite Registry aus demselben Content: IDs müssen identisch sein
+        var contentRegistry2 = new BlockRegistry();
+        contentRegistry2.InitializeHeadless("Content");
+        foreach (string name in coreBlocks)
+        {
+            Assert(contentRegistry.GetBlockId(name) == contentRegistry2.GetBlockId(name),
+                $"Zwei Registries aus demselben Content müssen für '{name}' dieselbe ID vergeben");
+        }
+
         // Registry ohne erreichbaren Content (Fallback-Definitionen)
         var fallbackRegistry = new BlockRegistry();
         fallbackRegistry.InitializeHeadless("definitely/not/a/content/dir");
@@ -433,6 +481,11 @@ class Program
             Directory.CreateDirectory(Path.Combine(blocksDir, "mod_a"));
             Directory.CreateDirectory(Path.Combine(blocksDir, "mod_b"));
 
+            // Textur bereitstellen, damit die Blockdefinitionen bis zur Duplicate-Prüfung kommen
+            string texturesDir = Path.Combine(tempRoot, "duptest", "Textures");
+            Directory.CreateDirectory(texturesDir);
+            File.WriteAllText(Path.Combine(texturesDir, "stone.png"), string.Empty);
+
             // Beide Erweiterungen liefern denselben Blocknamen → "duptest:stone" doppelt
             string json = "{ \"textures\": { \"sides\": \"duptest:stone\" } }";
             File.WriteAllText(Path.Combine(blocksDir, "mod_a", "stone.json"), json);
@@ -440,17 +493,157 @@ class Program
 
             var registry = new BlockRegistry();
 
+            string? errorMessage = null;
             bool threw = false;
             try
             {
                 registry.InitializeHeadless(tempRoot);
             }
-            catch (InvalidDataException)
+            catch (InvalidDataException ex)
             {
                 threw = true;
+                errorMessage = ex.Message;
             }
 
-            Assert(threw, "Doppelte Block-IDs müssen eine InvalidDataException auslösen");
+            Assert(threw, "Doppelte Blocknamen müssen eine InvalidDataException auslösen");
+            Assert(errorMessage!.Contains("mod_a") && errorMessage.Contains("mod_b"),
+                $"Fehlermeldung muss beide kollidierenden Dateien nennen: {errorMessage}");
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Test 7: Fehlgeschlagener Load meldet den Originalfehler bei jedem Retry.
+    /// Verifies that a failed load (unknown texture) leaves no half-filled state, so a retry
+    /// reports the original error instead of a misleading "duplicate block" error.
+    /// </summary>
+    static void TestFailedInitReportsOriginalErrorOnRetry()
+    {
+        Console.WriteLine("Running TestFailedInitReportsOriginalErrorOnRetry...");
+
+        string tempRoot = Path.Combine(Path.GetTempPath(), "blockgame_retry_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string blocksDir = Path.Combine(tempRoot, "retrytest", "Blocks", "sub");
+            Directory.CreateDirectory(blocksDir);
+
+            // Blockdatei mit unbekannter Textur → Load muss an der Textur scheitern
+            string json = "{ \"textures\": { \"sides\": \"retrytest:doesnotexist\" } }";
+            File.WriteAllText(Path.Combine(blocksDir, "broken.json"), json);
+
+            var registry = new BlockRegistry();
+
+            Exception? firstError = null;
+            try
+            {
+                registry.InitializeHeadless(tempRoot);
+            }
+            catch (Exception ex)
+            {
+                firstError = ex;
+            }
+
+            Assert(firstError is InvalidDataException,
+                $"Erster Load muss an der unbekannten Textur scheitern, war: {firstError}");
+            Assert(firstError!.Message.Contains("Unbekannte Textur"),
+                $"Originalfehler muss die unbekannte Textur nennen: {firstError.Message}");
+
+            // Retry mit demselben Content (wie CreateDefaultRegistry es tut, wenn es die
+            // erste Exception schluckt und ein späteres Get() den Load erneut anstößt):
+            // muss denselben Originalfehler melden, nicht irreführend "Doppelter Blockname"
+            Exception? retryError = null;
+            try
+            {
+                registry.InitializeHeadless(tempRoot);
+            }
+            catch (Exception ex)
+            {
+                retryError = ex;
+            }
+
+            Assert(retryError is InvalidDataException,
+                $"Retry muss denselben Content-Fehler melden, war: {retryError}");
+            Assert(retryError!.Message == firstError.Message,
+                $"Retry muss exakt denselben Originalfehler liefern:\n  erster: {firstError.Message}\n  retry:  {retryError.Message}");
+            Assert(!retryError.Message.Contains("Doppelter"),
+                "Retry darf nicht als Duplikat-Fehler fehlschlagen");
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Test 8: Zugriff nach Dispose.
+    /// Verifies that the registry rejects all access with ObjectDisposedException after
+    /// Dispose, so a worker meshing during Game.Exit cannot rebuild the palette.
+    /// </summary>
+    static void TestGetAfterDisposeThrows()
+    {
+        Console.WriteLine("TestGetAfterDisposeThrows...");
+
+        var registry = new BlockRegistry();
+        registry.InitializeHeadless("Content");
+        Assert(registry.GetBlockId("core:stone") > 0, "Registry muss vor Dispose funktionieren");
+
+        registry.Dispose();
+
+        AssertThrows<ObjectDisposedException>(() => registry.Get(0, 0), "Get nach Dispose muss werfen");
+        AssertThrows<ObjectDisposedException>(() => registry.GetBlockId("core:stone"), "GetBlockId nach Dispose muss werfen");
+        AssertThrows<ObjectDisposedException>(() => registry.HasTag(0, "tag:air"), "HasTag nach Dispose muss werfen");
+        AssertThrows<ObjectDisposedException>(() => registry.GetName(0), "GetName nach Dispose muss werfen");
+        AssertThrows<ObjectDisposedException>(() => registry.ExportPalette(), "ExportPalette nach Dispose muss werfen");
+        AssertThrows<ObjectDisposedException>(() => registry.InitializeHeadless("Content"), "InitializeHeadless nach Dispose muss werfen");
+        AssertThrows<ObjectDisposedException>(() => registry.Reset(), "Reset nach Dispose muss werfen");
+    }
+
+    /// <summary>
+    /// Test 9: Doppelte Texturnamen.
+    /// Verifies that two PNGs with the same name in different subfolders make the texture
+    /// load throw instead of silently assigning the last-sorted one.
+    /// </summary>
+    static void TestDuplicateTextureNamesThrow()
+    {
+        Console.WriteLine("Running TestDuplicateTextureNamesThrow...");
+
+        string tempRoot = Path.Combine(Path.GetTempPath(), "blockgame_duptex_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string texturesDir = Path.Combine(tempRoot, "duptex", "Textures");
+            Directory.CreateDirectory(Path.Combine(texturesDir, "pack_a"));
+            Directory.CreateDirectory(Path.Combine(texturesDir, "pack_b"));
+
+            // Beide Erweiterungen liefern dieselbe Textur "duptex:stone"
+            File.WriteAllText(Path.Combine(texturesDir, "pack_a", "stone.png"), string.Empty);
+            File.WriteAllText(Path.Combine(texturesDir, "pack_b", "stone.png"), string.Empty);
+
+            var registry = new BlockRegistry();
+
+            string? errorMessage = null;
+            bool threw = false;
+            try
+            {
+                registry.InitializeHeadless(tempRoot);
+            }
+            catch (InvalidDataException ex)
+            {
+                threw = true;
+                errorMessage = ex.Message;
+            }
+
+            Assert(threw, "Doppelte Textur-IDs müssen eine InvalidDataException auslösen");
+            Assert(errorMessage!.Contains("pack_a") && errorMessage.Contains("pack_b"),
+                $"Fehlermeldung muss beide kollidierenden Texturen nennen: {errorMessage}");
         }
         finally
         {
@@ -493,5 +686,23 @@ class Program
         {
             throw new Exception($"Assertion failed: {message}");
         }
+    }
+
+    static void AssertThrows<TException>(Action action, string message) where TException : Exception
+    {
+        try
+        {
+            action();
+        }
+        catch (TException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Assertion failed: {message} — falscher Fehlertyp: {ex.GetType().Name}: {ex.Message}");
+        }
+
+        throw new Exception($"Assertion failed: {message} — es wurde keine Exception geworfen");
     }
 }

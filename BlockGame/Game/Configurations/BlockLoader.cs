@@ -154,20 +154,6 @@ public static class BlockLoader
     }
 
     /// <summary>
-    /// Registriert einen Block zur Laufzeit (z. B. durch modulare Erweiterungen) und gibt seine ID zurück.
-    /// Idempotent: Wird der Name bereits registriert, wird die vorhandene ID zurückgegeben.
-    /// </summary>
-    /// <param name="blockId">Der Namespaced-Name des Blocks (z. B. "mymod:glowstone").</param>
-    /// <param name="textures">Die Texturen des Blocks (optional; ohne Texturen werden Layer 0 verwendet).</param>
-    /// <param name="tags">Optionale Tags des Blocks.</param>
-    /// <returns>Die stabile ID des Blocks für diese Sitzung.</returns>
-    /// <remarks>Nur vom Main-Thread aus aufrufen, niemals während Worker-Threads Chunks generieren.</remarks>
-    public static ushort RegisterBlock(string blockId, BlockTextureFaces? textures = null, IEnumerable<string>? tags = null)
-    {
-        return Current.RegisterBlock(blockId, textures, tags);
-    }
-
-    /// <summary>
     /// Gibt den Namespaced-Namen eines Blocks anhand seiner ID zurück (Palette-Rücklookup).
     /// </summary>
     /// <param name="blockId">Die ID des Blocks.</param>

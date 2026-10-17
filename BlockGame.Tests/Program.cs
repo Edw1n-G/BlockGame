@@ -90,13 +90,13 @@ class Program
 
         try
         {
-            TestRegisterBlockExtension();
-            Console.WriteLine("[PASS] TestRegisterBlockExtension passed.\n");
+            TestDuplicateBlockIdThrows();
+            Console.WriteLine("[PASS] TestDuplicateBlockIdThrows passed.\n");
         }
         catch (Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"[FAIL] TestRegisterBlockExtension failed: {ex}");
+            Console.WriteLine($"[FAIL] TestDuplicateBlockIdThrows failed: {ex}");
             Console.ResetColor();
             failed++;
         }
@@ -332,22 +332,23 @@ class Program
                 $"Block-ID für '{name}' darf nicht von der Initialisierungsreihenfolge abhängen");
         }
 
-        // Merge: Echten Content in die Fallback-Registry laden — bereits vergebene IDs
-        // dürfen sich nicht verschieben (Palette-Prinzip)
+        // Palette-Immutabilität: Erneute Initialisierung (auch mit jetzt verfügbarem Content)
+        // darf die einmal geladene Palette nicht mehr verändern
         ushort fallbackSnowBefore = fallbackRegistry.GetBlockId("core:snow");
         ushort fallbackStoneBefore = fallbackRegistry.GetBlockId("core:stone");
         fallbackRegistry.InitializeHeadless("Content");
 
         Assert(fallbackRegistry.GetBlockId("core:snow") == fallbackSnowBefore,
-            "Nach dem Content-Merge darf die ID von core:snow nicht verschoben werden");
+            "Erneute Initialisierung darf die ID von core:snow nicht verändern");
         Assert(fallbackRegistry.GetBlockId("core:stone") == fallbackStoneBefore,
-            "Nach dem Content-Merge darf die ID von core:stone nicht verschoben werden");
+            "Erneute Initialisierung darf die ID von core:stone nicht verändern");
 
-        // Nach dem Merge müssen beide Registries weiterhin identische IDs haben
+        // Auch der Content-Registry darf eine erneute Initialisierung nichts anhaben
+        contentRegistry.InitializeHeadless("Content");
         foreach (string name in coreBlocks)
         {
             Assert(contentRegistry.GetBlockId(name) == fallbackRegistry.GetBlockId(name),
-                $"Nach dem Merge muss die ID für '{name}' mit dem Content-Pfad übereinstimmen");
+                $"Beide Registries müssen weiterhin identische IDs für '{name}' haben");
         }
 
         // Palette-Rücklookup: Name → ID → Name
@@ -416,54 +417,48 @@ class Program
     }
 
     /// <summary>
-    /// Test 6: Laufzeit-Registrierung modularer Erweiterungen.
-    /// Verifies that RegisterBlock assigns stable, idempotent handles for new blocks and
-    /// that existing blocks (including core:air = 0) are not affected.
+    /// Test 6: Doppelte Block-IDs.
+    /// Verifies that two extensions providing the same block id (same filename in different
+    /// subfolders of one namespace) make the palette load throw instead of silently merging,
+    /// keeping the palette unique and immutable for the whole engine process.
     /// </summary>
-    static void TestRegisterBlockExtension()
+    static void TestDuplicateBlockIdThrows()
     {
-        Console.WriteLine("Running TestRegisterBlockExtension...");
+        Console.WriteLine("Running TestDuplicateBlockIdThrows...");
 
-        var registry = new BlockRegistry();
-        registry.InitializeHeadless("Content");
+        string tempRoot = Path.Combine(Path.GetTempPath(), "blockgame_dup_test_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string blocksDir = Path.Combine(tempRoot, "duptest", "Blocks");
+            Directory.CreateDirectory(Path.Combine(blocksDir, "mod_a"));
+            Directory.CreateDirectory(Path.Combine(blocksDir, "mod_b"));
 
-        ushort airBefore = registry.GetBlockId("core:air");
-        ushort stoneBefore = registry.GetBlockId("core:stone");
-        int definitionCountBefore = registry.ExportPalette().Length;
+            // Beide Erweiterungen liefern denselben Blocknamen → "duptest:stone" doppelt
+            string json = "{ \"textures\": { \"sides\": \"duptest:stone\" } }";
+            File.WriteAllText(Path.Combine(blocksDir, "mod_a", "stone.json"), json);
+            File.WriteAllText(Path.Combine(blocksDir, "mod_b", "stone.json"), json);
 
-        // Neuen Mod-Block registrieren
-        ushort glowstoneId = registry.RegisterBlock("testmod:glowstone");
-        Assert(registry.GetBlockId("testmod:glowstone") == glowstoneId,
-            "Registrierter Mod-Block muss über den Namen auflösbar sein");
-        Assert(registry.GetName(glowstoneId) == "testmod:glowstone",
-            "GetName muss den registrierten Namen zurückgeben");
-        Assert(glowstoneId >= definitionCountBefore,
-            "Neue Blöcke müssen hinter den bestehenden Definitionen eingereiht werden");
+            var registry = new BlockRegistry();
 
-        // Idempotent: erneutes Registrieren liefert dieselbe stabile ID
-        ushort glowstoneIdAgain = registry.RegisterBlock("TESTMOD:Glowstone");
-        Assert(glowstoneIdAgain == glowstoneId,
-            "Erneutes Registrieren (Groß-/Kleinschreibung egal) muss dieselbe ID liefern");
+            bool threw = false;
+            try
+            {
+                registry.InitializeHeadless(tempRoot);
+            }
+            catch (InvalidDataException)
+            {
+                threw = true;
+            }
 
-        // Bestehende Blöcke dürfen sich nicht verschieben
-        Assert(registry.GetBlockId("core:air") == airBefore && airBefore == 0,
-            "core:air muss ID 0 behalten (hartes Invariant)");
-        Assert(registry.GetBlockId("core:stone") == stoneBefore,
-            "Bestehende Block-IDs dürfen sich durch Mod-Registrierung nicht verschieben");
-
-        // Tags bei der Laufzeit-Registrierung
-        ushort lampId = registry.RegisterBlock("testmod:lamp", tags: new[] { "tag:light" });
-        Assert(registry.HasTag(lampId, "tag:light"), "Registrierter Block muss seinen Tag haben");
-        Assert(registry.GetByTag("tag:light").Contains(lampId),
-            "GetByTag muss den registrierten Block liefern");
-
-        // Registry zurücksetzen und neu aufbauen: Content-Blöcke behalten ihre IDs
-        // (Laufzeit-Registrierungen sind sitzungsspezifisch und verschwinden mit dem Reset)
-        registry.Reset();
-        registry.InitializeHeadless("Content");
-        Assert(registry.GetBlockId("core:stone") == stoneBefore,
-            "Nach Reset+Reload müssen Content-Blöcke dieselben IDs haben");
-        Assert(registry.GetBlockId("core:air") == 0, "Nach Reset+Reload muss core:air weiterhin ID 0 haben");
+            Assert(threw, "Doppelte Block-IDs müssen eine InvalidDataException auslösen");
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, true);
+            }
+        }
     }
 
     static void TestConcurrentSessionsWithDifferentRegistriesMeshCorrectly()

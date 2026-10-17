@@ -5,37 +5,17 @@ using Silk.NET.OpenGL;
 namespace Basics.Game.Configurations;
 
 /// <summary>
-/// Textur-Zuweisung für die 6 Faces eines Blocks.
-/// Wird für die JSON-Deserialisierung von Blockdateien und für die Laufzeit-Registrierung
-/// durch modulare Erweiterungen (<see cref="BlockRegistry.RegisterBlock"/>) verwendet.
-/// Jedes Face fällt auf <see cref="Sides"/> zurück, wenn es nicht gesetzt ist.
-/// </summary>
-public sealed class BlockTextureFaces
-{
-    /// <summary>Textur-ID für das obere Face.</summary>
-    public string? Top { get; set; }
-    /// <summary>Textur-ID für das untere Face.</summary>
-    public string? Bottom { get; set; }
-    /// <summary>Textur-ID für das vordere Face.</summary>
-    public string? Front { get; set; }
-    /// <summary>Textur-ID für das hintere Face.</summary>
-    public string? Back { get; set; }
-    /// <summary>Textur-ID für das linke Face.</summary>
-    public string? Left { get; set; }
-    /// <summary>Textur-ID für das rechte Face.</summary>
-    public string? Right { get; set; }
-    /// <summary>Textur-ID für alle Seiten (Fallback für einzelne Faces).</summary>
-    public string? Sides { get; set; }
-}
-
-/// <summary>
 /// Registriert und verwaltet Blockdefinitionen sowie deren Texturen.
 /// Implementiert ein Palette-System: Die kanonische Identität eines Blocks ist sein
 /// Namespaced-Name (z. B. "core:stone"), die numerische Block-ID ist nur ein
-/// sitzungsspezifisches Handle. Einmal vergebene IDs werden niemals verschoben —
-/// später geladener Content wird per Name in die bestehende Palette gemerged.
-/// Dadurch sind Blockdaten unabhängig von der Load-Reihenfolge, Mod-Auswahl
-/// oder Erweiterungen, die eigene Blöcke zur Laufzeit registrieren.
+/// sitzungsspezifisches Handle.
+/// Die Palette wird beim Start genau einmal geladen — first come first serve in
+/// Entdeckungsreihenfolge, ohne Bevorzugung einzelner Erweiterungen — und ändert sich
+/// danach nicht mehr, während der Engine-Prozess läuft. Modulare Erweiterungen werden
+/// vor dem Start in das Content-Verzeichnis gelegt (namespace/Blocks/*.json) und kommen
+/// dadurch automatisch in die Palette; doppelte Block-IDs führen zu einer Exception.
+/// Ein späteres Load-Order- oder Block-Overwriting-System würde ausschließlich die
+/// ID-Zuweisung in <see cref="LoadBlocks"/> bzw. die Duplicate-Prüfung ersetzen.
 /// Für Serialisierung (Saves/Netzwerk) exportiert die Palette Namen als Snapshot
 /// und erstellt Remap-Tabellen für gespeicherte Daten.
 /// </summary>
@@ -46,6 +26,21 @@ public class BlockRegistry : IDisposable
         public string? Name { get; set; }
         public List<string>? Tags { get; set; }
         public BlockTextureFaces? Textures { get; set; }
+    }
+
+    /// <summary>
+    /// Textur-Zuweisung für die 6 Faces eines Blocks (JSON-Struktur einer Blockdatei).
+    /// Jedes Face fällt auf <see cref="Sides"/> zurück, wenn es nicht gesetzt ist.
+    /// </summary>
+    private sealed class BlockTextureFaces
+    {
+        public string? Top { get; set; }
+        public string? Bottom { get; set; }
+        public string? Front { get; set; }
+        public string? Back { get; set; }
+        public string? Left { get; set; }
+        public string? Right { get; set; }
+        public string? Sides { get; set; }
     }
 
     private sealed class BlockDefinition
@@ -68,12 +63,6 @@ public class BlockRegistry : IDisposable
     private TextureArray? _terrainTexture;
     private bool _initialized;
     private bool _texturesLoaded;
-    /// <summary>
-    /// Gibt an, ob die aktuell geladenen Definitionen aus dem hartcodierten Fallback stammen
-    /// (kein Content gefunden). Wenn später Content verfügbar wird, werden die
-    /// Fallback-Definitionen per Name in die Palette gemerged.
-    /// </summary>
-    private bool _usedFallbackDefinitions;
 
     /// <summary>
     /// Index des oberen Face (Top) in der Layer-Array.
@@ -146,12 +135,12 @@ public class BlockRegistry : IDisposable
 
     /// <summary>
     /// Initialisiert die BlockRegistry. Lädt Texturen (wenn eine GL-Instanz vorhanden ist)
-    /// und Blockdefinitionen aus dem Content-Verzeichnis.
-    /// Beide Initialisierungs-Pfade (mit und ohne GL) laufen über diese eine Methode,
-    /// damit unabhängig von der Reihenfolge immer dieselbe Palette entsteht.
-    /// Blockdefinitionen werden genau einmal zugewiesen: Fehlender Content erzeugt
-    /// Fallback-Definitionen, die später beim ersten verfügbaren Content per Name
-    /// in die bestehende Palette gemerged werden (bereits vergebene IDs bleiben stabil).
+    /// und die Block-Palette aus dem Content-Verzeichnis.
+    /// Beide Initialisierungs-Pfade (mit und ohne GL) laufen über diese eine Methode.
+    /// Die Palette wird genau einmal geladen — beim ersten Aufruf — und bleibt danach
+    /// unverändert, während der Engine-Prozess läuft. Erneute Aufrufe (z. B.
+    /// <c>Game.Enter</c> nach dem EngineContext-Konstruktor) laden nur noch fehlende
+    /// Texturen, ändern aber niemals Blockdefinitionen oder Block-IDs.
     /// </summary>
     /// <param name="gl">Die OpenGL-Instanz für die Textur-Erstellung oder null für headless-Betrieb.</param>
     /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
@@ -178,8 +167,7 @@ public class BlockRegistry : IDisposable
         {
             if (hasContent)
             {
-                LoadOrMergeBlocks(root);
-                _usedFallbackDefinitions = false;
+                LoadBlocks(root);
             }
             else
             {
@@ -187,13 +175,6 @@ public class BlockRegistry : IDisposable
             }
 
             _initialized = true;
-        }
-        else if (_usedFallbackDefinitions && hasContent)
-        {
-            // Fallback-Definitionen waren aktiv und Content ist jetzt verfügbar:
-            // per Name mergen, damit bereits vergebene Block-IDs stabil bleiben.
-            LoadOrMergeBlocks(root);
-            _usedFallbackDefinitions = false;
         }
     }
 
@@ -210,8 +191,8 @@ public class BlockRegistry : IDisposable
     }
 
     /// <summary>
-    /// Lädt Standard-Fallback-Blöcke, wenn kein Content vorhanden ist.
-    /// Die Reihenfolge entspricht exakt der ordinalen Sortierung, die <see cref="LoadOrMergeBlocks"/>
+    /// Lädt Standard-Fallback-Blöcke, wenn kein Content vorhanden ist (headless-Betrieb).
+    /// Die Reihenfolge entspricht exakt der ordinalen Sortierung, die <see cref="LoadBlocks"/>
     /// für Content-Dateien verwendet (air, dirt, grass, snow, stone) — damit Fallback- und
     /// Content-Pfad für dieselben Namen dieselben IDs vergeben.
     /// </summary>
@@ -239,8 +220,6 @@ public class BlockRegistry : IDisposable
                 IndexTag(tag, id);
             }
         }
-
-        _usedFallbackDefinitions = true;
     }
 
     /// <summary>
@@ -257,7 +236,6 @@ public class BlockRegistry : IDisposable
         _terrainTexture = null;
         _initialized = false;
         _texturesLoaded = false;
-        _usedFallbackDefinitions = false;
     }
 
     /// <summary>
@@ -346,69 +324,6 @@ public class BlockRegistry : IDisposable
         return _blockIdsByTag.TryGetValue(normalized, out HashSet<ushort>? ids)
             ? ids
             : Array.Empty<ushort>();
-    }
-
-    /// <summary>
-    /// Registriert einen Block zur Laufzeit (z. B. durch modulare Erweiterungen) und gibt seine ID zurück.
-    /// Die kanonische Identität ist der Namespaced-Name: Wird der Name bereits registriert,
-    /// wird die vorhandene ID zurückgegeben (idempotent, stabile Handles).
-    /// Neue Blöcke erhalten den nächsten freien ID-Slot; ihre numerische ID bleibt für die
-    /// gesamte Sitzung stabil. Für Serialisierung siehe <see cref="ExportPalette"/> und
-    /// <see cref="CreateRemapTable"/>.
-    /// </summary>
-    /// <param name="blockId">Der Namespaced-Name des Blocks (z. B. "mymod:glowstone").</param>
-    /// <param name="textures">Die Texturen des Blocks (optional; ohne Texturen werden Layer 0 verwendet).</param>
-    /// <param name="tags">Optionale Tags des Blocks.</param>
-    /// <returns>Die stabile ID des Blocks für diese Sitzung.</returns>
-    /// <remarks>
-    /// Nur vom Main-Thread aus aufrufen, niemals während Worker-Threads Chunks generieren oder meshen.
-    /// </remarks>
-    public ushort RegisterBlock(string blockId, BlockTextureFaces? textures = null, IEnumerable<string>? tags = null)
-    {
-        if (!_initialized)
-        {
-            InitializeHeadless();
-        }
-
-        string normalized = NormalizeId(blockId);
-        if (_blockIdByName.TryGetValue(normalized, out ushort existingId))
-        {
-            return existingId;
-        }
-
-        if (_definitions.Count >= ushort.MaxValue)
-        {
-            throw new InvalidOperationException($"Block-ID-Limit erreicht: {_definitions.Count} Blöcke registriert.");
-        }
-
-        ushort[] layers = textures != null
-            ? ResolveLayers(normalized, textures, $"runtime:{normalized}")
-            : new ushort[6];
-
-        var tagSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (tags != null)
-        {
-            foreach (string tag in tags)
-            {
-                tagSet.Add(NormalizeId(tag));
-            }
-        }
-
-        ushort id = (ushort)_definitions.Count;
-        _definitions.Add(new BlockDefinition
-        {
-            Name = normalized,
-            Layers = layers,
-            Tags = tagSet
-        });
-        _blockIdByName[normalized] = id;
-
-        foreach (string tag in tagSet)
-        {
-            IndexTag(tag, id);
-        }
-
-        return id;
     }
 
     /// <summary>
@@ -607,15 +522,17 @@ public class BlockRegistry : IDisposable
     }
 
     /// <summary>
-    /// Lädt alle Blockdefinitionen aus JSON-Dateien im Content-Verzeichnis und merged sie
-    /// per Name in die bestehende Palette (Palette-Prinzip).
-    /// Neu entdeckte Blöcke erhalten den nächsten freien ID-Slot; bereits registrierte Namen
-    /// behalten ihre zuvor vergebene ID und bekommen nur Layers/Tags aktualisiert.
-    /// Dadurch sind IDs stabil, unabhängig davon, wann oder in welcher Reihenfolge
-    /// Content geladen wird (z. B. nachträglich installierte Mod-Erweiterungen).
+    /// Lädt alle Blockdefinitionen aus JSON-Dateien im Content-Verzeichnis in die Palette.
+    /// Die IDs werden first come first serve in der (ordinal sortierten) Entdeckungsreihenfolge
+    /// vergeben — ohne Bevorzugung einzelner Erweiterungen oder Namespaces. Ein späteres
+    /// Load-Order-System würde ausschließlich diese Zuweisung ersetzen; ein
+    /// Block-Overwriting-System würde die Duplicate-Prüfung durch Override-Semantik ersetzen.
+    /// Doppelte Block-IDs (z. B. zwei Dateien mit gleichem Dateinamen im selben Namespace)
+    /// führen zu einer <see cref="InvalidDataException"/> — die Palette bleibt dadurch
+    /// für die gesamte Laufzeit des Engine-Prozesses eindeutig und unveränderlich.
     /// </summary>
     /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
-    private void LoadOrMergeBlocks(string contentRoot)
+    private void LoadBlocks(string contentRoot)
     {
         if (_definitions.Count == 0)
         {
@@ -635,6 +552,8 @@ public class BlockRegistry : IDisposable
             return;
         }
 
+        // Phase 1 — Entdeckung: alle Blockdateien sammeln. Die Sortierung macht die
+        // Entdeckungsreihenfolge deterministisch; sie definiert die ID-Vergabe.
         var blockFiles = new List<(string blockId, string fullPath)>();
         foreach (string namespaceDir in Directory.EnumerateDirectories(contentRoot))
         {
@@ -653,14 +572,23 @@ public class BlockRegistry : IDisposable
         }
 
         blockFiles.Sort((a, b) => string.CompareOrdinal(a.blockId, b.blockId));
+
+        // Phase 2 — Zuweisung: Parsen, validieren, IDs first come first serve vergeben.
         foreach ((string blockId, string fullPath) in blockFiles)
         {
+            if (_blockIdByName.ContainsKey(blockId))
+            {
+                throw new InvalidDataException(
+                    $"Doppelte Block-ID '{blockId}': {fullPath} kollidiert mit einer bereits registrierten Blockdatei.");
+            }
+
             BlockFile? block = JsonSerializer.Deserialize<BlockFile>(File.ReadAllText(fullPath), JsonOptions);
             if (block?.Textures == null)
             {
                 throw new InvalidDataException($"Blockdatei ohne gültige 'textures': {fullPath}");
             }
 
+            ushort id = (ushort)_definitions.Count;
             ushort[] layers = ResolveLayers(blockId, block.Textures, fullPath);
             var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (block.Tags != null)
@@ -671,43 +599,18 @@ public class BlockRegistry : IDisposable
                 }
             }
 
-            if (_blockIdByName.TryGetValue(blockId, out ushort existingId))
+            _definitions.Add(new BlockDefinition
             {
-                // Palette-Prinzip: Der Name behält seine bereits vergebene ID,
-                // nur die Definition (Layers/Tags) wird aktualisiert.
-                foreach (string oldTag in _definitions[existingId].Tags)
-                {
-                    _blockIdsByTag[oldTag]?.Remove(existingId);
-                }
+                Name = blockId,
+                Layers = layers,
+                Tags = tags
+            });
 
-                _definitions[existingId] = new BlockDefinition
-                {
-                    Name = blockId,
-                    Layers = layers,
-                    Tags = tags
-                };
+            _blockIdByName[blockId] = id;
 
-                foreach (string tag in tags)
-                {
-                    IndexTag(tag, existingId);
-                }
-            }
-            else
+            foreach (string tag in tags)
             {
-                ushort id = (ushort)_definitions.Count;
-                _definitions.Add(new BlockDefinition
-                {
-                    Name = blockId,
-                    Layers = layers,
-                    Tags = tags
-                });
-
-                _blockIdByName[blockId] = id;
-
-                foreach (string tag in tags)
-                {
-                    IndexTag(tag, id);
-                }
+                IndexTag(tag, id);
             }
         }
     }

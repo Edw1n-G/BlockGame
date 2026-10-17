@@ -2,13 +2,6 @@ using System;
 
 namespace Basics.Game.Logic.TerrainManaging;
 
-public interface IWorld
-{
-    ChunkProvider Provider { get; }
-    bool ModifyBlock(int x, int y, int z, ushort blockId);
-    ushort GetBlock(int x, int y, int z);
-}
-
 /// <summary>
 /// Interface für Voxel-Interaktionen mit der Welt.
 /// </summary>

@@ -48,7 +48,7 @@ public class BaseMesher : IDisposable
     /// </summary>
     protected int _vertexCount;
     /// <summary>
-    /// Aktuelle Anzahl der Indices im Mesh.
+    /// Aktuelle Anzahl der Indices im Mesh für den renderer, nachdem die index listen geleert worden sind.
     /// </summary>
     protected uint _indicesCount;
     
@@ -146,10 +146,6 @@ public class BaseMesher : IDisposable
     /// </summary>
     /// <param name="baseIndex">Der Basis-Index für die vier Vertices.</param>
     protected void AddIndices(uint baseIndex)
-    
-    
-    // Für Chunks die keine AO benutzten
-    protected void AddIndices(uint baseIndex)
     {
         _indices.Add(baseIndex);     _indices.Add(baseIndex + 1); _indices.Add(baseIndex + 2);
         _indices.Add(baseIndex);     _indices.Add(baseIndex + 2); _indices.Add(baseIndex + 3);
@@ -242,7 +238,7 @@ public class BaseMesher : IDisposable
     
     /// <summary>
     /// Lädt die berechneten Mesh-Daten auf die GPU hoch.
-    /// MUS auf dem Main-Thread (OpenGL-Kontext) aufgerufen werden.
+    /// MUSS auf dem Main-Thread (OpenGL-Kontext) aufgerufen werden.
     /// </summary>
     /// <param name="gl">Die OpenGL-Instanz für den GPU-Upload.</param>
     public unsafe void UploadToGpu(GL gl)
@@ -250,8 +246,12 @@ public class BaseMesher : IDisposable
         if (_uploaded) return;
         _gl = gl;
         
+        
+        
         if (IsEmpty)
         {
+            _indicesCount = 0;
+            
             this._vertices?.Clear();
             this._indices?.Clear();
             
@@ -264,6 +264,8 @@ public class BaseMesher : IDisposable
             _uploaded = true;
             return; 
         }
+        
+        _indicesCount = (uint)_indices.Count;
         
         // Anstatt mit ToArray() die ganze liste in ein array zu kopieren
         // nimmt man das array der Liste. listen sind ja eh arrays 
@@ -381,12 +383,21 @@ public class BaseMesher : IDisposable
         this._indices = null!;
         _uploaded = true;
     }
-    
+
     /// <summary>
     /// Rendert den Mesh mit dem angegebenen Shader-Manager.
     /// </summary>
     /// <param name="shaderManager">Der ShaderManager für das Rendern.</param>
     public unsafe void Render(ShaderManager shaderManager)
+    {
+        if (!_uploaded || _disposed || _vao == 0) return;
+        
+        //Dem Shader die Weltpositon übergeben
+        shaderManager.SetModelMatrix(model);
+        
+        _gl.BindVertexArray(_vao);
+        _gl.DrawElements(PrimitiveType.Triangles, _indicesCount, DrawElementsType.UnsignedInt, (void*)0);
+    }
     
     /// <summary>
     /// Gibt alle Ressourcen frei.

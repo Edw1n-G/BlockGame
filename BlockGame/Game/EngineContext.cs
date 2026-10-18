@@ -2,7 +2,8 @@ using System;
 using System.IO;
 using System.Threading;
 using Basics.Configurations;
-using Basics.Game.Configurations;
+using Basics.Game.Content.Loading;
+using Basics.Game.Content.Registries;
 using Basics.Game.Logic;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Logic.TerrainManaging.Generation;
@@ -101,12 +102,11 @@ public class EngineContext : IDisposable
     {
         Settings = settings ?? new GameSettings();
         CoreAvailability = coreAvailability ?? new CoreAvailability();
-        BlockRegistry = blockRegistry ?? new BlockRegistry();
 
-        if (!BlockRegistry.IsInitialized)
-        {
-            BlockRegistry.InitializeHeadless();
-        }
+        // Die Registry wird vollständig beim Start gebaut (Texturen → Blöcke) —
+        // ohne GL, da das GL-Texturarray der Renderer separat aus dem Katalog baut.
+        // Danach ändert sich die Palette nicht mehr (keine Laufzeit-Initialisierung).
+        BlockRegistry = blockRegistry ?? BlockLoader.CreateDefault();
 
         NoiseCalculator = noiseCalculator ?? new NoiseCalculator(Settings);
         TerrainGenerator = terrainGenerator ?? new TerrainGenerator(NoiseCalculator, Settings, BlockRegistry);
@@ -129,7 +129,6 @@ public class EngineContext : IDisposable
         JobScheduler.Stop();
         ChunkProvider.Dispose();
         NoiseCalculator.Dispose();
-        BlockRegistry.Dispose();
 
         if (ReferenceEquals(_globalContext, this))
         {

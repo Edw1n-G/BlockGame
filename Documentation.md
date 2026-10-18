@@ -25,7 +25,7 @@ dotnet restore BlockGame/BlockGame.csproj
 dotnet run --project BlockGame/BlockGame.csproj
 ```
 
-The working directory must allow `Content/` to be found. `BlockRegistry.ResolveContentRoot` tries `./Content`, `<AppBase>/Content`, `<cwd>/BlockGame/Content`, `<cwd>/../BlockGame/Content`. The csproj also copies `Content/**/*.json` and `*.png` and the shaders to the output directory. Shaders are loaded from `Game/Graphics/Shader/` relative to the working directory.
+The working directory must allow `Content/` to be found. `FileSystemContentSource.ResolveContentRoot` tries `./Content`, `<AppBase>/Content`, `<cwd>/BlockGame/Content`, `<cwd>/../BlockGame/Content`. The csproj also copies `Content/**/*.json` and `*.png` and the shaders to the output directory. Shaders are loaded from `Game/Graphics/Shader/` relative to the working directory.
 
 Tests / benchmarks (a console `Exe`, not a test framework):
 
@@ -62,9 +62,15 @@ BlockGame/                         main project (Exe)
 ├─ Window/WindowSetup.cs           window creation, fullscreen/borderless, fps/vsync hooks
 ├─ Game/
 │  ├─ EngineContext.cs, EngineSession.cs   subsystem container + isolated session
-│  ├─ Configurations/              BlockRegistry (data-driven blocks), BlockLoader (static facade)
-│  ├─ Graphics/                    Renderer, ShaderManager, Shader, Frustum, Transform,
-│  │                               BufferObject, VertexArrayObject, UI/UIManager, Shader/*.vert|frag
+│  ├─ Content/
+│  │  ├─ Registries/                ResourceId, Palette<T>, TagIndex, TextureCatalog,
+│  │  │                             BlockJsonParser, BlockRegistryBuilder, BlockRegistry
+│  │  │                             (immutable), BlockDefinition, BlockShape, PaletteSnapshot
+│  │  └─ Loading/                   IContentSource, FileSystemContentSource, ContentLoader
+│  ├─ Configurations/               BlockLoader (static facade)
+│  ├─ Graphics/                     Renderer, ShaderManager, Shader, Frustum, Transform,
+│  │                               BufferObject, VertexArrayObject, UI/UIManager, Shader/*.vert|frag,
+│  │                               TextureArrayBuilder (TextureCatalog → GL TextureArray)
 │  ├─ Input/InputManager.cs        action bindings
 │  ├─ Jobs/                        JobScheduler, IJob, JobContext, ChunkLoadorGenerateJob, MeshgenerateJob
 │  ├─ Logic/
@@ -104,7 +110,7 @@ Namespaces do not always mirror folders. Examples: jobs live in `Basics.Game.Uti
 ### 4.2 Game state initialization (`Game.Enter`)
 
 1. Creates `EngineContext(settings: GameSettings.Current)` and registers it with `EngineContext.SetGlobal`.
-2. `CoreAvailability.InitializeInstance()` and `BlockRegistry.Initialize(gl, "Content")`, which loads textures into a `TextureArray` and block JSONs.
+2. `CoreAvailability.InitializeInstance()`. The block registry is already fully built (the `EngineContext` constructor loads content — see 4.3); `Renderer.Setup` builds the GL `TextureArray` from the registry's `TextureCatalog` (via `TextureArrayBuilder`).
 3. Creates `PlayerCharacter` at (0, 100, 0), `Renderer` (+ `Setup`), `PlayerMovement`.
 4. Creates the Egui `Context` and `SilkGlIntegration`.
 5. `InputManager.Initialize` (locks the mouse), binds `PlayerMovement` and the debug camera toggle.
@@ -116,13 +122,13 @@ Per frame: `Update` → `PlayerMovement.MovementUpdate` and `ChunkProvider.Reque
 
 ### 4.3 EngineContext and EngineSession
 
-`EngineContext` holds all subsystems for one engine instance: `Settings`, `CoreAvailability`, `BlockRegistry`, `NoiseCalculator`, `TerrainGenerator`, `JobScheduler`, `ChunkProvider`, `Raycaster`, `Physics`, `World`. If the registry is not initialized, the constructor calls `InitializeHeadless()` (block definitions only, no GPU). Optionally it starts the scheduler (`startJobScheduler`).
+`EngineContext` holds all subsystems for one engine instance: `Settings`, `CoreAvailability`, `BlockRegistry`, `NoiseCalculator`, `TerrainGenerator`, `JobScheduler`, `ChunkProvider`, `Raycaster`, `Physics`, `World`. The constructor builds the block registry immediately (`BlockLoader.CreateDefault()`: load content via `ContentLoader`, fall back to `BlockRegistry.CreateFallback()` when no content is found) — the registry is immutable afterwards and never touches GL, so the same code path runs in-game, headless and in tests. Optionally it starts the scheduler (`startJobScheduler`).
 
 - `EngineContext.Current` resolves to the `AsyncLocal` scoped context (`Activate()` / `Use()` return an `IDisposable` scope), falling back to the global context set by `SetGlobal`.
 - `EngineSession` wraps a context for isolated runs (benchmarks, parallel A/B sessions). It exposes the subsystems and `Activate()`.
 - Static facades delegate to `Current`: `World.ModifyBlock/GetBlock`, `Physics.Raycast`, `GameSettings.Current`, `BlockLoader.*`, `CoreAvailability.Current`, `ChunkProvider.Current`, `NoiseCalculator.Instance`, `WorldtypeNoiseCalculator.Instance`. Most have a lazily created fallback if no context exists.
 - Subsystem constructors take optional dependencies and fall back to `EngineContext.Current` and then to the facades. Prefer passing dependencies explicitly in new code.
-- `Dispose` stops the scheduler and disposes `ChunkProvider`, `NoiseCalculator` and `BlockRegistry`.
+- `Dispose` stops the scheduler and disposes `ChunkProvider` and `NoiseCalculator`. The block registry is immutable and holds no resources, so there is nothing to dispose.
 
 ### 4.4 Coordinate systems and storage
 
@@ -173,7 +179,7 @@ Note: the requestor currently only requests LOD 0. LOD 1/2 meshers exist and are
 
 ### 5.2 Texture array
 
-`BlockRegistry.LoadTextures` gathers every `Content/<namespace>/Textures/**/*.png`, ids are `<namespace>:<filename-without-ext>` (lowercase), sorted ordinally. The sorted order defines the layer index. All PNGs must have identical dimensions or loading throws. Rows are flipped on upload. Sampler: clamp-to-edge, nearest mag, nearest-mipmap-nearest min, 16× anisotropy, mipmaps generated. There is also an atlas constructor (`TextureArray(gl, atlasPath, tileSize)`) that is not used by the registry.
+The CPU side is the `TextureCatalog` (`Content/Registries/`): every `Content/<namespace>/Textures/**/*.png` becomes an id `<namespace>:<filename-without-ext>` (lowercase), sorted ordinally by the `ContentLoader`. The sorted order defines the layer index. Duplicate texture ids throw `InvalidDataException` naming both files. The catalog holds no GL state; the renderer builds the actual GL `TextureArray` from it in `TextureArrayBuilder.Build` (called by `Renderer.Setup`). All PNGs must have identical dimensions or the upload throws. Rows are flipped on upload. Sampler: clamp-to-edge, nearest mag, nearest-mipmap-nearest min, 16× anisotropy, mipmaps generated. There is also an atlas constructor (`TextureArray(gl, atlasPath, tileSize)`) that is not used.
 
 ### 5.3 Meshing
 
@@ -192,10 +198,11 @@ Note: the requestor currently only requests LOD 0. LOD 1/2 meshers exist and are
 
 ### 6.1 Blocks
 
-Block definitions live at `Content/<Namespace>/Blocks/**/*.json` (nesting allowed; currently `Blocks/stupid/`). The block name is `<namespace>:<filename>` (lowercase), e.g. `core:grass`. The registry parses:
+Block definitions live at `Content/<Namespace>/Blocks/**/*.json` (nesting allowed; currently `Blocks/stupid/`). The block name is `<namespace>:<filename>` (lowercase), e.g. `core:grass`. The parser (`BlockJsonParser`) reads:
 
 ```json
 {
+  "format_version": 1,
   "name": "Grass",
   "tags": ["tag:block", "tag:mineable_shovel", "tag:dirt", "tag:grass"],
   "properties": { "hardness": 0.5, "isSolid": true, "isTransparent": false, "lightEmission": 0 },
@@ -203,19 +210,27 @@ Block definitions live at `Content/<Namespace>/Blocks/**/*.json` (nesting allowe
 }
 ```
 
+- `format_version` defaults to 1 when absent (so older files keep working); other versions are rejected with `InvalidDataException`, which makes later schema changes (like a `model` field) manageable.
 - `textures` is required. Each of `top, bottom, front, back, left, right` falls back to `sides` if absent. Values are texture ids (`namespace:filename`) and must exist, otherwise `InvalidDataException`.
-- `tags` are normalized (trim + lowercase) and indexed for `HasTag` / `GetByTag`.
+- `tags` are normalized (trim + lowercase) and indexed in a `TagIndex` for `HasTag` / `GetByTag`.
 - `name` and `properties` are not used by the engine at the moment (`properties` is ignored by the deserializer).
-- **Palette system**: the canonical identity of a block is its namespaced name (`namespace:filename`); the numeric ID is only a session-scoped handle. IDs are assigned by ordinal sort of `namespace:name`, starting at 1 (0 = `core:air`, a hard invariant — physics and meshers test against 0). With the current content: `dirt=1, grass=2, snow=3, stone=4`.
-- The palette loads **once at engine startup** — first come first serve in discovery order, without preferring any extension — and **never changes while the engine process is running**. Repeated `Initialize` calls (e.g. `Game.Enter` after the `EngineContext` constructor) only load missing textures; block definitions and IDs are never touched again.
-- **Duplicate block names throw**: two extensions providing the same block name (e.g. same filename in different subfolders of one namespace, or a `core:air.json`, since air is registered internally) make the palette load throw `InvalidDataException` naming both colliding files. Duplicate texture ids throw the same way (last-sorted one would otherwise silently win).
-- **Failed loads leave no partial state**: block and texture state is built into local collections and only assigned after the load fully succeeds. A failed load therefore reports its original error on every retry instead of a misleading duplicate error.
-- **Unknown texture ids throw everywhere**: a block file referencing a texture that does not exist fails with `InvalidDataException` — also headless (the texture map is always populated before block loading runs).
-- **Disposed registries reject all access**: after `Dispose` every method throws `ObjectDisposedException`, so a worker still meshing during `Game.Exit` cannot rebuild the palette via lazy headless init. `Reset` exists only on the instance (not on the `BlockLoader` facade) so a process palette cannot be rebuilt at runtime.
-- The headless fallback uses the same canonical order (`air=0, dirt=1, grass=2, snow=3, stone=4`), so both load paths assign identical IDs for the same names.
-- Extensions are file-system based: mods drop in `Content/<Namespace>/Blocks/*.json` + `Content/<Namespace>/Textures/*.png` before startup — every namespace directory is scanned. There is no runtime block registration; a future load-order system would replace the ID assignment in `LoadBlocks`, an overwriting system would replace the duplicate check.
-- For serialization (saves/network), `ExportPalette()` snapshots the current `ID → name` mapping, and `CreateRemapTable(savedPalette)` builds an old-ID → new-ID table (unknown or null names map to air; removed blocks become air, with a warning on `Console.Error` naming the missing blocks). `RemapBlockArray(blocks, table)` applies it in-place to e.g. `ChunkData.Blocks`. `GetName(id)` / `TryGetName(id, out name)` do the reverse lookup. `GetByTag` returns a snapshot, not the live index set.
-- `BlockLoader` is the static facade over the current `BlockRegistry` and exposes all palette operations except `Reset`; the default registry is created lazily and thread-safely (`Lazy<T>`). The `TerrainGenerator` resolves `core:dirt/grass/stone/snow` by name. Both initialization paths (`Initialize(gl, root)` and `InitializeHeadless(root)`) funnel through one code path so the same palette is produced regardless of the order they run in.
+
+**Structure** (each file ~80–150 lines):
+
+- `Content/Loading/`: `IContentSource` (enumerates entries as `(ResourceId, kind, source path, read function)` — tests supply an in-memory source with no files), `FileSystemContentSource` (scans namespaces, `Blocks/`, `Textures/`; also owns `ResolveContentRoot`), `ContentLoader` (orchestrates the stages: textures → blocks; later models → items in dependency order. Sorts entries ordinally — that sort defines the ID assignment).
+- `Content/Registries/`: `ResourceId` (value type parsing/validating/lowercasing `ns:name` once), `Palette<TDef>` (name ↔ id, duplicate check naming both sources, `Freeze()` after build, `ushort.MaxValue` overflow guard), `TagIndex`, `BlockJsonParser` (+ `BlockSpec`), `BlockRegistryBuilder` (resolves textures via the catalog, reserves air, builds flat tables), `BlockRegistry` (immutable), `BlockDefinition` / `BlockShape` (`CubeShape` today, `ModelShape` declared as the seam for 3D models), `TextureCatalog` (name → layer, no GL), `PaletteSnapshot` (pure export/remap functions).
+- `Graphics/TextureArrayBuilder.cs`: `TextureCatalog` → GL `TextureArray` (renderer side, main thread).
+
+- **Immutable registry**: `BlockRegistry` is created only by `BlockRegistryBuilder.Build()` — the builder validates everything (duplicates, unknown textures, JSON errors) and only a fully successful build produces a registry. There is no half-built state, no `_initialized` flag, no lazy init, and the registry is safe to read from any thread by construction. It never touches OpenGL, so game, headless mode and tests run the same code path.
+- **Palette system**: the canonical identity of a block is its namespaced name (`namespace:filename`); the numeric ID is only a session-scoped handle. IDs are assigned by ordinal sort of `namespace:name`, starting at 1 (0 = `core:air`, a hard invariant — physics and meshers test against 0). Air is reserved by the builder (`ReserveAir()`); a `core:air.json` would collide and throw. With the current content: `dirt=1, grass=2, snow=3, stone=4`. A fallback registry with the same canonical order (`BlockRegistry.CreateFallback()`) exists for headless runs without content.
+- **Duplicate block names throw**: two extensions providing the same block name make `Palette.Add` throw `InvalidDataException` naming both colliding sources. Duplicate texture ids throw the same way (`TextureCatalog`).
+- **Failed builds are atomic**: state is built locally and nothing is exposed until success, so a failed build reports its original error; rebuilding from the same source fails identically (there is no shared mutable state that could turn it into a misleading duplicate error).
+- **Unknown texture ids throw everywhere**: a block file referencing a texture that does not exist fails with `InvalidDataException` (strict, also headless).
+- **Frozen palette**: after `Build()` the palette is frozen — `Add` throws `InvalidOperationException`. There is no runtime block registration and no dispose concept anymore (the registry holds no resources and has no mutable state; the old `Dispose`/`Reset` guards are gone by design).
+- Extensions are file-system based: mods drop in `Content/<Namespace>/Blocks/*.json` + `Content/<Namespace>/Textures/*.png` before startup — every namespace directory is scanned. A future load-order system would replace the ordinal sort in `ContentLoader`; an overwriting system would replace the duplicate check in `Palette.Add` (both seams are single, documented spots).
+- **Hot-path tables**: `Build()` produces flat arrays for the meshers — `FaceLayers[blockId * 6 + face]` (the meshers use this instead of a registry call per face) and `Flags[blockId]` (`IsOpaque`, `RenderKind`) for later render-kind branching (cube vs. model).
+- For serialization (saves/network), `ExportPalette()` snapshots the current `ID → name` mapping, and `CreateRemapTable(savedPalette)` builds an old-ID → new-ID table via the pure `PaletteSnapshot.CreateRemap` (unknown or null names map to air; removed blocks become air, with a warning on `Console.Error` naming the missing blocks). `RemapBlockArray(blocks, table)` applies it in-place to e.g. `ChunkData.Blocks`. `GetName(id)` / `TryGetName(id, out name)` do the reverse lookup. `GetByTag` returns a snapshot, not the live index set.
+- `BlockLoader` is the static facade over the current `BlockRegistry` and exposes all read/palette operations; the default registry is created lazily and thread-safely (`Lazy<T>`) when no context exists. The `TerrainGenerator` resolves `core:dirt/grass/stone/snow` by name. `BlockRegistry` lives in `Basics.Game.Content.Registries`, `BlockLoader` in `Basics.Configurations`.
 
 ### 6.2 Textures
 
@@ -281,8 +296,16 @@ Window defaults (`WindowSetup`): 800×600, title "Game", 60 updates/s initially 
 1. `TestIsolatedSessionsSideBySide`: two `EngineSession`s with different settings, verifying isolation of settings, chunks, `World`, `Physics` and pools.
 2. `TestScopedStaticFacades`: static facades (`GameSettings.Current`, `World`, `Physics`) follow `session.Activate()`.
 3. `TestFiftyBenchmarkIterationsLoop`: 50 create/generate/mesh/dispose iterations with a clean-state check.
+4. `TestPaletteIdsStableAcrossLoadOrders`: content vs. fallback vs. reversed enumeration order (in-memory source) all assign identical IDs; name roundtrip.
+5. `TestPaletteRemapSurvivesLoadOrderChange`: saved palettes remap onto the current registry, unknown blocks become air, export roundtrip.
+6. `TestDuplicateBlockIdThrows`: duplicate block names throw, message names both sources (in-memory source, no files).
+7. `TestFailedBuildThrowsOriginalErrorOnRebuild`: a build with an unknown texture throws the original error; rebuilding fails identically (atomic builds).
+8. `TestPaletteFreezesAfterBuild`: `AddBlock` after `Build()` throws (frozen palette); two builds from identical input assign identical IDs.
+9. `TestDuplicateTextureNamesThrow`: duplicate texture ids throw, message names both files (in-memory source, no files).
+10. `TestBlockJsonValidation`: missing `textures`, unsupported `format_version` and malformed JSON throw, message names the source file (pure, string literals).
+11. `TestResourceIdParsing`: `ResourceId` normalization, namespace/name split, equality/hashing, format validation.
 
-`TestConcurrentSessionsWithDifferentRegistriesMeshCorrectly` exists but is not called from `Main`. Tests run headless (no GL); sessions use `BlockRegistry.InitializeHeadless`. The process returns exit code 0/1.
+`TestConcurrentSessionsWithDifferentRegistriesMeshCorrectly` exists but is not called from `Main`. Tests run headless (no GL); the registry is built with `ContentLoader.LoadBlocks(new FileSystemContentSource("Content"))` / `BlockRegistry.CreateFallback()`, and duplicate/error tests use an in-memory `IContentSource` — no files, no window, no GPU. The process returns exit code 0/1.
 
 ## 12. Conventions
 
@@ -300,7 +323,7 @@ Window defaults (`WindowSetup`): 800×600, title "Game", 60 updates/s initially 
 - World type files are not wired into the generator; `world_def.json` is empty.
 - `GameLogic`, `CastEntityRay`, `AABB`, `Transform`, `LowLatencyRenderer` are placeholders or unused. No gravity, collision, transparency, water, lighting beyond AO, sound, or trees.
 - Block `properties` (hardness, isSolid, isTransparent, lightEmission) are in the JSON but unused; `name` is ignored.
-- Block IDs depend on file-name sort order and differ between real and fallback (headless) registries.
+- Block IDs depend on the ordinal file-name sort (by design, deterministic); real and fallback (headless) registries assign identical IDs for the same names.
 - `StateManager.CloseEngine` only disposes the GL object.
 - The menu text says "F1 - Debug Cam (No worki)".
 - `AGENTS.md` is partly outdated (it mentions 32×32×32 chunks and a 5-float vertex layout). This document reflects the current 16³ chunks and the 16-byte vertex layout. `Renderer.Render` uses a ~5 ms upload budget (AGENTS.md says ~2 ms).

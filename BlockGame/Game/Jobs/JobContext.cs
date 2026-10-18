@@ -1,5 +1,5 @@
 using Basics.Configurations;
-using Basics.Game.Configurations;
+using Basics.Game.Content.Registries;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Logic.TerrainManaging.Generation;
 

@@ -1,23 +1,22 @@
-using System;
-using System.Collections.Generic;
 using Basics.Game;
-using Basics.Game.Configurations;
-using Basics.Game.texture;
-using Silk.NET.OpenGL;
+using Basics.Game.Content.Loading;
+using Basics.Game.Content.Registries;
 
 namespace Basics.Configurations;
 
 /// <summary>
-/// Statische Fassade für Block- und Texturabfragen.
-/// Delegiert alle Operationen an die aktive BlockRegistry des aktuellen EngineContexts
-/// oder erstellt eine Standardinstanz, wenn kein Context verfügbar ist.
+/// Statische Fassade für Blockabfragen.
+/// Delegiert alle Operationen an die unveränderliche BlockRegistry des aktuellen
+/// EngineContexts oder erstellt eine Standardinstanz, wenn kein Context verfügbar ist.
+/// Die Registry wird vollständig beim Start gebaut (siehe <see cref="CreateDefault"/>)
+/// und ändert sich danach nicht mehr — es gibt keine Laufzeit-Initialisierung.
 /// </summary>
 public static class BlockLoader
 {
     /// <summary>
     /// Thread-sichere, verzögert erstellte Standard-Registry (Lazy Default: ExecutionAndPublication).
     /// </summary>
-    private static readonly Lazy<BlockRegistry> _defaultRegistry = new(CreateDefaultRegistry);
+    private static readonly Lazy<BlockRegistry> _defaultRegistry = new(CreateDefault);
 
     /// <summary>
     /// Gibt die aktuelle BlockRegistry zurück.
@@ -27,50 +26,53 @@ public static class BlockLoader
         EngineContext.Current?.BlockRegistry ?? _defaultRegistry.Value;
 
     /// <summary>
-    /// Erstellt eine neue BlockRegistry mit Headless-Initialisierung als Fallback.
+    /// Erstellt die Standard-Registry: lädt den Content (Texturen → Blöcke) oder
+    /// erzeugt eine Fallback-Registry, wenn kein Content gefunden wurde.
     /// </summary>
-    private static BlockRegistry CreateDefaultRegistry()
+    /// <returns>Die fertige, unveränderliche Registry.</returns>
+    public static BlockRegistry CreateDefault()
     {
-        var registry = new BlockRegistry();
-        if (System.IO.Directory.Exists(BlockRegistry.ResolveContentRoot("Content")))
+        var source = new FileSystemContentSource("Content");
+        if (source.Exists)
         {
             try
             {
-                registry.InitializeHeadless("Content");
+                return ContentLoader.LoadBlocks(source);
             }
             catch
             {
-                // Headless Fallback falls Content unvollständig ist
+                // Fallback falls Content unvollständig oder fehlerhaft ist
             }
         }
-        return registry;
+
+        return BlockRegistry.CreateFallback();
     }
 
     /// <summary>
     /// Index des oberen Face (Top) in der Layer-Array.
     /// </summary>
     public const int Top = BlockRegistry.Top;
-    
+
     /// <summary>
     /// Index des unteren Face (Bottom) in der Layer-Array.
     /// </summary>
     public const int Bottom = BlockRegistry.Bottom;
-    
+
     /// <summary>
     /// Index des vorderen Face (Front) in der Layer-Array.
     /// </summary>
     public const int Front = BlockRegistry.Front;
-    
+
     /// <summary>
     /// Index des hinteren Face (Back) in der Layer-Array.
     /// </summary>
     public const int Back = BlockRegistry.Back;
-    
+
     /// <summary>
     /// Index des linken Face (Left) in der Layer-Array.
     /// </summary>
     public const int Left = BlockRegistry.Left;
-    
+
     /// <summary>
     /// Index des rechten Face (Right) in der Layer-Array.
     /// </summary>
@@ -80,30 +82,6 @@ public static class BlockLoader
     /// Die Block-ID für Luft (Air).
     /// </summary>
     public static ushort Air => 0;
-
-    /// <summary>
-    /// Gibt die Terrain-Textur zurück, die alle Texturen als Texture-Array enthält.
-    /// </summary>
-    public static TextureArray TerrainTexture => Current.TerrainTexture;
-
-    /// <summary>
-    /// Initialisiert die BlockRegistry mit Texturen und Blockdefinitionen.
-    /// </summary>
-    /// <param name="gl">Die OpenGL-Instanz für die Textur-Erstellung oder null für headless-Betrieb.</param>
-    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
-    public static void Initialize(GL? gl, string contentRoot = "Content")
-    {
-        Current.Initialize(gl, contentRoot);
-    }
-
-    /// <summary>
-    /// Initialisiert die BlockRegistry ohne GPU-Texturen (für headless-Betrieb).
-    /// </summary>
-    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
-    public static void InitializeHeadless(string contentRoot = "Content")
-    {
-        Current.InitializeHeadless(contentRoot);
-    }
 
     /// <summary>
     /// Gibt die Texture-ID (Layer-Index) für einen Block und ein Face zurück.

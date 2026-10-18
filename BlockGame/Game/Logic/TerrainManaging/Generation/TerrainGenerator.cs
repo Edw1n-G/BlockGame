@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using Basics.Configurations;
-using Basics.Game.Configurations;
+using Basics.Game.Content.Registries;
 using Basics.Game.Logic;
 using Basics.Game.Logic.TerrainManaging.Generation.Noise;
 using Basics.Game.Utilities;

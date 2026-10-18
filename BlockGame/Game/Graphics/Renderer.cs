@@ -56,7 +56,10 @@ public class Renderer
         
         _camera = camera;
         _terrainshader = new ShaderManager(_gl, "shader.vert", "shader.frag");
-        _terrainTexture = BlockLoader.TerrainTexture;
+
+        // Das GL-Texturarray aus dem CPU-seitigen Texturkatalog der Registry bauen
+        // (renderer-seitig — die Registry selbst berührt nie OpenGL).
+        _terrainTexture = TextureArrayBuilder.Build(gl, BlockLoader.Current.Textures);
         
         _gl.Enable(EnableCap.Multisample);
     }

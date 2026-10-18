@@ -1,5 +1,4 @@
 using System.Numerics;
-using Basics.Game.Configurations;
 using Basics.Game;
 using Basics.Game.Graphics;
 using Basics.Game.Logic;
@@ -63,8 +62,7 @@ public class Game : IStates
         
         //Kerne aufteilen und reservieren
         _context.CoreAvailability.InitializeInstance();
-        _context.BlockRegistry.Initialize(_gl, "Content");
-        
+
         // Subsystem-Referenzen aus dem Kontext beziehen
         _chunkProvider = _context.ChunkProvider;
         _terrainGenerator = _context.TerrainGenerator;

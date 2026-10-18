@@ -2,7 +2,8 @@ using System;
 using System.Diagnostics;
 using Basics.Configurations;
 using Basics.Game;
-using Basics.Game.Configurations;
+using Basics.Game.Content.Loading;
+using Basics.Game.Content.Registries;
 using Basics.Game.Logic;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Logic.TerrainManaging.Generation;
@@ -103,26 +104,26 @@ class Program
 
         try
         {
-            TestFailedInitReportsOriginalErrorOnRetry();
-            Console.WriteLine("[PASS] TestFailedInitReportsOriginalErrorOnRetry passed.\n");
+            TestFailedBuildThrowsOriginalErrorOnRebuild();
+            Console.WriteLine("[PASS] TestFailedBuildThrowsOriginalErrorOnRebuild passed.\n");
         }
         catch (Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"[FAIL] TestFailedInitReportsOriginalErrorOnRetry failed: {ex}");
+            Console.WriteLine($"[FAIL] TestFailedBuildThrowsOriginalErrorOnRebuild failed: {ex}");
             Console.ResetColor();
             failed++;
         }
 
         try
         {
-            TestGetAfterDisposeThrows();
-            Console.WriteLine("[PASS] TestGetAfterDisposeThrows passed.\n");
+            TestPaletteFreezesAfterBuild();
+            Console.WriteLine("[PASS] TestPaletteFreezesAfterBuild passed.\n");
         }
         catch (Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"[FAIL] TestGetAfterDisposeThrows failed: {ex}");
+            Console.WriteLine($"[FAIL] TestPaletteFreezesAfterBuild failed: {ex}");
             Console.ResetColor();
             failed++;
         }
@@ -136,6 +137,32 @@ class Program
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"[FAIL] TestDuplicateTextureNamesThrow failed: {ex}");
+            Console.ResetColor();
+            failed++;
+        }
+
+        try
+        {
+            TestBlockJsonValidation();
+            Console.WriteLine("[PASS] TestBlockJsonValidation passed.\n");
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FAIL] TestBlockJsonValidation failed: {ex}");
+            Console.ResetColor();
+            failed++;
+        }
+
+        try
+        {
+            TestResourceIdParsing();
+            Console.WriteLine("[PASS] TestResourceIdParsing passed.\n");
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FAIL] TestResourceIdParsing failed: {ex}");
             Console.ResetColor();
             failed++;
         }
@@ -335,10 +362,11 @@ class Program
     }
 
     /// <summary>
-    /// Test 4: Palette-Stabilität über Load-Pfade hinweg.
+    /// Test 4: Palette-Stabilität über Load-Pfade und Entdeckungsreihenfolge hinweg.
     /// Verifies that the content path and the fallback path assign identical IDs for the same
-    /// block names, and that merging real content into a fallback-initialized registry keeps
-    /// already-assigned IDs stable (palette principle).
+    /// block names, and that a different enumeration order from the content source produces
+    /// identical IDs (the loader sorts ordinal — die Entdeckungsreihenfolge darf die
+    /// ID-Vergabe nicht beeinflussen).
     /// </summary>
     static void TestPaletteIdsStableAcrossLoadOrders()
     {
@@ -346,13 +374,11 @@ class Program
 
         string[] coreBlocks = { "core:air", "core:dirt", "core:grass", "core:snow", "core:stone" };
 
-        // Registry mit echtem Content (headless: JSON-Definitionen werden geladen)
-        var contentRegistry = new BlockRegistry();
-        contentRegistry.InitializeHeadless("Content");
+        // Registry mit echtem Content (FileSystem-Quelle: JSON-Definitionen werden geladen)
+        var contentRegistry = ContentLoader.LoadBlocks(new FileSystemContentSource("Content"));
 
         // Zweite Registry aus demselben Content: IDs müssen identisch sein
-        var contentRegistry2 = new BlockRegistry();
-        contentRegistry2.InitializeHeadless("Content");
+        var contentRegistry2 = ContentLoader.LoadBlocks(new FileSystemContentSource("Content"));
         foreach (string name in coreBlocks)
         {
             Assert(contentRegistry.GetBlockId(name) == contentRegistry2.GetBlockId(name),
@@ -360,8 +386,7 @@ class Program
         }
 
         // Registry ohne erreichbaren Content (Fallback-Definitionen)
-        var fallbackRegistry = new BlockRegistry();
-        fallbackRegistry.InitializeHeadless("definitely/not/a/content/dir");
+        var fallbackRegistry = BlockRegistry.CreateFallback();
 
         // Beide Load-Pfade müssen für dieselben Namen dieselben IDs vergeben
         foreach (string name in coreBlocks)
@@ -371,32 +396,23 @@ class Program
                 $"(content={contentRegistry.GetBlockId(name)}, fallback={fallbackRegistry.GetBlockId(name)})");
         }
 
-        // IDs müssen unabhängig von der Reihenfolge der Initialisierung sein
-        var lateContentRegistry = new BlockRegistry();
-        lateContentRegistry.InitializeHeadless("definitely/not/a/content/dir");
-        foreach (string name in coreBlocks)
+        // Entdeckungsreihenfolge darf die IDs nicht beeinflussen: dieselben Blöcke bewusst
+        // in umgekehrter ordinaler Reihenfolge aus einer In-Memory-Quelle ergeben dieselben IDs
+        var reversedSource = new InMemoryContentSource();
+        reversedSource.AddTexture("core:dirt", "dirt.png");
+        reversedSource.AddTexture("core:grass", "grass.png");
+        reversedSource.AddTexture("core:snow", "snow.png");
+        reversedSource.AddTexture("core:stone", "stone.png");
+        foreach (string name in new[] { "core:stone", "core:snow", "core:grass", "core:dirt" })
         {
-            Assert(lateContentRegistry.GetBlockId(name) == contentRegistry.GetBlockId(name),
-                $"Block-ID für '{name}' darf nicht von der Initialisierungsreihenfolge abhängen");
+            reversedSource.AddBlock(name, $"{{ \"textures\": {{ \"sides\": \"{name}\" }} }}", $"{name}.json");
         }
 
-        // Palette-Immutabilität: Erneute Initialisierung (auch mit jetzt verfügbarem Content)
-        // darf die einmal geladene Palette nicht mehr verändern
-        ushort fallbackSnowBefore = fallbackRegistry.GetBlockId("core:snow");
-        ushort fallbackStoneBefore = fallbackRegistry.GetBlockId("core:stone");
-        fallbackRegistry.InitializeHeadless("Content");
-
-        Assert(fallbackRegistry.GetBlockId("core:snow") == fallbackSnowBefore,
-            "Erneute Initialisierung darf die ID von core:snow nicht verändern");
-        Assert(fallbackRegistry.GetBlockId("core:stone") == fallbackStoneBefore,
-            "Erneute Initialisierung darf die ID von core:stone nicht verändern");
-
-        // Auch der Content-Registry darf eine erneute Initialisierung nichts anhaben
-        contentRegistry.InitializeHeadless("Content");
+        var reversedRegistry = ContentLoader.LoadBlocks(reversedSource);
         foreach (string name in coreBlocks)
         {
-            Assert(contentRegistry.GetBlockId(name) == fallbackRegistry.GetBlockId(name),
-                $"Beide Registries müssen weiterhin identische IDs für '{name}' haben");
+            Assert(reversedRegistry.GetBlockId(name) == contentRegistry.GetBlockId(name),
+                $"Block-ID für '{name}' darf nicht von der Entdeckungsreihenfolge abhängen");
         }
 
         // Palette-Rücklookup: Name → ID → Name
@@ -418,8 +434,7 @@ class Program
     {
         Console.WriteLine("Running TestPaletteRemapSurvivesLoadOrderChange...");
 
-        var registry = new BlockRegistry();
-        registry.InitializeHeadless("Content");
+        var registry = ContentLoader.LoadBlocks(new FileSystemContentSource("Content"));
 
         // Simulierte gespeicherte Palette einer älteren Sitzung: andere Reihenfolge
         // (stone vor snow) plus ein Mod-Block, den es aktuell nicht mehr gibt
@@ -466,192 +481,245 @@ class Program
 
     /// <summary>
     /// Test 6: Doppelte Block-IDs.
-    /// Verifies that two extensions providing the same block id (same filename in different
-    /// subfolders of one namespace) make the palette load throw instead of silently merging,
-    /// keeping the palette unique and immutable for the whole engine process.
+    /// Verifies that two extensions providing the same block id make the palette load throw
+    /// instead of silently merging, keeping the palette unique for the whole engine process.
+    /// Verwendet eine In-Memory-Quelle — keine Dateien.
     /// </summary>
     static void TestDuplicateBlockIdThrows()
     {
         Console.WriteLine("Running TestDuplicateBlockIdThrows...");
 
-        string tempRoot = Path.Combine(Path.GetTempPath(), "blockgame_dup_test_" + Guid.NewGuid().ToString("N"));
+        var source = new InMemoryContentSource();
+        source.AddTexture("duptest:stone", "mod_a/Textures/stone.png");
+
+        // Beide Erweiterungen liefern denselben Blocknamen → "duptest:stone" doppelt
+        string json = "{ \"textures\": { \"sides\": \"duptest:stone\" } }";
+        source.AddBlock("duptest:stone", json, "mod_a/Blocks/stone.json");
+        source.AddBlock("duptest:stone", json, "mod_b/Blocks/stone.json");
+
+        string? errorMessage = null;
+        bool threw = false;
         try
         {
-            string blocksDir = Path.Combine(tempRoot, "duptest", "Blocks");
-            Directory.CreateDirectory(Path.Combine(blocksDir, "mod_a"));
-            Directory.CreateDirectory(Path.Combine(blocksDir, "mod_b"));
-
-            // Textur bereitstellen, damit die Blockdefinitionen bis zur Duplicate-Prüfung kommen
-            string texturesDir = Path.Combine(tempRoot, "duptest", "Textures");
-            Directory.CreateDirectory(texturesDir);
-            File.WriteAllText(Path.Combine(texturesDir, "stone.png"), string.Empty);
-
-            // Beide Erweiterungen liefern denselben Blocknamen → "duptest:stone" doppelt
-            string json = "{ \"textures\": { \"sides\": \"duptest:stone\" } }";
-            File.WriteAllText(Path.Combine(blocksDir, "mod_a", "stone.json"), json);
-            File.WriteAllText(Path.Combine(blocksDir, "mod_b", "stone.json"), json);
-
-            var registry = new BlockRegistry();
-
-            string? errorMessage = null;
-            bool threw = false;
-            try
-            {
-                registry.InitializeHeadless(tempRoot);
-            }
-            catch (InvalidDataException ex)
-            {
-                threw = true;
-                errorMessage = ex.Message;
-            }
-
-            Assert(threw, "Doppelte Blocknamen müssen eine InvalidDataException auslösen");
-            Assert(errorMessage!.Contains("mod_a") && errorMessage.Contains("mod_b"),
-                $"Fehlermeldung muss beide kollidierenden Dateien nennen: {errorMessage}");
+            ContentLoader.LoadBlocks(source);
         }
-        finally
+        catch (InvalidDataException ex)
         {
-            if (Directory.Exists(tempRoot))
-            {
-                Directory.Delete(tempRoot, true);
-            }
+            threw = true;
+            errorMessage = ex.Message;
         }
+
+        Assert(threw, "Doppelte Blocknamen müssen eine InvalidDataException auslösen");
+        Assert(errorMessage!.Contains("mod_a/Blocks/stone.json") && errorMessage.Contains("mod_b/Blocks/stone.json"),
+            $"Fehlermeldung muss beide kollidierenden Dateien nennen: {errorMessage}");
     }
 
     /// <summary>
-    /// Test 7: Fehlgeschlagener Load meldet den Originalfehler bei jedem Retry.
-    /// Verifies that a failed load (unknown texture) leaves no half-filled state, so a retry
-    /// reports the original error instead of a misleading "duplicate block" error.
+    /// Test 7: Fehlgeschlagener Build meldet den Originalfehler.
+    /// Verifies that a failed load (unknown texture) reports the original descriptive error,
+    /// and that rebuilding from the same source fails identically — jeder Build ist atomar,
+    /// es gibt keinen halb-gefüllten Zustand, der einen Retry irreführend als
+    /// "Doppelter Blockname" fehlschlagen lassen könnte.
     /// </summary>
-    static void TestFailedInitReportsOriginalErrorOnRetry()
+    static void TestFailedBuildThrowsOriginalErrorOnRebuild()
     {
-        Console.WriteLine("Running TestFailedInitReportsOriginalErrorOnRetry...");
+        Console.WriteLine("Running TestFailedBuildThrowsOriginalErrorOnRebuild...");
 
-        string tempRoot = Path.Combine(Path.GetTempPath(), "blockgame_retry_test_" + Guid.NewGuid().ToString("N"));
+        var source = new InMemoryContentSource();
+        source.AddBlock(
+            "retrytest:broken",
+            "{ \"textures\": { \"sides\": \"retrytest:doesnotexist\" } }",
+            "retrytest/Blocks/broken.json");
+
+        Exception? firstError = null;
         try
         {
-            string blocksDir = Path.Combine(tempRoot, "retrytest", "Blocks", "sub");
-            Directory.CreateDirectory(blocksDir);
-
-            // Blockdatei mit unbekannter Textur → Load muss an der Textur scheitern
-            string json = "{ \"textures\": { \"sides\": \"retrytest:doesnotexist\" } }";
-            File.WriteAllText(Path.Combine(blocksDir, "broken.json"), json);
-
-            var registry = new BlockRegistry();
-
-            Exception? firstError = null;
-            try
-            {
-                registry.InitializeHeadless(tempRoot);
-            }
-            catch (Exception ex)
-            {
-                firstError = ex;
-            }
-
-            Assert(firstError is InvalidDataException,
-                $"Erster Load muss an der unbekannten Textur scheitern, war: {firstError}");
-            Assert(firstError!.Message.Contains("Unbekannte Textur"),
-                $"Originalfehler muss die unbekannte Textur nennen: {firstError.Message}");
-
-            // Retry mit demselben Content (wie CreateDefaultRegistry es tut, wenn es die
-            // erste Exception schluckt und ein späteres Get() den Load erneut anstößt):
-            // muss denselben Originalfehler melden, nicht irreführend "Doppelter Blockname"
-            Exception? retryError = null;
-            try
-            {
-                registry.InitializeHeadless(tempRoot);
-            }
-            catch (Exception ex)
-            {
-                retryError = ex;
-            }
-
-            Assert(retryError is InvalidDataException,
-                $"Retry muss denselben Content-Fehler melden, war: {retryError}");
-            Assert(retryError!.Message == firstError.Message,
-                $"Retry muss exakt denselben Originalfehler liefern:\n  erster: {firstError.Message}\n  retry:  {retryError.Message}");
-            Assert(!retryError.Message.Contains("Doppelter"),
-                "Retry darf nicht als Duplikat-Fehler fehlschlagen");
+            ContentLoader.LoadBlocks(source);
         }
-        finally
+        catch (Exception ex)
         {
-            if (Directory.Exists(tempRoot))
-            {
-                Directory.Delete(tempRoot, true);
-            }
+            firstError = ex;
         }
+
+        Assert(firstError is InvalidDataException,
+            $"Der Build muss an der unbekannten Textur scheitern, war: {firstError}");
+        Assert(firstError!.Message.Contains("Unbekannte Textur"),
+            $"Originalfehler muss die unbekannte Textur nennen: {firstError.Message}");
+
+        // Erneuter Build aus derselben Quelle: muss denselben Originalfehler melden —
+        // jeder Build startet bei null, es gibt keinen Zustand, der ihn verfälschen könnte
+        Exception? rebuildError = null;
+        try
+        {
+            ContentLoader.LoadBlocks(source);
+        }
+        catch (Exception ex)
+        {
+            rebuildError = ex;
+        }
+
+        Assert(rebuildError is InvalidDataException,
+            $"Erneuter Build muss denselben Content-Fehler melden, war: {rebuildError}");
+        Assert(rebuildError!.Message == firstError.Message,
+            $"Erneuter Build muss exakt denselben Originalfehler liefern:\n  erster: {firstError.Message}\n  retry:  {rebuildError.Message}");
+        Assert(!rebuildError.Message.Contains("Doppelter"),
+            "Erneuter Build darf nicht als Duplikat-Fehler fehlschlagen");
     }
 
     /// <summary>
-    /// Test 8: Zugriff nach Dispose.
-    /// Verifies that the registry rejects all access with ObjectDisposedException after
-    /// Dispose, so a worker meshing during Game.Exit cannot rebuild the palette.
+    /// Test 8: Eingefrorene Palette nach dem Build.
+    /// Verifies that the palette is frozen once the registry is built: der Builder lehnt
+    /// weitere Blöcke mit einer klaren Fehlermeldung ab. Die Registry ist danach
+    /// unveränderlich — es gibt keine Laufzeit-Registrierung mehr (früher Dispose-Wächter,
+    /// jetzt strukturell garantiert, da der Builder die Palette nach dem Build einfriert).
     /// </summary>
-    static void TestGetAfterDisposeThrows()
+    static void TestPaletteFreezesAfterBuild()
     {
-        Console.WriteLine("TestGetAfterDisposeThrows...");
+        Console.WriteLine("Running TestPaletteFreezesAfterBuild...");
 
-        var registry = new BlockRegistry();
-        registry.InitializeHeadless("Content");
-        Assert(registry.GetBlockId("core:stone") > 0, "Registry muss vor Dispose funktionieren");
+        var source = new InMemoryContentSource();
+        source.AddTexture("freezetest:stone", "stone.png");
+        source.AddBlock(
+            "freezetest:stone",
+            "{ \"textures\": { \"sides\": \"freezetest:stone\" } }",
+            "stone.json");
 
-        registry.Dispose();
+        var registry = ContentLoader.LoadBlocks(source);
+        Assert(registry.GetBlockId("freezetest:stone") > 0, "Registry muss nach dem Build funktionieren");
 
-        AssertThrows<ObjectDisposedException>(() => registry.Get(0, 0), "Get nach Dispose muss werfen");
-        AssertThrows<ObjectDisposedException>(() => registry.GetBlockId("core:stone"), "GetBlockId nach Dispose muss werfen");
-        AssertThrows<ObjectDisposedException>(() => registry.HasTag(0, "tag:air"), "HasTag nach Dispose muss werfen");
-        AssertThrows<ObjectDisposedException>(() => registry.GetName(0), "GetName nach Dispose muss werfen");
-        AssertThrows<ObjectDisposedException>(() => registry.ExportPalette(), "ExportPalette nach Dispose muss werfen");
-        AssertThrows<ObjectDisposedException>(() => registry.InitializeHeadless("Content"), "InitializeHeadless nach Dispose muss werfen");
-        AssertThrows<ObjectDisposedException>(() => registry.Reset(), "Reset nach Dispose muss werfen");
+        // Zwei Builds aus denselben Eingaben ergeben dieselben IDs
+        var builder = new BlockRegistryBuilder()
+            .UseTextures(registry.Textures)
+            .ReserveAir();
+        builder.AddBlock(
+            ResourceId.Parse("freezetest:stone"),
+            new BlockSpec { Faces = new BlockTextureFaces { Sides = "freezetest:stone" } },
+            "stone.json");
+        BlockRegistry secondBuild = builder.Build();
+        Assert(secondBuild.GetBlockId("freezetest:stone") == registry.GetBlockId("freezetest:stone"),
+            "Zwei Builds aus denselben Eingaben müssen dieselbe ID vergeben");
+
+        // Nach dem Build ist die Palette eingefroren: AddBlock scheitert klar
+        AssertThrows<InvalidOperationException>(
+            () => builder.AddBlock(
+                ResourceId.Parse("freezetest:other"),
+                new BlockSpec { Faces = new BlockTextureFaces { Sides = "freezetest:stone" } },
+                "other.json"),
+            "AddBlock nach Build muss an der eingefrorenen Palette scheitern");
     }
 
     /// <summary>
     /// Test 9: Doppelte Texturnamen.
-    /// Verifies that two PNGs with the same name in different subfolders make the texture
+    /// Verifies that two PNGs with the same name from different extensions make the texture
     /// load throw instead of silently assigning the last-sorted one.
+    /// In-Memory-Quelle — keine Dateien.
     /// </summary>
     static void TestDuplicateTextureNamesThrow()
     {
         Console.WriteLine("Running TestDuplicateTextureNamesThrow...");
 
-        string tempRoot = Path.Combine(Path.GetTempPath(), "blockgame_duptex_test_" + Guid.NewGuid().ToString("N"));
+        var source = new InMemoryContentSource();
+        source.AddTexture("duptex:stone", "pack_a/Textures/stone.png");
+        source.AddTexture("duptex:stone", "pack_b/Textures/stone.png");
+
+        string? errorMessage = null;
+        bool threw = false;
         try
         {
-            string texturesDir = Path.Combine(tempRoot, "duptex", "Textures");
-            Directory.CreateDirectory(Path.Combine(texturesDir, "pack_a"));
-            Directory.CreateDirectory(Path.Combine(texturesDir, "pack_b"));
-
-            // Beide Erweiterungen liefern dieselbe Textur "duptex:stone"
-            File.WriteAllText(Path.Combine(texturesDir, "pack_a", "stone.png"), string.Empty);
-            File.WriteAllText(Path.Combine(texturesDir, "pack_b", "stone.png"), string.Empty);
-
-            var registry = new BlockRegistry();
-
-            string? errorMessage = null;
-            bool threw = false;
-            try
-            {
-                registry.InitializeHeadless(tempRoot);
-            }
-            catch (InvalidDataException ex)
-            {
-                threw = true;
-                errorMessage = ex.Message;
-            }
-
-            Assert(threw, "Doppelte Textur-IDs müssen eine InvalidDataException auslösen");
-            Assert(errorMessage!.Contains("pack_a") && errorMessage.Contains("pack_b"),
-                $"Fehlermeldung muss beide kollidierenden Texturen nennen: {errorMessage}");
+            ContentLoader.LoadBlocks(source);
         }
-        finally
+        catch (InvalidDataException ex)
         {
-            if (Directory.Exists(tempRoot))
-            {
-                Directory.Delete(tempRoot, true);
-            }
+            threw = true;
+            errorMessage = ex.Message;
         }
+
+        Assert(threw, "Doppelte Textur-IDs müssen eine InvalidDataException auslösen");
+        Assert(errorMessage!.Contains("pack_a") && errorMessage.Contains("pack_b"),
+            $"Fehlermeldung muss beide kollidierenden Texturen nennen: {errorMessage}");
+    }
+
+    /// <summary>
+    /// Test 10: JSON-Validierung des BlockJsonParser — rein, mit String-Literalen.
+    /// Verifies that a missing textures section and an unsupported format_version throw
+    /// with descriptive errors naming the source file, and that format_version 1 parses.
+    /// </summary>
+    static void TestBlockJsonValidation()
+    {
+        Console.WriteLine("Running TestBlockJsonValidation...");
+
+        // 1. Gültiges JSON inkl. format_version und Tags
+        BlockSpec valid = BlockJsonParser.Parse(
+            "{ \"format_version\": 1, \"name\": \"Stone\", \"tags\": [ \"Tag:Block\" ], " +
+            "\"textures\": { \"top\": \"core:stone\", \"sides\": \"core:stone\" } }",
+            "stone.json");
+        Assert(valid.Tags.Count == 1 && valid.Tags[0] == "tag:block",
+            "Tags müssen normalisiert (kleingeschrieben) werden");
+        Assert(valid.Faces!.Top == "core:stone", "Faces.Top muss aus dem JSON gelesen werden");
+
+        // 2. Fehlendes format_version → Default (unterstützt), damit alte Dateien funktionieren
+        BlockSpec withoutVersion = BlockJsonParser.Parse(
+            "{ \"textures\": { \"sides\": \"core:stone\" } }", "old.json");
+        Assert(withoutVersion.Faces!.Sides == "core:stone",
+            "JSON ohne format_version muss als Version 1 geladen werden");
+
+        // 3. Nicht unterstütztes format_version
+        AssertThrows<InvalidDataException>(
+            () => BlockJsonParser.Parse("{ \"format_version\": 2, \"textures\": {} }", "future.json"),
+            "format_version 2 muss abgelehnt werden");
+
+        // 4. Fehlender textures-Abschnitt
+        AssertThrows<InvalidDataException>(
+            () => BlockJsonParser.Parse("{ \"format_version\": 1, \"name\": \"Broken\" }", "broken.json"),
+            "Fehlender textures-Abschnitt muss abgelehnt werden");
+
+        // 5. Ungültiges JSON
+        AssertThrows<InvalidDataException>(
+            () => BlockJsonParser.Parse("{ \"textures\": { \"sides\": ", "syntax.json"),
+            "Ungültiges JSON muss eine InvalidDataException auslösen");
+
+        // 6. Fehlermeldung nennt die Quelldatei
+        string? message = null;
+        try
+        {
+            BlockJsonParser.Parse("{ \"format_version\": 99, \"textures\": {} }", "version99.json");
+        }
+        catch (InvalidDataException ex)
+        {
+            message = ex.Message;
+        }
+
+        Assert(message!.Contains("version99.json"),
+            $"Fehlermeldung muss die Quelldatei nennen: {message}");
+    }
+
+    /// <summary>
+    /// Test 11: ResourceId-Validierung — Parsing, Normalisierung, Gleichheit.
+    /// </summary>
+    static void TestResourceIdParsing()
+    {
+        Console.WriteLine("Running TestResourceIdParsing...");
+
+        ResourceId id = ResourceId.Parse("  CORE:Stone  ");
+        Assert(id.FullName == "core:stone", "ResourceId muss normalisieren (Trim + Kleinbuchstaben)");
+        Assert(id.Namespace == "core" && id.Name == "stone", "Namespace und Name müssen korrekt gesplittet werden");
+
+        Assert(ResourceId.Parse("core:stone") == ResourceId.Parse("CORE:Stone"),
+            "Gleichheit muss auf dem normalisierten Namen basieren");
+        Assert(ResourceId.Parse("core:stone").GetHashCode() == ResourceId.Parse("CORE:Stone").GetHashCode(),
+            "Gleiche IDs müssen denselben Hash haben");
+        Assert(ResourceId.Parse("core:stone") != ResourceId.Parse("core:dirt"),
+            "Verschiedene IDs dürfen nicht gleich sein");
+
+        Assert(!ResourceId.TryParse("stoneWithoutNamespace", out _), "Fehlender Namespace muss abgelehnt werden");
+        Assert(!ResourceId.TryParse(":stone", out _), "Leerer Namespace muss abgelehnt werden");
+        Assert(!ResourceId.TryParse("core:", out _), "Leerer Name muss abgelehnt werden");
+        Assert(!ResourceId.TryParse("core:stone:extra", out _), "Zweiter Doppelpunkt muss abgelehnt werden");
+        Assert(!ResourceId.TryParse("", out _), "Leere Zeichenkette muss abgelehnt werden");
+
+        AssertThrows<FormatException>(
+            () => ResourceId.Parse("noNamespace", "some/path.json"),
+            "Parse muss bei fehlendem Namespace werfen");
     }
 
     static void TestConcurrentSessionsWithDifferentRegistriesMeshCorrectly()
@@ -704,5 +772,44 @@ class Program
         }
 
         throw new Exception($"Assertion failed: {message} — es wurde keine Exception geworfen");
+    }
+}
+
+/// <summary>
+/// In-Memory-<see cref="IContentSource"/> für Tests: keine Dateien, kein Fenster, keine GPU.
+/// Die Einträge werden in der Reihenfolge der Aufrufe geliefert, dadurch lässt sich
+/// gezielt testen, dass die ID-Vergabe unabhängig von der Entdeckungsreihenfolge ist.
+/// </summary>
+sealed class InMemoryContentSource : IContentSource
+{
+    private readonly List<ContentEntry> _entries = new();
+
+    /// <summary>Fügt eine Textur hinzu (nur ID + Pfad — Texturen werden nie gelesen).</summary>
+    public void AddTexture(string id, string sourcePath)
+    {
+        _entries.Add(new ContentEntry
+        {
+            Id = ResourceId.Parse(id),
+            SourcePath = sourcePath,
+            Kind = ContentKind.Texture,
+            ReadText = () => string.Empty,
+        });
+    }
+
+    /// <summary>Fügt einen Block als JSON-String hinzu.</summary>
+    public void AddBlock(string id, string json, string sourcePath)
+    {
+        _entries.Add(new ContentEntry
+        {
+            Id = ResourceId.Parse(id),
+            SourcePath = sourcePath,
+            Kind = ContentKind.Block,
+            ReadText = () => json,
+        });
+    }
+
+    public IEnumerable<ContentEntry> Enumerate(ContentKind kind)
+    {
+        return _entries.Where(entry => entry.Kind == kind);
     }
 }

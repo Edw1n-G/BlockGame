@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using Basics.Game.Graphics;
 using Basics.Configurations;
-using Basics.Game.Configurations;
+using Basics.Game.Content.Registries;
 using Basics.Game.Utilities;
 using Basics.Graphics;
 using Silk.NET.OpenGL;

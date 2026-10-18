@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Basics.Configurations;
-using Basics.Game.Configurations;
+using Basics.Game.Content.Registries;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Utilities;
 
@@ -116,8 +116,9 @@ public class Lod0Mesher : BaseMesher
     private void CreateCubeFace(int x, int y, int z, int face)
     {
         int id = _blockData[x * 256 + y * 16 + z];
-        ushort textureLayer = _blockRegistry.Get(id, face);
-        
+        // Flache Layer-Tabelle ([id * 6 + face]) statt Registry-Aufruf pro Face — Heißpfad.
+        ushort textureLayer = _blockRegistry.FaceLayers[id * 6 + face];
+
         // AO direkt als int berechnen (0–3)
         byte ao0 = CalcAoLevel(x, y, z, face, 0);
         byte ao1 = CalcAoLevel(x, y, z, face, 1);

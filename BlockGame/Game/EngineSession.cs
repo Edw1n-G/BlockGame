@@ -1,6 +1,6 @@
 using System;
 using Basics.Configurations;
-using Basics.Game.Configurations;
+using Basics.Game.Content.Registries;
 using Basics.Game.Logic;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Logic.TerrainManaging.Generation;
@@ -23,8 +23,8 @@ public class EngineSession : IDisposable
     /// <remarks>
     /// Dieser Wert ist derzeit informatisch: Der <see cref="EngineContext"/> initialisiert
     /// keine GL-Ressourcen allein, unabhängig von diesem Flag. GL wird nur dann verwendet,
-    /// wenn <see cref="Renderer.Setup()"/>/<see cref="BlockRegistry.Initialize(GL, string)"/>
-    /// explizit aus einem fenstergesteuerten Game-Zustand aufgerufen werden.
+    /// wenn <see cref="Renderer.Setup()"/> explizit aus einem fenstergesteuerten
+    /// Game-Zustand aufgerufen wird.
     /// Das Flag dient dazu, dass Aufrufstellen denIntent dokumentieren können, und als
     /// Hook-Punkt, falls wir später echte Headless-Modus-Verzweigungen benötigen.
     /// </remarks>

@@ -186,6 +186,15 @@ public class ChunkProvider : IDisposable
     /// <returns><c>true</c>, wenn der Block erfolgreich geändert wurde, andernfalls <c>false</c>.</returns>
     public bool ModifyBlock(int worldX, int worldY, int worldZ, ushort newBlockId)
     {
+        // Ungültige Block-IDs ablehnen (verhindert Rendering mit falschen Texturen)
+        if (newBlockId >= Basics.Configurations.BlockLoader.Current.Count)
+        {
+            Console.Error.WriteLine(
+                $"[ChunkProvider.ModifyBlock] Ungültige Block-ID {newBlockId} bei ({worldX},{worldY},{worldZ}). " +
+                $"Maximale ID: {Basics.Configurations.BlockLoader.Current.Count - 1}");
+            return false;
+        }
+
         ChunkCoord chunkCoord = ChunkData.WorldToChunkCoord(worldX, worldY, worldZ);
         var (localX, localY, localZ) = ChunkData.WorldToLocal(worldX, worldY, worldZ);
 

@@ -24,7 +24,10 @@ public class JobScheduler
     private JobContext _jobContext;
     
     /// <summary>Gibt an, ob der Scheduler aktiv ist.</summary>
-    private bool _isRunning = true;
+    private volatile bool _isRunning = true;
+
+    /// <summary>Liste der Worker-Threads, damit Stop() auf deren Beendigung warten kann.</summary>
+    private readonly List<Thread> _workers = new();
 
     /// <summary>
     /// Startet den JobScheduler mit der angegebenen Anzahl von Worker-Threads.
@@ -39,6 +42,7 @@ public class JobScheduler
             Thread worker = new Thread(WorkerLoop);
             worker.IsBackground = true; 
             worker.Start();
+            _workers.Add(worker);
         }
     }
 
@@ -111,18 +115,26 @@ public class JobScheduler
     }
 
     /// <summary>
-    /// Stoppt den JobScheduler und weckt alle schlafenden Threads.
+    /// Stoppt den JobScheduler und wartet auf die Beendigung aller Worker-Threads.
     /// </summary>
     /// <remarks>
-    /// Setzt <see cref="_isRunning"/> auf <c>false</c> und gibt ein Signal an alle Worker-Threads,
-    /// damit sie merken, dass sie sich beenden können.
+    /// Setzt <see cref="_isRunning"/> auf <c>false</c>, weckt alle schlafenden Threads
+    /// und wartet mit Timeout darauf, dass sie sich beenden. Verhindert Race Conditions
+    /// beim Dispose von ChunkProvider und GL-Kontext.
     /// </remarks>
     public void Stop()
     {
         _isRunning = false;
         
-        // Wenn wir die Engine beenden, müssen wir alle schlafenden Threads
-        // einmal "wecken", damit sie merken, dass _isRunning false ist und sie sich beenden können.
-        _jobAvailableSignal.Release(100); 
+        // Alle schlafenden Threads wecken, damit sie das _isRunning-Flag sehen
+        _jobAvailableSignal.Release(100);
+
+        // Auf alle Worker warten (max. 2 Sekunden pro Thread)
+        foreach (Thread worker in _workers)
+        {
+            worker.Join(TimeSpan.FromSeconds(2));
+        }
+
+        _workers.Clear();
     }
 }

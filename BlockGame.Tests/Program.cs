@@ -167,6 +167,19 @@ class Program
             failed++;
         }
 
+        try
+        {
+            TestInvalidBlockIdRejected();
+            Console.WriteLine("[PASS] TestInvalidBlockIdRejected passed.\n");
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[FAIL] TestInvalidBlockIdRejected failed: {ex}");
+            Console.ResetColor();
+            failed++;
+        }
+
         if (failed == 0)
         {
             Console.ForegroundColor = ConsoleColor.Green;
@@ -212,20 +225,20 @@ class Program
         sessionB.ChunkProvider.Chunkdata[coord] = chunkB;
 
         // 3. World block modification isolation
-        // In session A, set block at (5, 5, 5) to 42
-        bool modifiedA = sessionA.World.SetBlock(5, 5, 5, 42);
+        // In session A, set block at (5, 5, 5) to stone (4)
+        bool modifiedA = sessionA.World.SetBlock(5, 5, 5, 4);
         Assert(modifiedA, "Session A block modification should succeed");
-        Assert(sessionA.World.GetBlockAt(5, 5, 5) == 42, "Session A should read modified block 42");
+        Assert(sessionA.World.GetBlockAt(5, 5, 5) == 4, "Session A should read modified block 4 (stone)");
 
         // Verify Session B was NOT affected at all
         ushort blockInB = sessionB.World.GetBlockAt(5, 5, 5);
-        Assert(blockInB != 42, $"Session B must not be affected by Session A! Was {blockInB}");
+        Assert(blockInB != 4, $"Session B must not be affected by Session A! Was {blockInB}");
 
-        // Modify in session B to 99
-        bool modifiedB = sessionB.World.SetBlock(5, 5, 5, 99);
+        // Modify in session B to dirt (1)
+        bool modifiedB = sessionB.World.SetBlock(5, 5, 5, 1);
         Assert(modifiedB, "Session B block modification should succeed");
-        Assert(sessionB.World.GetBlockAt(5, 5, 5) == 99, "Session B should read modified block 99");
-        Assert(sessionA.World.GetBlockAt(5, 5, 5) == 42, "Session A should still have block 42");
+        Assert(sessionB.World.GetBlockAt(5, 5, 5) == 1, "Session B should read modified block 1 (dirt)");
+        Assert(sessionA.World.GetBlockAt(5, 5, 5) == 4, "Session A should still have block 4 (stone)");
 
         // 4. Physics raycast isolation
         var rayStart = new Vector3D<float>(5.0f, 10.0f, 5.0f);
@@ -272,10 +285,10 @@ class Program
             Assert(GameSettings.Current.Seed == 555, "Scoped GameSettings.Current should be 555 in Session A");
             Assert(GameSettings.Current.RenderDistance == 8, "Scoped RenderDistance should be 8 in Session A");
 
-            World.ModifyBlock(2, 2, 2, 77);
-            Assert(World.GetBlock(2, 2, 2) == 77, "Static facade World.GetBlock should return 77 in Session A");
-            Assert(sessionA.World.GetBlockAt(2, 2, 2) == 77, "Session A instance should have block 77");
-            Assert(sessionB.World.GetBlockAt(2, 2, 2) != 77, "Session B instance must not be modified");
+            World.ModifyBlock(2, 2, 2, 4); // stone
+            Assert(World.GetBlock(2, 2, 2) == 4, "Static facade World.GetBlock should return 4 (stone) in Session A");
+            Assert(sessionA.World.GetBlockAt(2, 2, 2) == 4, "Session A instance should have block 4 (stone)");
+            Assert(sessionB.World.GetBlockAt(2, 2, 2) != 4, "Session B instance must not be modified");
 
             var hit = Physics.Raycast(new Vector3D<float>(2.0f, 10.0f, 2.0f), new Vector3D<float>(0, -1, 0), 10.0f);
             Assert(hit.Hit, "Physics.Raycast static facade should hit in Session A");
@@ -287,11 +300,11 @@ class Program
             Assert(GameSettings.Current.Seed == 777, "Scoped GameSettings.Current should be 777 in Session B");
             Assert(GameSettings.Current.RenderDistance == 32, "Scoped RenderDistance should be 32 in Session B");
 
-            Assert(World.GetBlock(2, 2, 2) != 77, "Static facade World.GetBlock in Session B must not have Session A's block");
-            World.ModifyBlock(2, 2, 2, 88);
-            Assert(World.GetBlock(2, 2, 2) == 88, "Static facade World.GetBlock should return 88 in Session B");
-            Assert(sessionB.World.GetBlockAt(2, 2, 2) == 88, "Session B instance should have block 88");
-            Assert(sessionA.World.GetBlockAt(2, 2, 2) == 77, "Session A instance must still be 77");
+            Assert(World.GetBlock(2, 2, 2) != 4, "Static facade World.GetBlock in Session B must not have Session A's block");
+            World.ModifyBlock(2, 2, 2, 1); // dirt
+            Assert(World.GetBlock(2, 2, 2) == 1, "Static facade World.GetBlock should return 1 (dirt) in Session B");
+            Assert(sessionB.World.GetBlockAt(2, 2, 2) == 1, "Session B instance should have block 1 (dirt)");
+            Assert(sessionA.World.GetBlockAt(2, 2, 2) == 4, "Session A instance must still be 4 (stone)");
         }
     }
 
@@ -766,6 +779,36 @@ class Program
         AssertThrows<InvalidOperationException>(
             () => { var name = defaultId.Name; },
             "default(ResourceId).Name muss InvalidOperationException werfen");
+    }
+
+    /// <summary>
+    /// Test 12: Ungültige Block-IDs werden abgelehnt.
+    /// Verifies that ChunkProvider.ModifyBlock rejects block IDs >= registry.Count
+    /// instead of letting them through (which would cause crashes or wrong textures).
+    /// </summary>
+    static void TestInvalidBlockIdRejected()
+    {
+        Console.WriteLine("Running TestInvalidBlockIdRejected...");
+
+        using var session = new EngineSession(new GameSettings { Seed = 1 });
+        var coord = new ChunkCoord(0, 0, 0, 0);
+        session.ChunkProvider.Chunkdata[coord] = session.TerrainGenerator.GenerateChunk(coord);
+
+        // Gültige IDs müssen funktionieren (air=0, dirt=1, stone=4)
+        Assert(session.World.SetBlock(5, 5, 5, 0), "Air (0) muss gesetzt werden können");
+        Assert(session.World.SetBlock(5, 5, 5, 1), "Dirt (1) muss gesetzt werden können");
+        Assert(session.World.SetBlock(5, 5, 5, 4), "Stone (4) muss gesetzt werden können");
+
+        // Ungültige IDs müssen abgelehnt werden
+        int maxId = Basics.Configurations.BlockLoader.Current.Count - 1;
+        Assert(!session.World.SetBlock(5, 5, 5, (ushort)(maxId + 1)),
+            $"Block-ID {maxId + 1} muss abgelehnt werden");
+        Assert(!session.World.SetBlock(5, 5, 5, 99), "Block-ID 99 muss abgelehnt werden");
+        Assert(!session.World.SetBlock(5, 5, 5, ushort.MaxValue), "Block-ID ushort.MaxValue muss abgelehnt werden");
+
+        // Die Position muss immer noch den letzten gültigen Block haben
+        Assert(session.World.GetBlockAt(5, 5, 5) == 4,
+            "Nach abgelehnten IDs muss die Position immer noch Stone (4) haben");
     }
 
     static void TestConcurrentSessionsWithDifferentRegistriesMeshCorrectly()

@@ -153,15 +153,14 @@ public class Renderer
     }
     
     /// <summary>
-    /// Gibt alle vom Renderer verwendeten Ressourcen frei.
-    /// Entlädt alle Shader, Texturen, den ChunkProvider und die OpenGL-Instanz.
+    /// Gibt die vom Renderer verwalteten Grafik-Ressourcen frei (Shader, Texturen).
+    /// Der ChunkProvider und die GL-Instanz werden NICHT freigegeben — das übernimmt
+    /// EngineContext.Dispose nach dem Stoppen des JobSchedulers.
     /// </summary>
     public void Dispose()
     {
-        _terrainshader.Dispose();
-        _terrainTexture.Dispose();
-        ChunkProvider.Dispose();
-        _gl.Dispose();
+        _terrainshader?.Dispose();
+        _terrainTexture?.Dispose();
     }
     
     /// <summary>

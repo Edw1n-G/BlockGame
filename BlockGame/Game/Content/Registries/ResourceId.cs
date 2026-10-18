@@ -132,9 +132,9 @@ public readonly struct ResourceId : IEquatable<ResourceId>
 
     public override bool Equals(object? obj) => obj is ResourceId other && Equals(other);
 
-    public override int GetHashCode() => _fullName.GetHashCode(StringComparison.Ordinal);
+    public override int GetHashCode() => string.IsNullOrEmpty(_fullName) ? 0 : _fullName.GetHashCode(StringComparison.Ordinal);
 
-    public override string ToString() => _fullName;
+    public override string ToString() => _fullName ?? string.Empty;
 
     public static bool operator ==(ResourceId left, ResourceId right) => left.Equals(right);
 

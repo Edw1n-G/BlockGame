@@ -97,10 +97,9 @@ public sealed class BlockRegistry
     /// <summary>
     /// Flache Layer-Tabelle für den Heißpfad: <c>[blockId * 6 + faceIndex]</c> → Texture-Layer.
     /// IDs stammen immer aus derselben Registry, deshalb ist der Zugriff ohne Prüfung sicher.
-    /// Die Tabelle ist schreibgeschützt — für den Heißpfad als <see cref="FaceLayersSpan"/>
-    /// verwenden, um Kopien zu vermeiden.
+    /// Intern für den Heißpfad (Mesher) — extern <see cref="Get"/> verwenden.
     /// </summary>
-    public ushort[] FaceLayers { get; }
+    internal ushort[] FaceLayers { get; }
 
     /// <summary>
     /// Span-Sicht auf <see cref="FaceLayers"/> für den Heißpfad (Mesher).
@@ -109,10 +108,9 @@ public sealed class BlockRegistry
 
     /// <summary>
     /// Flache Flag-Tabelle für den Heißpfad: <c>[blockId]</c> → Flags (IsOpaque, RenderKind).
-    /// Die Tabelle ist schreibgeschützt — für den Heißpfad als <see cref="FlagsSpan"/>
-    /// verwenden, um Kopien zu vermeiden.
+    /// Intern für den Heißpfad — extern nicht zugänglich.
     /// </summary>
-    public BlockFlags[] Flags { get; }
+    internal BlockFlags[] Flags { get; }
 
     /// <summary>
     /// Span-Sicht auf <see cref="Flags"/> für den Heißpfad.

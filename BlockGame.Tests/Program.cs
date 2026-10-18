@@ -746,9 +746,26 @@ class Program
         Assert(!ResourceId.TryParse("core:stone:extra", out _), "Zweiter Doppelpunkt muss abgelehnt werden");
         Assert(!ResourceId.TryParse("", out _), "Leere Zeichenkette muss abgelehnt werden");
 
+        // Ungültige Zeichen
+        Assert(!ResourceId.TryParse("core:stone with space", out _), "Leerzeichen im Namen muss abgelehnt werden");
+        Assert(!ResourceId.TryParse("core:stone/slash", out _), "Slash im Namen muss abgelehnt werden");
+
         AssertThrows<FormatException>(
             () => ResourceId.Parse("noNamespace", "some/path.json"),
             "Parse muss bei fehlendem Namespace werfen");
+
+        // default(ResourceId) muss sicher sein
+        ResourceId defaultId = default;
+        Assert(defaultId.IsDefault, "default(ResourceId) muss IsDefault == true haben");
+        Assert(defaultId.FullName == string.Empty, "default(ResourceId).FullName muss string.Empty sein");
+        Assert(defaultId.GetHashCode() == 0, "default(ResourceId).GetHashCode() muss 0 sein");
+        Assert(defaultId.ToString() == string.Empty, "default(ResourceId).ToString() muss string.Empty sein");
+        AssertThrows<InvalidOperationException>(
+            () => { var ns = defaultId.Namespace; },
+            "default(ResourceId).Namespace muss InvalidOperationException werfen");
+        AssertThrows<InvalidOperationException>(
+            () => { var name = defaultId.Name; },
+            "default(ResourceId).Name muss InvalidOperationException werfen");
     }
 
     static void TestConcurrentSessionsWithDifferentRegistriesMeshCorrectly()

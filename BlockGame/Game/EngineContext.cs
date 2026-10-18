@@ -105,8 +105,9 @@ public class EngineContext : IDisposable
 
         // Die Registry wird vollständig beim Start gebaut (Texturen → Blöcke) —
         // ohne GL, da das GL-Texturarray der Renderer separat aus dem Katalog baut.
-        // Danach ändert sich die Palette nicht mehr (keine Laufzeit-Initialisierung).
-        BlockRegistry = blockRegistry ?? BlockLoader.CreateDefault();
+        // Verwende die gecachte Standard-Registry, damit Content nur einmal geladen wird
+        // (wichtig für Benchmarks mit vielen EngineContext-Instanzen).
+        BlockRegistry = blockRegistry ?? BlockLoader.Default;
 
         NoiseCalculator = noiseCalculator ?? new NoiseCalculator(Settings);
         TerrainGenerator = terrainGenerator ?? new TerrainGenerator(NoiseCalculator, Settings, BlockRegistry);

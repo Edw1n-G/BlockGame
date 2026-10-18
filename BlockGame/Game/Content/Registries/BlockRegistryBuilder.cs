@@ -67,7 +67,7 @@ public sealed class BlockRegistryBuilder
         catch (FormatException ex)
         {
             // Ressourcen-ID-Fehler in InvalidDataException wrappen, damit alle Content-Fehler
-            ///denselben Typ haben
+            // denselben Typ haben
             throw new InvalidDataException($"Ungültige Ressourcen-ID in {sourcePath}: {ex.Message}", ex);
         }
 

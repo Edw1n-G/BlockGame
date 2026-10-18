@@ -23,10 +23,17 @@ public static class BlockLoader
 
     /// <summary>
     /// Gibt die aktuelle BlockRegistry zurück.
-    /// Wenn kein EngineContext vorhanden ist, wird eine Standardinstanz erstellt.
+    /// Wenn kein EngineContext vorhanden ist, wird die gecachte Standardinstanz verwendet.
     /// </summary>
     public static BlockRegistry Current =>
         EngineContext.Current?.BlockRegistry ?? _defaultRegistry.Value;
+
+    /// <summary>
+    /// Gibt die gecachte Standard-Registry zurück (wird einmalig beim ersten Zugriff erstellt).
+    /// Für Tests, die eine eigene Registry injizieren möchten, direkt <see cref="ContentLoader.LoadBlocks"/>
+    /// oder <see cref="BlockRegistry.CreateFallback"/> verwenden.
+    /// </summary>
+    public static BlockRegistry Default => _defaultRegistry.Value;
 
     /// <summary>
     /// Erstellt die Standard-Registry: lädt den Content (Texturen → Blöcke) oder
@@ -34,10 +41,14 @@ public static class BlockLoader
     /// Ist das Verzeichnis vorhanden aber der Content fehlerhaft (ungültiges JSON,
     /// doppelte Namen, unbekannte Texturen), wird die Ausnahme durchgereicht — kein
     /// stillschweigendes Fallback, damit Content-Fehler beim Start laut scheitern.
+    /// <para>
+    /// Diese Methode wird nur einmalig durch die <see cref="Lazy{T}"/> aufgerufen.
+    /// Aufrufer sollten stattdessen <see cref="Default"/> oder <see cref="Current"/> verwenden.
+    /// </para>
     /// </summary>
     /// <returns>Die fertige, unveränderliche Registry.</returns>
     /// <exception cref="InvalidDataException">Wird bei Content-Fehlern ausgelöst.</exception>
-    public static BlockRegistry CreateDefault()
+    private static BlockRegistry CreateDefault()
     {
         var source = new FileSystemContentSource("Content");
         if (!source.Exists)

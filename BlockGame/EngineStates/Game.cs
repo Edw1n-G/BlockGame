@@ -132,6 +132,7 @@ public class Game : IStates
 
     public void Exit()
     {
+        _playerRenderer?.Dispose();
         _context?.Dispose();
     }
     

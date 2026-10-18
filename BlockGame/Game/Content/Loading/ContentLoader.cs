@@ -25,6 +25,7 @@ public static class ContentLoader
     /// <param name="source">Die Content-Quelle.</param>
     /// <returns>Die fertige, unveränderliche Registry.</returns>
     /// <exception cref="InvalidDataException">Wird bei doppelten Namen, unbekannten Texturen oder ungültigem JSON ausgelöst.</exception>
+    /// <exception cref="InvalidOperationException">Wird ausgelöst, wenn die erforderlichen Core-Blöcke fehlen.</exception>
     public static BlockRegistry LoadBlocks(IContentSource source)
     {
         TextureCatalog textures = LoadTextureCatalog(source);
@@ -39,7 +40,42 @@ public static class ContentLoader
             builder.AddBlock(entry.Id, spec, entry.SourcePath);
         }
 
-        return builder.Build();
+        BlockRegistry registry = builder.Build();
+
+        // Validiere, dass die erforderlichen Core-Blöcke vorhanden sind
+        ValidateCoreBlocks(registry);
+
+        return registry;
+    }
+
+    /// <summary>
+    /// Stellt sicher, dass die für die Terrain-Generierung erforderlichen Core-Blöcke
+    /// in der Registry vorhanden sind.
+    /// </summary>
+    private static void ValidateCoreBlocks(BlockRegistry registry)
+    {
+        string[] required = { "core:dirt", "core:grass", "core:snow", "core:stone" };
+        var missing = new System.Collections.Generic.List<string>();
+
+        foreach (string name in required)
+        {
+            try
+            {
+                registry.GetBlockId(name);
+            }
+            catch (KeyNotFoundException)
+            {
+                missing.Add(name);
+            }
+        }
+
+        if (missing.Count > 0)
+        {
+            throw new InvalidDataException(
+                $"Fehlende erforderliche Core-Blöcke: {string.Join(", ", missing)}. " +
+                $"Ohne diese Blöcke kann die Terrain-Generierung nicht funktionieren. " +
+                $"Stellen Sie sicher, dass Content/Core/Blocks/*.json vorhanden ist.");
+        }
     }
 
     /// <summary>

@@ -97,13 +97,27 @@ public sealed class BlockRegistry
     /// <summary>
     /// Flache Layer-Tabelle für den Heißpfad: <c>[blockId * 6 + faceIndex]</c> → Texture-Layer.
     /// IDs stammen immer aus derselben Registry, deshalb ist der Zugriff ohne Prüfung sicher.
+    /// Die Tabelle ist schreibgeschützt — für den Heißpfad als <see cref="FaceLayersSpan"/>
+    /// verwenden, um Kopien zu vermeiden.
     /// </summary>
     public ushort[] FaceLayers { get; }
 
     /// <summary>
+    /// Span-Sicht auf <see cref="FaceLayers"/> für den Heißpfad (Mesher).
+    /// </summary>
+    public ReadOnlySpan<ushort> FaceLayersSpan => FaceLayers;
+
+    /// <summary>
     /// Flache Flag-Tabelle für den Heißpfad: <c>[blockId]</c> → Flags (IsOpaque, RenderKind).
+    /// Die Tabelle ist schreibgeschützt — für den Heißpfad als <see cref="FlagsSpan"/>
+    /// verwenden, um Kopien zu vermeiden.
     /// </summary>
     public BlockFlags[] Flags { get; }
+
+    /// <summary>
+    /// Span-Sicht auf <see cref="Flags"/> für den Heißpfad.
+    /// </summary>
+    public ReadOnlySpan<BlockFlags> FlagsSpan => Flags;
 
     /// <summary>
     /// Gibt die Textur-ID (Layer-Index) für einen Block und ein Face zurück.
@@ -243,6 +257,11 @@ public sealed class BlockRegistry
     /// (headless-Betrieb). Die Reihenfolge entspricht exakt der ordinalen Sortierung,
     /// die der ContentLoader für Content-Dateien verwendet (air, dirt, grass, snow,
     /// stone) — damit Fallback- und Content-Pfad für dieselben Namen dieselben IDs vergeben.
+    /// <para>
+    /// Die Fallback-Registry hat einen leeren Texturkatalog. Der Renderer sollte vor
+    /// dem Bau des Texturarrays prüfen, ob Texturen vorhanden sind, andernfalls mit
+    /// einer klaren Meldung scheitern.
+    /// </para>
     /// </summary>
     /// <returns>Die Fallback-Registry mit null-Layern für alle Blöcke.</returns>
     public static BlockRegistry CreateFallback()

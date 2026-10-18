@@ -81,7 +81,9 @@ public sealed class FileSystemContentSource : IContentSource
                 string fullName = $"{namespaceName}:{entryName}";
                 if (!ResourceId.TryParse(fullName, out ResourceId id))
                 {
-                    continue;
+                    throw new InvalidDataException(
+                        $"Ungültiger Ressourcenname '{fullName}' in {file}. " +
+                        $"Erwartetes Format: 'namespace:name' (nur Kleinbuchstaben, Ziffern, _ - .).");
                 }
 
                 yield return new ContentEntry

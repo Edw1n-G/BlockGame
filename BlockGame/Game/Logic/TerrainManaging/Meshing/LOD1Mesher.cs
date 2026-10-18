@@ -114,7 +114,10 @@ public class Lod1Mesher : BaseMesher
     {
         int id = _blockData[x * 256 + y * 16 + z];
         // Flache Layer-Tabelle ([id * 6 + face]) statt Registry-Aufruf pro Face — Heißpfad.
-        ushort textureLayer = _blockRegistry.FaceLayers[id * 6 + face];
+        // Ungültige IDs (z. B. aus alten Chunks vor einem Remap) werden zu Luft (0) gemappt.
+        ushort textureLayer = (uint)id < _blockRegistry.FaceLayers.Length / 6
+            ? _blockRegistry.FaceLayers[id * 6 + face]
+            : (ushort)0;
 
         switch (face)
         {

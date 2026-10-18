@@ -15,6 +15,9 @@ public static class BlockLoader
 {
     /// <summary>
     /// Thread-sichere, verzögert erstellte Standard-Registry (Lazy Default: ExecutionAndPublication).
+    /// Da die Registry unveränderlich ist, kann sie sicher zwischen EngineContext-Instanzen
+    /// geteilt werden — dadurch wird der Content nur einmal geladen, nicht bei jedem
+    /// EngineContext (wichtig für Benchmarks mit vielen Iterationen).
     /// </summary>
     private static readonly Lazy<BlockRegistry> _defaultRegistry = new(CreateDefault);
 
@@ -27,25 +30,22 @@ public static class BlockLoader
 
     /// <summary>
     /// Erstellt die Standard-Registry: lädt den Content (Texturen → Blöcke) oder
-    /// erzeugt eine Fallback-Registry, wenn kein Content gefunden wurde.
+    /// erzeugt eine Fallback-Registry, wenn kein Content-Verzeichnis gefunden wurde.
+    /// Ist das Verzeichnis vorhanden aber der Content fehlerhaft (ungültiges JSON,
+    /// doppelte Namen, unbekannte Texturen), wird die Ausnahme durchgereicht — kein
+    /// stillschweigendes Fallback, damit Content-Fehler beim Start laut scheitern.
     /// </summary>
     /// <returns>Die fertige, unveränderliche Registry.</returns>
+    /// <exception cref="InvalidDataException">Wird bei Content-Fehlern ausgelöst.</exception>
     public static BlockRegistry CreateDefault()
     {
         var source = new FileSystemContentSource("Content");
-        if (source.Exists)
+        if (!source.Exists)
         {
-            try
-            {
-                return ContentLoader.LoadBlocks(source);
-            }
-            catch
-            {
-                // Fallback falls Content unvollständig oder fehlerhaft ist
-            }
+            return BlockRegistry.CreateFallback();
         }
 
-        return BlockRegistry.CreateFallback();
+        return ContentLoader.LoadBlocks(source);
     }
 
     /// <summary>

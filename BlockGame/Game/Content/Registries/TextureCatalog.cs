@@ -41,9 +41,10 @@ public sealed class TextureCatalog
 
     /// <summary>
     /// Die Einträge in Layer-Reihenfolge (Index = Layer-Index).
-    /// Der Renderer baut daraus das GL-Texturarray.
+    /// Der Renderer baut daraus das GL-Texturarray. Gibt eine Momentaufnahme zurück,
+    /// damit Aufrufer die interne Liste nicht verändern können.
     /// </summary>
-    public IReadOnlyList<(ResourceId Id, string FullPath)> OrderedEntries => _ordered;
+    public IReadOnlyList<(ResourceId Id, string FullPath)> OrderedEntries => _ordered.ToArray();
 
     /// <summary>
     /// Gibt den Layer-Index für eine Textur zurück.

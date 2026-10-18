@@ -35,28 +35,49 @@ public class MeshgenerateJob : IJob
             return;
         }
         
-        BaseMesher newMesh;
+        BaseMesher? newMesh = null;
+        Exception? meshError = null;
         
-        // Baue das Mesh mit dem injizierten ChunkProvider
-        switch (ChunkCoord.LodLevel)
+        try
         {
-            case 0:
-                newMesh = new Lod0Mesher(ChunkCoord, data, context.Provider, context.BlockRegistry);
-                break;
-                    
-            case 1:
-                newMesh = new Lod1Mesher(ChunkCoord, data, context.Provider, context.BlockRegistry);
-                break;
-                    
-            case 2:
-                newMesh = new Lod2Mesher(ChunkCoord, data, context.Provider, context.BlockRegistry);
-                break;
-                    
-            default:
-                throw new Exception($"Ungültiges LOD-Level {ChunkCoord.LodLevel} für Chunk {ChunkCoord}");
-        }  
-        
-        context.Provider.UploadQueue.Enqueue(newMesh);
-        context.Provider.QueuedForMeshing.TryRemove(ChunkCoord, out _);
+            // Baue das Mesh mit dem injizierten ChunkProvider
+            switch (ChunkCoord.LodLevel)
+            {
+                case 0:
+                    newMesh = new Lod0Mesher(ChunkCoord, data, context.Provider, context.BlockRegistry);
+                    break;
+                        
+                case 1:
+                    newMesh = new Lod1Mesher(ChunkCoord, data, context.Provider, context.BlockRegistry);
+                    break;
+                        
+                case 2:
+                    newMesh = new Lod2Mesher(ChunkCoord, data, context.Provider, context.BlockRegistry);
+                    break;
+                        
+                default:
+                    throw new Exception($"Ungültiges LOD-Level {ChunkCoord.LodLevel} für Chunk {ChunkCoord}");
+            }
+        }
+        catch (Exception ex)
+        {
+            meshError = ex;
+        }
+        finally
+        {
+            // Immer entfernen, damit der Chunk bei einem Fehler später erneut gemeshed werden kann
+            context.Provider.QueuedForMeshing.TryRemove(ChunkCoord, out _);
+        }
+
+        if (meshError is not null)
+        {
+            Console.Error.WriteLine($"[MeshgenerateJob] Fehler beim Meshen von {ChunkCoord}: {meshError.Message}");
+            return;
+        }
+
+        if (newMesh is not null)
+        {
+            context.Provider.UploadQueue.Enqueue(newMesh);
+        }
     }
 }

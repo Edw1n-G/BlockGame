@@ -578,16 +578,47 @@ class Program
         Console.WriteLine("Running TestPaletteFreezesAfterBuild...");
 
         var source = new InMemoryContentSource();
+        // Core-Blöcke für die Validierung hinzufügen
+        source.AddTexture("core:dirt", "dirt.png");
+        source.AddTexture("core:grass", "grass.png");
+        source.AddTexture("core:snow", "snow.png");
+        source.AddTexture("core:stone", "stone.png");
+        foreach (var name in new[] { "core:dirt", "core:grass", "core:snow", "core:stone" })
+        {
+            source.AddBlock(name, $"{{ \"textures\": {{ \"sides\": \"{name}\" }} }}", $"{name}.json");
+        }
+
+        // Test-Block für den Freeze-Test
         source.AddTexture("freezetest:stone", "stone.png");
         source.AddBlock(
             "freezetest:stone",
             "{ \"textures\": { \"sides\": \"freezetest:stone\" } }",
-            "stone.json");
+            "freezetest/stone.json");
 
         var registry = ContentLoader.LoadBlocks(source);
         Assert(registry.GetBlockId("freezetest:stone") > 0, "Registry muss nach dem Build funktionieren");
 
         // Zwei Builds aus denselben Eingaben ergeben dieselben IDs
+        var source2 = new InMemoryContentSource();
+        source2.AddTexture("core:dirt", "dirt.png");
+        source2.AddTexture("core:grass", "grass.png");
+        source2.AddTexture("core:snow", "snow.png");
+        source2.AddTexture("core:stone", "stone.png");
+        source2.AddTexture("freezetest:stone", "stone.png");
+        foreach (var name in new[] { "core:dirt", "core:grass", "core:snow", "core:stone" })
+        {
+            source2.AddBlock(name, $"{{ \"textures\": {{ \"sides\": \"{name}\" }} }}", $"{name}.json");
+        }
+        source2.AddBlock(
+            "freezetest:stone",
+            "{ \"textures\": { \"sides\": \"freezetest:stone\" } }",
+            "freezetest/stone.json");
+
+        var registry2 = ContentLoader.LoadBlocks(source2);
+        Assert(registry2.GetBlockId("freezetest:stone") == registry.GetBlockId("freezetest:stone"),
+            "Zwei Builds aus denselben Eingaben müssen dieselbe ID vergeben");
+
+        // Nach dem Build ist die Palette eingefroren: direkter Builder-Test
         var builder = new BlockRegistryBuilder()
             .UseTextures(registry.Textures)
             .ReserveAir();
@@ -595,11 +626,9 @@ class Program
             ResourceId.Parse("freezetest:stone"),
             new BlockSpec { Faces = new BlockTextureFaces { Sides = "freezetest:stone" } },
             "stone.json");
-        BlockRegistry secondBuild = builder.Build();
-        Assert(secondBuild.GetBlockId("freezetest:stone") == registry.GetBlockId("freezetest:stone"),
-            "Zwei Builds aus denselben Eingaben müssen dieselbe ID vergeben");
+        builder.Build();
 
-        // Nach dem Build ist die Palette eingefroren: AddBlock scheitert klar
+        // Nach Build ist die Palette eingefroren
         AssertThrows<InvalidOperationException>(
             () => builder.AddBlock(
                 ResourceId.Parse("freezetest:other"),

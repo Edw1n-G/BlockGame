@@ -59,7 +59,17 @@ public class Renderer
 
         // Das GL-Texturarray aus dem CPU-seitigen Texturkatalog der Registry bauen
         // (renderer-seitig — die Registry selbst berührt nie OpenGL).
-        _terrainTexture = TextureArrayBuilder.Build(gl, BlockLoader.Current.Textures);
+        // Fallback-Registries ohne Texturen müssen klar scheitern.
+        var textures = BlockLoader.Current.Textures;
+        if (textures.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Keine Texturen im Texturkatalog gefunden. Das Spiel kann ohne Texturen nicht rendern. " +
+                "Stellen Sie sicher, dass Content/<Namespace>/Textures/*.png vorhanden ist, oder " +
+                "verwenden Sie die Fallback-Registry nur für headless-Betrieb ohne Renderer.");
+        }
+
+        _terrainTexture = TextureArrayBuilder.Build(gl, textures);
         
         _gl.Enable(EnableCap.Multisample);
     }

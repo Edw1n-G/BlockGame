@@ -56,10 +56,21 @@ public sealed class BlockRegistryBuilder
     /// <param name="spec">Der geparste, noch nicht aufgelöste Block.</param>
     /// <param name="sourcePath">Die Quelldatei, für aussagekräftige Fehlermeldungen.</param>
     /// <returns>Diesen Builder (fluent).</returns>
-    /// <exception cref="InvalidDataException">Wird bei unbekannten Texturen ausgelöst.</exception>
+    /// <exception cref="InvalidDataException">Wird bei unbekannten Texturen oder ungültigen Ressourcen-IDs ausgelöst.</exception>
     public BlockRegistryBuilder AddBlock(ResourceId id, BlockSpec spec, string sourcePath)
     {
-        ushort[] faceLayers = ResolveFaceLayers(id, spec.Faces, sourcePath);
+        ushort[] faceLayers;
+        try
+        {
+            faceLayers = ResolveFaceLayers(id, spec.Faces, sourcePath);
+        }
+        catch (FormatException ex)
+        {
+            // Ressourcen-ID-Fehler in InvalidDataException wrappen, damit alle Content-Fehler
+            ///denselben Typ haben
+            throw new InvalidDataException($"Ungültige Ressourcen-ID in {sourcePath}: {ex.Message}", ex);
+        }
+
         BlockDefinition definition = new(id, new CubeShape(faceLayers), spec.Tags);
         ushort blockId = _palette.Add(id, definition, sourcePath);
 
@@ -73,8 +84,9 @@ public sealed class BlockRegistryBuilder
 
     /// <summary>
     /// Baut die unveränderliche Registry: friert die Palette ein und erzeugt die
-    /// flachen Heißpfad-Tabellen. Danach ist der Builder leer verwertbar —
-    /// für weitere Änderungen einen neuen Builder verwenden.
+    /// flachen Heißpfad-Tabellen. Danach ist der Builder eingefroren — weitere Aufrufe
+    /// von AddBlock werfen eine InvalidOperationException. Für weitere Änderungen
+    /// einen neuen Builder verwenden.
     /// </summary>
     /// <returns>Die fertige, unveränderliche <see cref="BlockRegistry"/>.</returns>
     /// <exception cref="InvalidOperationException">Wird ausgelöst, wenn kein Texturkatalog gesetzt wurde.</exception>

@@ -117,7 +117,10 @@ public class Lod0Mesher : BaseMesher
     {
         int id = _blockData[x * 256 + y * 16 + z];
         // Flache Layer-Tabelle ([id * 6 + face]) statt Registry-Aufruf pro Face — Heißpfad.
-        ushort textureLayer = _blockRegistry.FaceLayers[id * 6 + face];
+        // Ungültige IDs (z. B. aus alten Chunks vor einem Remap) werden zu Luft (0) gemappt.
+        ushort textureLayer = (uint)id < _blockRegistry.FaceLayers.Length / 6
+            ? _blockRegistry.FaceLayers[id * 6 + face]
+            : (ushort)0;
 
         // AO direkt als int berechnen (0–3)
         byte ao0 = CalcAoLevel(x, y, z, face, 0);

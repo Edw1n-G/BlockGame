@@ -25,6 +25,7 @@ public static class ContentLoader
     /// <param name="source">Die Content-Quelle.</param>
     /// <returns>Die fertige, unveränderliche Registry.</returns>
     /// <exception cref="InvalidDataException">Wird bei doppelten Namen, unbekannten Texturen oder ungültigem JSON ausgelöst.</exception>
+    /// <exception cref="InvalidDataException">Wird bei doppelten Namen, unbekannten Texturen oder ungültigem JSON ausgelöst.</exception>
     /// <exception cref="InvalidOperationException">Wird ausgelöst, wenn die erforderlichen Core-Blöcke fehlen.</exception>
     public static BlockRegistry LoadBlocks(IContentSource source)
     {

@@ -38,7 +38,7 @@ public sealed class TagIndex
 
     /// <summary>
     /// Gibt alle Block-IDs mit einem Tag als Snapshot zurück.
-    /// Der Eingabe-Tag wird normalisiert; bei leerem/leerem Ergebnis eine leere Sammlung.
+    /// Der Eingabe-Tag wird normalisiert; bei ungültigem Tag eine leere Sammlung.
     /// </summary>
     public IReadOnlyCollection<ushort> Get(string tag)
     {

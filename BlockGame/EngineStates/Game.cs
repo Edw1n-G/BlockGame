@@ -132,6 +132,9 @@ public class Game : IStates
 
     public void Exit()
     {
+        // Zuerst den JobScheduler stoppen, damit keine Worker mehr auf den ChunkProvider
+        // oder die GL-Ressourcen zugreifen, bevor der Renderer sie freigibt.
+        _context?.JobScheduler.Stop();
         _playerRenderer?.Dispose();
         _context?.Dispose();
     }

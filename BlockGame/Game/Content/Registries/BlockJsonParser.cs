@@ -56,7 +56,7 @@ public sealed class BlockSpec
 /// dadurch mit String-Literalen testbar. Validiert das Format und wirft bei Fehlern
 /// eine beschreibende <see cref="InvalidDataException"/> mit der Quelldatei.
 /// Ein späteres Schema (z. B. "model" statt "textures") wird über
-/// <see cref="FormatVersion"/> managesierbar.
+/// <see cref="SupportedFormatVersion"/> verwaltbar.
 /// </summary>
 public static class BlockJsonParser
 {
@@ -77,7 +77,7 @@ public static class BlockJsonParser
     /// <param name="sourcePath">Die Quelldatei, für aussagekräftige Fehlermeldungen.</param>
     /// <returns>Der geparste <see cref="BlockSpec"/>.</returns>
     /// <exception cref="InvalidDataException">Wird bei ungültigem JSON, fehlenden Texturen oder
-    /// nicht unterstützter <see cref="FormatVersion"/> ausgelöst.</exception>
+    /// nicht unterstützter <see cref="SupportedFormatVersion"/> ausgelöst.</exception>
     public static BlockSpec Parse(string json, string sourcePath)
     {
         BlockFileJson? file;

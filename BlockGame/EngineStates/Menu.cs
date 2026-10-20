@@ -4,6 +4,7 @@ using Silk.NET.OpenGL;
 using Basics.Window;
 using Egui;
 using Basics.Game.Logic;
+using Basics.Input;
 using Egui.Containers;
 using Egui.Silk.NET;
 using StbImageSharp;
@@ -67,7 +68,9 @@ public class Menu : IStates
         
         //Egui.NET
         _uiContext = new Context();
-        _uiIntegration = new Basics.SilkGlIntegration(_uiContext, WindowSetup.Window, _inputContext);
+        //das Maus Lock Event wird von der custom SilkGL Integration behalt hier aber nicht genutzt deswegen reicht erstmal ein neuer InputManager
+        //TODO: diese Instanz von Input Manager mit neuen Action Bindings erweitern um menu mit keyboard zu bedienen
+        _uiIntegration = new Basics.SilkGlIntegration(_uiContext, WindowSetup.Window, _inputContext, new InputManager());
     }
 
     /// <summary>

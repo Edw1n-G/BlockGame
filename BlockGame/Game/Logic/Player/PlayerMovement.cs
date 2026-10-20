@@ -2,6 +2,7 @@ using System.Numerics;
 using Basics.Game.Logic;
 using Basics.Game.Logic.Player;
 using Basics.Input;
+using Silk.NET.Input;
 
 namespace Basics.Game.Player;
 
@@ -11,6 +12,7 @@ namespace Basics.Game.Player;
 public class PlayerMovement
 {
     private readonly PlayerCharacter _player;
+    private readonly InputManager _inputManager;
     private readonly GameSettings _settings;
     private Vector2 _lastMousePosition;
     private Camera _activeCamera;
@@ -19,10 +21,16 @@ public class PlayerMovement
     /// Initialisiert eine neue Instanz von <see cref="PlayerMovement"/>.
     /// </summary>
     /// <param name="player">Der zu steuernde <see cref="PlayerCharacter"/>.</param>
+    /// <param name="inputManager">Der <see cref="InputManager"/> zur Verarbeitung der Eingaben.</param>
     /// <param name="settings">Die optionalen <see cref="GameSettings"/> für Bewegungsparameter.</param>
-    public PlayerMovement(PlayerCharacter player, GameSettings? settings = null)
+    public PlayerMovement(PlayerCharacter player,InputManager inputManager, GameSettings? settings = null)
     {
         _player = player;
+        
+        // Mausbewegungen verfolgen
+        _inputManager = inputManager;
+        _inputManager.MouseMoved += LookUpdate;
+        
         _settings = settings ?? EngineContext.Current?.Settings ?? GameSettings.Current;
         _activeCamera = player.Camera;
     }
@@ -54,19 +62,19 @@ public class PlayerMovement
     {
         Vector3 direction = Vector3.Zero;
 
-        if (InputManager.IsActionPressed(Actions.Forward))
+        if (_inputManager.IsActionPressed(Actions.Forward))
             direction.Z += 1.0f;
-        if (InputManager.IsActionPressed(Actions.Backward))
+        if (_inputManager.IsActionPressed(Actions.Backward))
             direction.Z -= 1.0f;
 
-        if (InputManager.IsActionPressed(Actions.Left))
+        if (_inputManager.IsActionPressed(Actions.Left))
             direction.X -= 1.0f;
-        if (InputManager.IsActionPressed(Actions.Right))
+        if (_inputManager.IsActionPressed(Actions.Right))
             direction.X += 1.0f;
 
-        if (InputManager.IsActionPressed(Actions.Up))
+        if (_inputManager.IsActionPressed(Actions.Up))
             direction.Y += 1.0f;
-        if (InputManager.IsActionPressed(Actions.Down))
+        if (_inputManager.IsActionPressed(Actions.Down))
             direction.Y -= 1.0f;
 
         if (direction == Vector3.Zero)

@@ -11,6 +11,7 @@ using System;
 
 /// <summary>
 /// Definiert alle verfügbaren Aktionen, die durch Tasten oder Maus ausgelöst werden können.
+/// TODO: Erweitern das die Aktionen extern geladen werden um verschiedene Aktionen für Menü und Spiel zu haben.
 /// </summary>
 public enum Actions
 {
@@ -51,32 +52,20 @@ public enum Actions
 /// </remarks>
 public class InputManager
 {
-    private static IKeyboard _keyboard;
-    private static IMouse _mouse;
+    private IKeyboard _keyboard;
+    private IMouse _mouse;
     
     /// <summary>Gibt an, ob die Maus aktuell gesperrt ist (unbegrenzt im Raum).</summary>
-    private static Boolean _isMouseLocked = false;
+    private Boolean _isMouseLocked = false;
     /// <summary>Die aktuelle Sperrung der Maus.</summary>
-    public static bool IsMouseLocked => _isMouseLocked;
-    
-    /// <summary>Das für die Spielerbewegung verwendete <see cref="PlayerMovement"/> oder null.</summary>
-    private static PlayerMovement? _playerMovement;
-    
-    /// <summary>
-    /// Legt das für die Spielerbewegung verwendete <see cref="PlayerMovement"/> fest.
-    /// </summary>
-    /// <param name="playerMovement">Das festzulegende <see cref="PlayerMovement"/>.</param>
-    public static void SetPlayerMovement(PlayerMovement playerMovement)
-    {
-        _playerMovement = playerMovement;
-    }
+    public bool IsMouseLocked => _isMouseLocked;
 
     /// <summary>
     /// Initialisiert den InputManager mit den bereitgestellten Eingabegeräten.
     /// Bindet Tastatur- und Maus-Ereignisse an die internen Handler.
     /// </summary>
     /// <param name="input">Der Eingabe-Kontext mit verfügbaren Tastatur- und Mausgeräten.</param>
-    public static void Initialize(IInputContext input)
+    public void Initialize(IInputContext input)
     {
         _keyboard = input.Keyboards.FirstOrDefault();
         if (_keyboard != null)
@@ -125,7 +114,7 @@ public class InputManager
     /// <summary>Aktualisiert die Tastenbelegung für eine Aktion.</summary>
     /// <param name="action">Die Aktion, deren Belegung geändert werden soll.</param>
     /// <param name="key">Die neue Taste für diese Aktion.</param>
-    public static void SetkeyBindings(Actions action, Key key)
+    public void SetkeyBindings(Actions action, Key key)
     {
         if (_keyBindings.ContainsKey(action))
         {
@@ -175,7 +164,7 @@ public class InputManager
     /// <param name="keyboard">Die zu überprüfende <see cref="IKeyboard"/>.</param>
     /// <param name="key">Die zu prüfende <see cref="Key"/>.</param>
     /// <returns><c>true</c>, wenn die Taste gedrückt ist, andernfalls <c>false</c>.</returns>
-    public static bool IsKeyPressed(IKeyboard keyboard, Key key)
+    public bool IsKeyPressed(IKeyboard keyboard, Key key)
     {
         if (_keyboard == null) return false;
         return _keyboard.IsKeyPressed(key);
@@ -184,7 +173,7 @@ public class InputManager
     /// <summary>Prüft, ob eine Aktion (durch Taste oder Maus) ausgeführt wird.</summary>
     /// <param name="action">Die zu prüfende <see cref="Actions"/>.</param>
     /// <returns><c>true</c>, wenn die Aktion ausgeführt wird, andernfalls <c>false</c>.</returns>
-    public static bool IsActionPressed(Actions action)
+    public bool IsActionPressed(Actions action)
     {
         if (_keyboard == null) return false;
         if (_keyBindings.TryGetValue(action, out Key key))
@@ -236,15 +225,18 @@ public class InputManager
     /// <summary>Handler für Mausbewegungs-Ereignisse.</summary>
     /// <param name="mouse">Die auslösende <see cref="IMouse"/>.</param>
     /// <param name="position">Die aktuelle Mausposition.</param>
-    private static void OnMouseMove(IMouse mouse, Vector2 position)
+    private void OnMouseMove(IMouse mouse, Vector2 position)
     {
-        _playerMovement?.LookUpdate(position);
+        MouseMoved?.Invoke(position); 
     }
+    
+    /// <summary>Event, das ausgelöst wird, wenn die Maus bewegt wird.</summary>
+    public event Action<Vector2>? MouseMoved;
 
     /// <summary>Handler für Maus-Scroll-Ereignisse (aktuell nicht implementiert).</summary>
     /// <param name="mouse">Die auslösende <see cref="IMouse"/>.</param>
     /// <param name="scrollWheel">Die ScrollWheel-Informationen.</param>
-    private static unsafe void OnMouseWheel(IMouse mouse, ScrollWheel scrollWheel)
+    private void OnMouseWheel(IMouse mouse, ScrollWheel scrollWheel)
     {
         
     }
@@ -253,7 +245,7 @@ public class InputManager
     /// <param name="mouse">Die auslösende <see cref="IMouse"/>.</param>
     /// <param name="button">Die gedrückte <see cref="MouseButton"/>.</param>
     /// <param name="pos">Die Mausposition beim Klick.</param>
-    private static void OnMouseClick(IMouse mouse, MouseButton button, Vector2 pos)
+    private void OnMouseClick(IMouse mouse, MouseButton button, Vector2 pos)
     {
         // Check if the clicked button is bound to an action
         foreach (var binding in _mouseBindings)
@@ -270,7 +262,7 @@ public class InputManager
     }
     
     /// <summary>Schaltet die Mauspfeil-Sperrung um (sichtbar/unbegrenzt).</summary>
-    private static void ToggleMouseLock()
+    private void ToggleMouseLock()
     {
         if (_mouse == null) return;
         

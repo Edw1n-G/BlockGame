@@ -36,6 +36,9 @@ public class Game : IStates
     public static float Fps = 0;//wird in der UI benutzt
     
     private static GL _gl = null!;
+    
+    // Input
+    private static InputManager _inputManager = null!;
 
     // Spieler
     private static PlayerCharacter _player = null!;
@@ -68,7 +71,11 @@ public class Game : IStates
         // Subsystem-Referenzen aus dem Kontext beziehen
         _chunkProvider = _context.ChunkProvider;
         _terrainGenerator = _context.TerrainGenerator;
-
+        
+        // Input-Manager der für dieses Fenster genutzt wird.
+        _inputManager = new InputManager();
+        _inputManager.Initialize(inputContext);
+        
         // Spieler mit eigener Kamera erstellen (injizierte Subsysteme)
         _player = new PlayerCharacter(PlayerStartPosition, _context.World, _context.Physics);
         PlayerCamera = _player.Camera;
@@ -78,16 +85,11 @@ public class Game : IStates
         _playerRenderer.Setup(PlayerCamera, _gl);
 
         //Movement-Controller für Player/Debug Kamera
-        _playerMovement = new PlayerMovement(_player, _context.Settings);
+        _playerMovement = new PlayerMovement(_player, _inputManager, _context.Settings);
 
         //Egui.NET
         _uiContext = new Context();
-        _uiIntegration = new SilkGlIntegration(_uiContext, WindowSetup.Window, inputContext);
-        
-        //Input Manager
-        InputManager.Initialize(inputContext);
-        InputManager.SetPlayerMovement(_playerMovement); //TODO: InputManager vom Player trennen
-        InputManager.SetActionBindings(Actions.ToogleDebugCamera, ToggleDebugCamera);
+        _uiIntegration = new SilkGlIntegration(_uiContext, WindowSetup.Window, inputContext, _inputManager);
         
         // ChunkRequestor abonniert das Player-Event und berechnet welche Chunks geladen werden
         _chunkRequestor = new ChunkRequestor(_player, _chunkProvider, _context.Settings);

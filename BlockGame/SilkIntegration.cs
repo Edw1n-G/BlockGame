@@ -67,6 +67,11 @@ public abstract class SilkIntegration : IDisposable
     private IInputContext _inputContext;
 
     /// <summary>
+    /// The Input Manager used to determine whether the mouse is locked.
+    /// </summary>
+    public InputManager InputManager;
+
+    /// <summary>
     /// Whether the window currently has OS focus.
     /// </summary>
     private bool _focused;
@@ -92,7 +97,7 @@ public abstract class SilkIntegration : IDisposable
     private readonly Stopwatch _timer;
 
     /// <inheritdoc cref="SilkIntegration.SilkIntegration(Context, IWindow, IInputContext)"/>
-    public SilkIntegration(Context context, IWindow window) : this(context, window, window.CreateInput()) { }
+    public SilkIntegration(Context context, IWindow window, InputManager inputManager) : this(context, window, window.CreateInput(), inputManager) { }
     
     /// <summary>
     /// Creates a new integration object.
@@ -100,8 +105,8 @@ public abstract class SilkIntegration : IDisposable
     /// <param name="context">The context to be displayed.</param>
     /// <param name="window">The window on which to draw.</param>
     /// <param name="input">The input context associated with the window.</param>
-    
-    public SilkIntegration(Context context, IWindow window, IInputContext input)
+    /// <param name="inputManager">The input manager to use for handling input.</param>
+    public SilkIntegration(Context context, IWindow window, IInputContext input, InputManager inputManager)
     {
         EguiContext = context;
         _focused = false;
@@ -111,7 +116,8 @@ public abstract class SilkIntegration : IDisposable
         _timer = new Stopwatch();
         Window = window;
         _inputContext = input;
-
+        InputManager = inputManager;
+        
         for (int i = 0; i < input.Keyboards.Count; i++)
         {
             input.Keyboards[i].KeyDown += KeyDown;

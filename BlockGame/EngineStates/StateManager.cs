@@ -1,4 +1,5 @@
-﻿using Basics.Window;
+﻿using Basics.Game.Input;
+using Basics.Window;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -34,6 +35,7 @@ namespace Basics.EngineStates
         /// Der Eingabe-Kontext für Input-Verarbeitung.
         /// </summary>
         private IInputContext _inputContext = null!;
+        private InputManager _inputManager = null!;
         
         /// <summary>
         /// Startpunkt des Programms.
@@ -63,8 +65,13 @@ namespace Basics.EngineStates
             _gl = WindowSetup.Window.CreateOpenGL();
             _inputContext = WindowSetup.Window.CreateInput();
             
+            _inputManager = new InputManager();
+            _inputManager.Initialize(_inputContext);
+            
+            WindowSetup.BindWindowActions(_inputManager);
+            
             _currentState = new EngineStates.Menu();
-            _currentState.Enter(_gl, _inputContext, this);
+            _currentState.Enter(_gl, _inputContext, _inputManager, this);
         }
 
         /// <summary>
@@ -88,7 +95,7 @@ namespace Basics.EngineStates
             {
                 _currentState.Exit();
                 _currentState = _nextState;
-                _currentState.Enter(_gl, _inputContext, this);
+                _currentState.Enter(_gl, _inputContext, _inputManager, this);
                 _nextState = null;
             }
         }

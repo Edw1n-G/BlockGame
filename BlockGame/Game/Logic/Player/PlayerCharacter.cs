@@ -1,10 +1,10 @@
 using System.Numerics;
 using Basics.Configurations;
+using Basics.Game.Input;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.PhysicsSystem;
 using Basics.Game.Utilities;
 using Basics.Graphics.UI;
-using Basics.Input;
 using Basics.PhysicsSystem.Structs;
 
 namespace Basics.Game.Logic.Player;
@@ -31,16 +31,17 @@ public class PlayerCharacter
     /// Initialisiert eine neue Instanz von <see cref="PlayerCharacter"/>.
     /// </summary>
     /// <param name="spawnPosition">Die Startposition des Spielers in Weltkoordinaten.</param>
+    /// <param name="inputManager">Der InputManager, der die Aktionen verwalten soll.</param>
     /// <param name="world">Die optionale <see cref="World"/>-Instanz für Block-Interaktionen.</param>
     /// <param name="physics">Die optionale <see cref="Physics"/>-Instanz für Raycasting.</param>
-    public PlayerCharacter(Vector3 spawnPosition, World? world = null, Physics? physics = null)
+    public PlayerCharacter(Vector3 spawnPosition,InputManager inputManager, World? world = null, Physics? physics = null)
     {
         _world = world;
         _physics = physics;
         Camera = new Camera(spawnPosition);
         _currentChunkCoord = Camera.GetChunkCoord(Camera.Position);
         UIManager.OnRenderDistanceChanged += ForceChunkUpdate;
-        BindActions();
+        BindActions(inputManager);
     }
 
     /// <summary>
@@ -82,10 +83,11 @@ public class PlayerCharacter
     /// <summary>
     /// Bindet die Tasten- und Mausaktionen an die PlayerCharacter-Methoden.
     /// </summary>
-    private void BindActions()
+    /// <param name="inputManager">Der InputManager, der die Aktionen verwalten soll.</param>
+    private void BindActions(InputManager inputManager)
     {
-        InputManager.SetActionBindings(Actions.DestroyBlock, DestroyBlock);
-        InputManager.SetActionBindings(Actions.PlaceBlock, PlaceBlock);
+        inputManager.SetActionBindings(Actions.DestroyBlock, DestroyBlock);
+        inputManager.SetActionBindings(Actions.PlaceBlock, PlaceBlock);
     }
 
     /// <summary>

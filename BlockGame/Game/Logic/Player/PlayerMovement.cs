@@ -1,7 +1,7 @@
 using System.Numerics;
+using Basics.Game.Input;
 using Basics.Game.Logic;
 using Basics.Game.Logic.Player;
-using Basics.Input;
 using Silk.NET.Input;
 
 namespace Basics.Game.Player;

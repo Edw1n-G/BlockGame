@@ -1,5 +1,5 @@
+using Basics.Game.Input;
 using Basics.Game.Logic;
-using Basics.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 
@@ -34,13 +34,21 @@ public class WindowSetup
         
         GameSettings.Current.OnFpsChanged += OnFpsChanged;
         GameSettings.Current.OnVSyncChanged += OnVSyncChanged;
-        
-        //Aktion -> Methode Mappen
-        InputManager.SetActionBindings(Actions.Close, () => Window.Close());
-        InputManager.SetActionBindings(Actions.Fullscreen, ToggleFullscreen);
-        InputManager.SetActionBindings(Actions.Borderless, ToggleBorderless);
+    }
+    
+    /// <summary>
+    /// Bindet fensterweite Aktionen an den InputManager. Muss aufgerufen werden,
+    /// NACHDEM der InputManager mit einem echten IInputContext initialisiert wurde
+    /// (also erst in StateManager.onLoad, nicht in CreateWindow).
+    /// </summary>
+    public static void BindWindowActions(InputManager inputManager)
+    {
+        inputManager.SetActionBindings(Actions.Close, () => Window.Close());
+        inputManager.SetActionBindings(Actions.Fullscreen, ToggleFullscreen);
+        inputManager.SetActionBindings(Actions.Borderless, ToggleBorderless);
     }
 
+    
     /// <summary>
     /// Führt die Haupt-Loop des Windows aus.
     /// </summary>
@@ -75,28 +83,32 @@ public class WindowSetup
         Window.VSync = VSync;
     }
     
+    private static nint GetNativeHandle()
+    {
+        if (Window.Native?.Win32 is (var hWnd, _, _))
+            return hWnd;
+        return nint.Zero;
+    }
+    
     /// <summary>
     /// Schaltet zwischen Vollbild- und Fenstermodus um.
     /// </summary>
     private static void ToggleFullscreen()
     {   
+        var hwnd = GetNativeHandle();
+        NativeWindowHelper.DisableWindowAnimations(hwnd, true);
+
         if (Window.WindowState == WindowState.Fullscreen)
         {
-            // Raus aus Vollbild → Zurück zum normalen Fenster
             Window.WindowState = WindowState.Normal;
             Window.WindowBorder = WindowBorder.Resizable;
         }
         else
         {
-            // Bevor wir in den Fullscreen gehen, setzen wir das Fenster in 
-            // einen sauberen Grundzustand. So merkt sich das System keine "falschen"
-            // Borderless-Eigenschaften, die später zu Glitches führen.
-            Window.WindowState = WindowState.Normal;
-            Window.WindowBorder = WindowBorder.Resizable;
-        
-            // Jetzt sicher in den Vollbildmodus wechseln
             Window.WindowState = WindowState.Fullscreen;
         }
+
+        NativeWindowHelper.DisableWindowAnimations(hwnd, false);
     }
 
     /// <summary>
@@ -104,19 +116,20 @@ public class WindowSetup
     /// </summary>
     private static void ToggleBorderless()
     {
-        
+        var hwnd = GetNativeHandle();
+        NativeWindowHelper.DisableWindowAnimations(hwnd, true);
+
         if (Window.WindowBorder == WindowBorder.Hidden || Window.WindowState == WindowState.Fullscreen)
         {
-            // Zurück zum normalen kleinen Fenster MIT Rahmen
             Window.WindowState = WindowState.Normal;
             Window.WindowBorder = WindowBorder.Resizable;
         }
         else
         {
-            // Rein in den Borderless-Windowed Modus
-            Window.WindowState = WindowState.Normal;   // Zuerst ent-maximieren
-            Window.WindowBorder = WindowBorder.Hidden; // Dann Rahmen ausblenden
-            Window.WindowState = WindowState.Maximized;// Dann über den Bildschirm strecken
+            Window.WindowBorder = WindowBorder.Hidden;
+            Window.WindowState = WindowState.Maximized;
         }
+
+        NativeWindowHelper.DisableWindowAnimations(hwnd, false);
     }
 }

@@ -25,4 +25,8 @@
     <ProjectReference Include="..\BlockGame\Blockgame.csproj" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <AssemblyName>BlockGame.Tests</AssemblyName>
+  </PropertyGroup>
+
 </Project>

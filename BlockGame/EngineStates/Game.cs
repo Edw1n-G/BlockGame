@@ -2,6 +2,7 @@ using System.Numerics;
 using Basics.Game.Configurations;
 using Basics.Game;
 using Basics.Game.Graphics;
+using Basics.Game.Input;
 using Basics.Game.Logic;
 using Basics.Game.Logic.Player;
 using Basics.Game.Logic.TerrainManaging;
@@ -10,7 +11,6 @@ using Basics.Game.PhysicsSystem;
 using Basics.Game.Player;
 using Basics.Game.Utilities;
 using Basics.Graphics.UI;
-using Basics.Input;
 using Basics.Window;
 using Egui;
 using Silk.NET.Input;
@@ -55,11 +55,14 @@ public class Game : IStates
     /**
      * Nach Erstellen des Fensters Renderer und InputManager initialisieren
      */
-    public unsafe void Enter(GL gl, IInputContext inputContext, StateManager manager)
+    public unsafe void Enter(GL gl, IInputContext inputContext, InputManager inputManager, StateManager manager)
     {   
         //OpenGl local speichern
         _gl = gl;
         _manager = manager;
+        _inputManager = inputManager;
+        _inputManager.LockMouse();
+        _inputManager.SetActionBindings(Actions.ToggleDebugCamera, ToggleDebugCamera);
 
         _context = new EngineContext(settings: GameSettings.Current);
         EngineContext.SetGlobal(_context);
@@ -72,12 +75,8 @@ public class Game : IStates
         _chunkProvider = _context.ChunkProvider;
         _terrainGenerator = _context.TerrainGenerator;
         
-        // Input-Manager der für dieses Fenster genutzt wird.
-        _inputManager = new InputManager();
-        _inputManager.Initialize(inputContext);
-        
         // Spieler mit eigener Kamera erstellen (injizierte Subsysteme)
-        _player = new PlayerCharacter(PlayerStartPosition, _context.World, _context.Physics);
+        _player = new PlayerCharacter(PlayerStartPosition, _inputManager, _context.World, _context.Physics);
         PlayerCamera = _player.Camera;
 
         //Main Camera und Renderer erstellen

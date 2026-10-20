@@ -1,10 +1,10 @@
+using Basics.Game.Input;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Basics.Window;
 using Egui;
 using Basics.Game.Logic;
-using Basics.Input;
 using Egui.Containers;
 using Egui.Silk.NET;
 using StbImageSharp;
@@ -26,6 +26,11 @@ public class Menu : IStates
     /// Der Eingabe-Kontext für Input-Verarbeitung.
     /// </summary>
     private IInputContext _inputContext;
+    
+    /// <summary>
+    /// Der InputManager, der Tasten auf Aktionen abbildet.
+    /// </summary>
+    private InputManager _inputManager;
     
     /// <summary>
     /// Der StateManager für Zustandswechsel.
@@ -53,12 +58,15 @@ public class Menu : IStates
     /// </summary>
     /// <param name="gl">Der OpenGL-Kontext.</param>
     /// <param name="inputContext">Der Eingabe-Kontext.</param>
+    /// <param name="inputManager">Der InputManager, der Tasten auf Aktionen abbildet.</param>
     /// <param name="manager">Der StateManager für Zustandswechsel.</param>
-    public void Enter(GL gl, IInputContext inputContext, StateManager manager)
+    public void Enter(GL gl, IInputContext inputContext,InputManager inputManager, StateManager manager)
     {
         _gl = gl;
         _inputContext = inputContext;
         _manager = manager;
+        _inputManager = inputManager;
+        _inputManager.UnlockMouse();
         
         //Mauszeiger anzeigen. idk kann man mehrere mäuse benutzen in windows?
         foreach (var mouse in _inputContext.Mice)
@@ -68,9 +76,8 @@ public class Menu : IStates
         
         //Egui.NET
         _uiContext = new Context();
-        //das Maus Lock Event wird von der custom SilkGL Integration behalt hier aber nicht genutzt deswegen reicht erstmal ein neuer InputManager
-        //TODO: diese Instanz von Input Manager mit neuen Action Bindings erweitern um menu mit keyboard zu bedienen
-        _uiIntegration = new Basics.SilkGlIntegration(_uiContext, WindowSetup.Window, _inputContext, new InputManager());
+        
+        _uiIntegration = new Basics.SilkGlIntegration(_uiContext, WindowSetup.Window, _inputContext, _inputManager);
     }
 
     /// <summary>

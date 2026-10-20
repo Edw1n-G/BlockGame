@@ -1,3 +1,4 @@
+using Basics.Game.Input;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -16,8 +17,9 @@ public interface IStates
     /// </summary>
     /// <param name="gl">Der OpenGL-Kontext.</param>
     /// <param name="inputContext">Der Eingabe-Kontext.</param>
+    /// <param name="inputManager">Der InputManager, der Tasten auf Aktionen abbildet.</param>
     /// <param name="manager">Der StateManager für Zustandswechsel.</param>
-    void Enter(GL gl, IInputContext inputContext, StateManager manager);
+    void Enter(GL gl, IInputContext inputContext,InputManager inputManager, StateManager manager);
     
     /// <summary>
     /// Wird in jedem Update-Frame aufgerufen für Logik (Kollisionserkennung, Bewegung, etc.).

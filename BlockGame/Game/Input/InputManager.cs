@@ -1,13 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Numerics;
-using Silk.NET.Windowing;
-using Basics.Game.Player;
+﻿using System.Numerics;
+using Silk.NET.Input;
 
-namespace Basics.Input;
+namespace Basics.Game.Input;
 
-using Silk.NET.Input; // Für die Tastatureingabe
-using System.Linq;
-using System;
+// Für die Tastatureingabe
 
 /// <summary>
 /// Definiert alle verfügbaren Aktionen, die durch Tasten oder Maus ausgelöst werden können.
@@ -22,7 +18,7 @@ public enum Actions
     /// <summary>Schaltet den randlosen Vollbildmodus ein/aus.</summary>
     Borderless,
     /// <summary>Schaltet die Debug-Kamera ein/aus.</summary>
-    ToogleDebugCamera,
+    ToggleDebugCamera,
     /// <summary>Bewegt den Spieler nach oben.</summary>
     Up,
     /// <summary>Bewegt den Spieler nach unten.</summary>
@@ -67,41 +63,48 @@ public class InputManager
     /// <param name="input">Der Eingabe-Kontext mit verfügbaren Tastatur- und Mausgeräten.</param>
     public void Initialize(IInputContext input)
     {
-        _keyboard = input.Keyboards.FirstOrDefault();
+        InitializeDevices(input.Keyboards.FirstOrDefault(), input.Mice.FirstOrDefault());
+    }
+    
+    /// <summary>
+    /// Testbarkeits-Seam, nimmt die Geräte direkt entgegen statt eines kompletten IInputContext.
+    /// </summary>
+    internal void InitializeDevices(IKeyboard? keyboard, IMouse? mouse)
+    {
+        _keyboard = keyboard;
         if (_keyboard != null)
         {
             _keyboard.KeyDown += KeyDown;
             _keyboard.KeyUp += KeyUp;
         }
-        
-        _mouse = input.Mice.FirstOrDefault();
+
+        _mouse = mouse;
         if (_mouse != null)
         {
-            _mouse.Cursor.CursorMode = CursorMode.Raw; // Mauszeiger unsichtbar und unbegrenzt
+            _mouse.Cursor.CursorMode = CursorMode.Raw;
             _isMouseLocked = true;
             _mouse.MouseMove += OnMouseMove;
             _mouse.Scroll += OnMouseWheel;
             _mouse.Click += OnMouseClick;
         }
-        
+
         DefaultKeyBindings();
         DefaultMouseBindings();
-        
         SetActionBindings(Actions.ToggleMouseLock, ToggleMouseLock);
     }
     
     // Funktionen zum Verwalten der Tastenbelegung Mapping Key -> Aktion
     // ==========================================================
     /// <summary>Dictionary für die Tastenbelegung (Aktion → Taste).</summary>
-    private static Dictionary<Actions, Key> _keyBindings = new Dictionary<Actions, Key>();
+    private Dictionary<Actions, Key> _keyBindings = new Dictionary<Actions, Key>();
     
     /// <summary>Fügt die Standard-Tastenbelegungen in das <see cref="_keyBindings"/> Dictionary ein.</summary>
-    private static void DefaultKeyBindings()
+    private void DefaultKeyBindings()
     {
         _keyBindings.Add(Actions.Close, Key.Escape);
         _keyBindings.Add(Actions.Fullscreen, Key.F11);
         _keyBindings.Add(Actions.Borderless, Key.F12);
-        _keyBindings.Add(Actions.ToogleDebugCamera, Key.F1);
+        _keyBindings.Add(Actions.ToggleDebugCamera, Key.F1);
         _keyBindings.Add(Actions.Up, Key.Space);
         _keyBindings.Add(Actions.Down, Key.ShiftLeft);
         _keyBindings.Add(Actions.Left, Key.A);
@@ -127,10 +130,10 @@ public class InputManager
     }
     
     /// <summary>Dictionary für die Maustastenbelegung (Aktion → Maustaste).</summary>
-    private static Dictionary<Actions, MouseButton> _mouseBindings = new Dictionary<Actions, MouseButton>();
+    private Dictionary<Actions, MouseButton> _mouseBindings = new Dictionary<Actions, MouseButton>();
     
     /// <summary>Fügt die Standard-Mausbelegungen in das <see cref="_mouseBindings"/> Dictionary ein.</summary>
-    private static void DefaultMouseBindings()
+    private void DefaultMouseBindings()
     {
         _mouseBindings.Add(Actions.DestroyBlock, MouseButton.Left);
         _mouseBindings.Add(Actions.PlaceBlock, MouseButton.Right);
@@ -140,12 +143,12 @@ public class InputManager
     // Mapping Aktion → Methode (Action = void Methode, Actions = Enum)
     // ==========================================================
     /// <summary>Dictionary für die Aktionen-Zuordnung (Aktion → Methode).</summary>
-    private static Dictionary<Actions, Action> _actionBindings = new Dictionary<Actions, Action>();
+    private Dictionary<Actions, Action> _actionBindings = new Dictionary<Actions, Action>();
     
     /// <summary>Fügt oder aktualisiert die Methode für eine Aktion hinzu.</summary>
     /// <param name="action">Die Aktion, deren Methode gesetzt werden soll.</param>
     /// <param name="method">Die für diese Aktion aufzurufende <see cref="Action"/>.</param>
-    public static void SetActionBindings(Actions action, Action method)
+    public void SetActionBindings(Actions action, Action method)
     {
         if (_actionBindings.ContainsKey(action))
         {
@@ -196,7 +199,7 @@ public class InputManager
     /// <param name="keyboard">Die auslösende <see cref="IKeyboard"/>.</param>
     /// <param name="key">Die gedrückte <see cref="Key"/>.</param>
     /// <param name="arg3">Weitere Daten (nicht verwendet).</param>
-    private static void KeyDown(IKeyboard keyboard, Key key, int arg3)
+    internal void KeyDown(IKeyboard keyboard, Key key, int arg3)
     {
         // Wir suchen rückwärts: Welche Aktion gehört zu dieser Taste?
         foreach (var binding in _keyBindings)
@@ -216,7 +219,7 @@ public class InputManager
     /// <param name="keyboard">Die auslösende <see cref="IKeyboard"/>.</param>
     /// <param name="key">Die losgelassene <see cref="Key"/>.</param>
     /// <param name="arg3">Weitere Daten (nicht verwendet).</param>
-    private static void KeyUp(IKeyboard keyboard, Key key, int arg3)
+    internal void KeyUp(IKeyboard keyboard, Key key, int arg3)
     {
         
     }
@@ -225,7 +228,7 @@ public class InputManager
     /// <summary>Handler für Mausbewegungs-Ereignisse.</summary>
     /// <param name="mouse">Die auslösende <see cref="IMouse"/>.</param>
     /// <param name="position">Die aktuelle Mausposition.</param>
-    private void OnMouseMove(IMouse mouse, Vector2 position)
+    internal void OnMouseMove(IMouse mouse, Vector2 position)
     {
         MouseMoved?.Invoke(position); 
     }
@@ -236,7 +239,7 @@ public class InputManager
     /// <summary>Handler für Maus-Scroll-Ereignisse (aktuell nicht implementiert).</summary>
     /// <param name="mouse">Die auslösende <see cref="IMouse"/>.</param>
     /// <param name="scrollWheel">Die ScrollWheel-Informationen.</param>
-    private void OnMouseWheel(IMouse mouse, ScrollWheel scrollWheel)
+    internal void OnMouseWheel(IMouse mouse, ScrollWheel scrollWheel)
     {
         
     }
@@ -245,7 +248,7 @@ public class InputManager
     /// <param name="mouse">Die auslösende <see cref="IMouse"/>.</param>
     /// <param name="button">Die gedrückte <see cref="MouseButton"/>.</param>
     /// <param name="pos">Die Mausposition beim Klick.</param>
-    private void OnMouseClick(IMouse mouse, MouseButton button, Vector2 pos)
+    internal void OnMouseClick(IMouse mouse, MouseButton button, Vector2 pos)
     {
         // Check if the clicked button is bound to an action
         foreach (var binding in _mouseBindings)
@@ -261,20 +264,24 @@ public class InputManager
         }
     }
     
+    public void LockMouse()
+    {
+        if (_mouse == null) return;
+        _mouse.Cursor.CursorMode = CursorMode.Raw;
+        _isMouseLocked = true;
+    }
+    
+    public void UnlockMouse()
+    {
+        if (_mouse == null) return;
+        _mouse.Cursor.CursorMode = CursorMode.Normal;
+        _isMouseLocked = false;
+    }
+    
     /// <summary>Schaltet die Mauspfeil-Sperrung um (sichtbar/unbegrenzt).</summary>
     private void ToggleMouseLock()
     {
-        if (_mouse == null) return;
-        
-        if (_isMouseLocked)
-        {
-            _mouse.Cursor.CursorMode = CursorMode.Normal; // Mauszeiger sichtbar und begrenzt
-            _isMouseLocked = false;
-        }
-        else
-        {
-            _mouse.Cursor.CursorMode = CursorMode.Raw; // Mauszeiger unsichtbar und unbegrenzt
-            _isMouseLocked = true;
-        }
+        if (_isMouseLocked) UnlockMouse();
+        else LockMouse();
     }
 }

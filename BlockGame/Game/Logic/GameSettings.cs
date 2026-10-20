@@ -36,7 +36,7 @@ public class GameSettings
     public int FrameRate { get; set; } = 120;
     public event Action<int>? OnFpsChanged;
     
-    public bool VSync { get; set; } = false;
+    public bool VSync { get; set; } = true;
     public event Action<bool>? OnVSyncChanged;
     
     public bool LowLatencyRenderer { get; set; } = false;

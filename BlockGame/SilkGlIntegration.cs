@@ -1,5 +1,5 @@
 using System.Collections.Immutable;
-using Basics.Input;
+using Basics.Game.Input;
 using Egui;
 using Egui.Epaint;
 using Silk.NET.Input;

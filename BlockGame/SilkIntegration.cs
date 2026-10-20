@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using Basics.Input;
+using Basics.Game.Input;
 using Egui;
 using Egui.Viewport;
 using Silk.NET.Input;

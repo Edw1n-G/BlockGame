@@ -38,12 +38,13 @@ namespace Basics.Graphics.UI
         /// <param name="ctx">Der Egui-Kontext für das Zeichnen.</param>
         public void Draw(Context ctx)
         {
-            var style = ctx.Style;
-            var visuals = style.Visuals;
-            visuals.WindowShadow = Shadow.None;
-            visuals.PopupShadow = Shadow.None;
-            style.Visuals = visuals;
-            ctx.SetStyle(style);
+            ctx.StyleMut((ref Style style) =>
+            {
+                var visuals = style.Visuals;
+                visuals.WindowShadow = Shadow.None;
+                visuals.PopupShadow = Shadow.None;
+                style.Visuals = visuals;
+            });
             
             new Egui.Containers.Area("crosshair")
                 .Anchor(Align2.CenterCenter, new EVec2(0, 0))

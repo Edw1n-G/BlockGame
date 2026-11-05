@@ -50,7 +50,7 @@ public class Game : IStates
     //Ingame UI
     private static UIManager _uiManager = null!; // Das was die UI elemente definiert
     private static Context _uiContext = null!;
-    private static SilkIntegration _uiIntegration = null!; // Verbindet Egui mit dem Silk.NET Fenster und zieht sich alle events
+    private static GameEguiIntegration _uiIntegration = null!; // Verbindet Egui mit dem Silk.NET Fenster und zieht sich alle events
     
     /**
      * Nach Erstellen des Fensters Renderer und InputManager initialisieren
@@ -88,7 +88,7 @@ public class Game : IStates
 
         //Egui.NET
         _uiContext = new Context();
-        _uiIntegration = new SilkGlIntegration(_uiContext, WindowSetup.Window, inputContext, _inputManager);
+        _uiIntegration = new GameEguiIntegration(_uiContext, WindowSetup.Window, inputContext, _inputManager);
         
         // ChunkRequestor abonniert das Player-Event und berechnet welche Chunks geladen werden
         _chunkRequestor = new ChunkRequestor(_player, _chunkProvider, _context.Settings);

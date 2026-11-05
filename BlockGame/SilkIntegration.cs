@@ -1,16 +1,15 @@
-﻿using System.Collections.Immutable;
+﻿using Egui.Viewport;
 using System.Diagnostics;
-using System.Numerics;
-using System.Runtime.InteropServices;
-using Basics.Game.Input;
-using Egui;
-using Egui.Viewport;
 using Silk.NET.Input;
 using Silk.NET.Windowing;
+using System.Collections.Immutable;
+using System.Numerics;
+
 using EguiKey = Egui.Key;
 using SilkKey = Silk.NET.Input.Key;
+using System.Runtime.InteropServices;
 
-namespace Basics;
+namespace Egui.Silk.NET;
 
 /// <summary>
 /// Base class for integration with <c>Silk.NET</c> windows.
@@ -57,19 +56,20 @@ public abstract class SilkIntegration : IDisposable
     public readonly Context EguiContext;
 
     /// <summary>
+    /// The input context associated with <see cref="Window"/>. 
+    /// </summary>
+    public readonly IInputContext InputContext;
+
+    /// <summary>
     /// The window to which rendering will occur.
     /// </summary>
     public readonly IWindow Window;
-    
-    /// <summary>
-    /// The input Context for this window
-    /// </summary>
-    private IInputContext _inputContext;
 
     /// <summary>
-    /// The Input Manager used to determine whether the mouse is locked.
+    /// Whether to dispose the <see cref="InputContext"/> member when
+    /// destroying this integration. 
     /// </summary>
-    public InputManager InputManager;
+    private readonly bool _disposeInputContext;
 
     /// <summary>
     /// Whether the window currently has OS focus.
@@ -97,63 +97,71 @@ public abstract class SilkIntegration : IDisposable
     private readonly Stopwatch _timer;
 
     /// <inheritdoc cref="SilkIntegration.SilkIntegration(Context, IWindow, IInputContext)"/>
-    public SilkIntegration(Context context, IWindow window, InputManager inputManager) : this(context, window, window.CreateInput(), inputManager) { }
-    
+    public SilkIntegration(Context context, IWindow window) : this(context, window, window.CreateInput())
+    {
+        _disposeInputContext = true;
+    }
+
     /// <summary>
     /// Creates a new integration object.
     /// </summary>
     /// <param name="context">The context to be displayed.</param>
     /// <param name="window">The window on which to draw.</param>
     /// <param name="input">The input context associated with the window.</param>
-    /// <param name="inputManager">The input manager to use for handling input.</param>
-    public SilkIntegration(Context context, IWindow window, IInputContext input, InputManager inputManager)
+    public SilkIntegration(Context context, IWindow window, IInputContext input)
     {
         EguiContext = context;
+        _disposeInputContext = false;
         _focused = false;
+        InputContext = input;
         _leftModifiers = new Modifiers();
         _rawInput = new RawInput();
         _rightModifiers = new Modifiers();
         _timer = new Stopwatch();
         Window = window;
-        _inputContext = input;
-        InputManager = inputManager;
-        
-        for (int i = 0; i < input.Keyboards.Count; i++)
+
+        for (int i = 0; i < InputContext.Keyboards.Count; i++)
         {
-            input.Keyboards[i].KeyDown += KeyDown;
-            input.Keyboards[i].KeyChar += KeyChar;
-            input.Keyboards[i].KeyUp += KeyUp;
+            InputContext.Keyboards[i].KeyDown += KeyDown;
+            InputContext.Keyboards[i].KeyChar += KeyChar;
+            InputContext.Keyboards[i].KeyUp += KeyUp;
         }
-        for (int i = 0; i < input.Mice.Count; i++)
+        for (int i = 0; i < InputContext.Mice.Count; i++)
         {
-            input.Mice[i].MouseMove += MouseMove;
-            input.Mice[i].MouseDown += MouseDown;
-            input.Mice[i].MouseUp += MouseUp;
-            input.Mice[i].Scroll += MouseScroll;
+            InputContext.Mice[i].MouseMove += MouseMove;
+            InputContext.Mice[i].MouseDown += MouseDown;
+            InputContext.Mice[i].MouseUp += MouseUp;
+            InputContext.Mice[i].Scroll += MouseScroll;
         }
 
-        Window.FocusChanged += OnFocusChanged;
+        Window.FocusChanged += FocusChanged;
+
         _timer.Start();
     }
 
     /// <inheritdoc/>
     public virtual void Dispose()
     {
-        for (int i = 0; i <  _inputContext.Keyboards.Count; i++)
+        for (int i = 0; i < InputContext.Keyboards.Count; i++)
         {
-            _inputContext.Keyboards[i].KeyDown -= KeyDown;
-            _inputContext.Keyboards[i].KeyChar -= KeyChar;
-            _inputContext.Keyboards[i].KeyUp -= KeyUp;
+            InputContext.Keyboards[i].KeyDown -= KeyDown;
+            InputContext.Keyboards[i].KeyChar -= KeyChar;
+            InputContext.Keyboards[i].KeyUp -= KeyUp;
         }
-        for (int i = 0; i <  _inputContext.Mice.Count; i++)
+        for (int i = 0; i < InputContext.Mice.Count; i++)
         {
-            _inputContext.Mice[i].MouseMove -= MouseMove;
-            _inputContext.Mice[i].MouseDown -= MouseDown;
-            _inputContext.Mice[i].MouseUp -= MouseUp;
-            _inputContext.Mice[i].Scroll -= MouseScroll;
+            InputContext.Mice[i].MouseMove -= MouseMove;
+            InputContext.Mice[i].MouseDown -= MouseDown;
+            InputContext.Mice[i].MouseUp -= MouseUp;
+            InputContext.Mice[i].Scroll -= MouseScroll;
         }
-        
-        Window.FocusChanged -= OnFocusChanged;
+
+        Window.FocusChanged -= FocusChanged;
+
+        if (_disposeInputContext)
+        {
+            InputContext.Dispose();
+        }
     }
 
     /// <summary>
@@ -161,7 +169,7 @@ public abstract class SilkIntegration : IDisposable
     /// and handles platform output.
     /// </summary>
     /// <param name="contextAction">All <see cref="Ui"/>-drawing code should execute in this closure.</param>
-    public void Run(Action<Context> contextAction)
+    public void Run(Action<Ui> contextAction)
     {
         _rawInput.ViewportId = ViewportId.Root;
         _rawInput.Focused = _focused;
@@ -275,6 +283,15 @@ public abstract class SilkIntegration : IDisposable
     }
 
     /// <summary>
+    /// Handles the window changing focus.
+    /// </summary>
+    /// <param name="focused">Whether the window is currently focused.</param>
+    private void FocusChanged(bool focused)
+    {
+        _focused = focused;
+    }
+
+    /// <summary>
     /// Handles the beginning of a keypress.
     /// </summary>
     /// <param name="keyboard">The keyboard object.</param>
@@ -362,8 +379,6 @@ public abstract class SilkIntegration : IDisposable
     /// <param name="vector">The change in position, in pixels.</param>
     private void MouseMove(IMouse mouse, Vector2 vector)
     {
-        if (InputManager.IsMouseLocked) return;
-        
         _rawInput.Events = _rawInput.Events.Add(new Event.PointerMoved
         {
             Value = (vector.X / _nativeZoomFactor, vector.Y / _nativeZoomFactor)
@@ -415,12 +430,6 @@ public abstract class SilkIntegration : IDisposable
             Delta = new(wheel.X, wheel.Y),
             Modifiers = _keyModifiers
         });
-    }
-    
-    
-    private void OnFocusChanged(bool focused)
-    {
-        _focused = focused;
     }
 
 

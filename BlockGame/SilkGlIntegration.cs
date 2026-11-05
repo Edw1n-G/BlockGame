@@ -1,18 +1,15 @@
-using System.Collections.Immutable;
-using Basics.Game.Input;
-using Egui;
 using Egui.Epaint;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
-using TextureWrapMode = Egui.TextureWrapMode;
+using System.Collections.Immutable;
 
-namespace Basics;
+namespace Egui.Silk.NET;
 
 /// <summary>
 /// Handles user input and rendering for <c>Egui</c> atop an OpenGL window.
 /// </summary>
-public unsafe class SilkGlIntegration : Basics.SilkIntegration
+public unsafe class SilkGlIntegration : SilkIntegration
 {
     /// <summary>
     /// The fragment shader to use when drawing <c>Egui</c> meshes.
@@ -155,17 +152,15 @@ public unsafe class SilkGlIntegration : Basics.SilkIntegration
     /// </summary>
     private readonly uint _vbo;
 
-    /// <inheritdoc cref="Egui.Silk.NET.SilkIntegration(Egui.Context,Silk.NET.Windowing.IWindow)"/>
-    public SilkGlIntegration(Context context, IWindow window, InputManager inputManager) : this(context, window, window.CreateInput(), inputManager) { }
+    /// <inheritdoc cref="SilkIntegration(Context, IWindow)"/>
+    public SilkGlIntegration(Context context, IWindow window) : this(context, window, window.CreateInput()) { }
 
-    /// <inheritdoc cref="Egui.Silk.NET.SilkIntegration(Egui.Context,Silk.NET.Windowing.IWindow,Silk.NET.Input.IInputContext)"/>
-    public SilkGlIntegration(Context context, IWindow window, IInputContext input, InputManager inputManager) : base(context, window, input, inputManager)
+    /// <inheritdoc cref="SilkIntegration(Context, IWindow, IInputContext)"/>
+    public SilkGlIntegration(Context context, IWindow window, IInputContext input) : base(context, window, input)
     {
         _disposed = false;
         _gl = window.CreateOpenGL();
-        
-        Console.WriteLine("using modified Silk(GL)integration");
-        
+
         CheckGlErrors();
 
         var frag = CompileShader(GLEnum.FragmentShader, FragShader);
@@ -229,7 +224,6 @@ public unsafe class SilkGlIntegration : Basics.SilkIntegration
             _gl.DeleteProgram(_shaderProgram);
             _gl.DeleteVertexArray(_vao);
             _gl.DeleteBuffer(_vbo);
-            _gl.DeleteShader(_eao);
 
             foreach (var texture in _textures.Values)
             {
@@ -262,7 +256,10 @@ public unsafe class SilkGlIntegration : Basics.SilkIntegration
     private void RenderAndUpdateTextures(uint width, uint height, float pixelsPerPoint, ReadOnlySpan<ClippedPrimitive> clippedPrimitives, TexturesDelta texturesDelta)
     {
         CheckGlErrors();
-        foreach (var (id, delta) in texturesDelta.Set) SetTexture(id, delta);
+        foreach (var (id, deltas) in texturesDelta.Set)
+        {
+            foreach (var delta in deltas) SetTexture(id, delta);
+        }
         CheckGlErrors();
         RenderPrimitives(width, height, pixelsPerPoint, clippedPrimitives);
         CheckGlErrors();
@@ -311,30 +308,30 @@ public unsafe class SilkGlIntegration : Basics.SilkIntegration
             switch (primitive.Primitive.Inner)
             {
                 case Primitive.Mesh meshPrimitive:
-                {
-                    Mesh mesh = meshPrimitive.Value;
-
-                    SetClipRect(width, height, pixelsPerPoint, primitive.ClipRect);
-
-                    var texture = _textures[mesh.TextureId];
-                    _gl.BindBuffer(GLEnum.ArrayBuffer, _vbo);
-
-                    fixed (Vertex* vertices = mesh.Vertices.AsSpan())
                     {
-                        _gl.BufferData(GLEnum.ArrayBuffer, (nuint)(mesh.Vertices.Length * sizeof(Vertex)), vertices, BufferUsageARB.StreamDraw);
+                        Mesh mesh = meshPrimitive.Value;
+
+                        SetClipRect(width, height, pixelsPerPoint, primitive.ClipRect);
+
+                        var texture = _textures[mesh.TextureId];
+                        _gl.BindBuffer(GLEnum.ArrayBuffer, _vbo);
+
+                        fixed (Vertex* vertices = mesh.Vertices.AsSpan())
+                        {
+                            _gl.BufferData(GLEnum.ArrayBuffer, (nuint)(mesh.Vertices.Length * sizeof(Vertex)), vertices, BufferUsageARB.StreamDraw);
+                        }
+
+                        _gl.BindBuffer(GLEnum.ElementArrayBuffer, _eao);
+
+                        fixed (uint* indices = mesh.Indices.AsSpan())
+                        {
+                            _gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(mesh.Indices.Length * sizeof(uint)), indices, BufferUsageARB.StreamDraw);
+                        }
+
+                        _gl.BindTexture(GLEnum.Texture2D, texture);
+                        _gl.DrawElements(GLEnum.Triangles, (uint)mesh.Indices.Length, GLEnum.UnsignedInt, null);
+                        break;
                     }
-
-                    _gl.BindBuffer(GLEnum.ElementArrayBuffer, _eao);
-
-                    fixed (uint* indices = mesh.Indices.AsSpan())
-                    {
-                        _gl.BufferData(GLEnum.ElementArrayBuffer, (nuint)(mesh.Indices.Length * sizeof(uint)), indices, BufferUsageARB.StreamDraw);
-                    }
-
-                    _gl.BindTexture(GLEnum.Texture2D, texture);
-                    _gl.DrawElements(GLEnum.Triangles, (uint)mesh.Indices.Length, GLEnum.UnsignedInt, null);
-                    break;
-                }
             }
         }
     }
@@ -365,40 +362,40 @@ public unsafe class SilkGlIntegration : Basics.SilkIntegration
         switch (delta.Image.Inner)
         {
             case ImageData.Color image:
-            {
-                #pragma warning disable CS9193
-                _gl.TexParameterI(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GlCode(delta.Options.Magnification, null));
-                _gl.TexParameterI(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GlCode(delta.Options.Minification, delta.Options.MipmapMode));
-                _gl.TexParameterI(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GlCode(delta.Options.WrapMode));
-                _gl.TexParameterI(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GlCode(delta.Options.WrapMode));
-                #pragma warning restore CS9193
-
-                CheckGlErrors();
-                _gl.PixelStore(GLEnum.UnpackAlignment, 1);
-                CheckGlErrors();
-
-                fixed (Color32* data = image.Value.Pixels.ToArray())
                 {
-                    if (delta.Pos is null)
-                    {
-                        _gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgba8, (uint)image.Value.Size[0], (uint)image.Value.Size[1], 0, GLEnum.Rgba, GLEnum.UnsignedByte,
-                            data);
-                    }
-                    else
-                    {
-                        _gl.TexSubImage2D(GLEnum.Texture2D, 0, (int)delta.Pos.Value[0], (int)delta.Pos.Value[1], (uint)image.Value.Size[0], (uint)image.Value.Size[1], GLEnum.Rgba, GLEnum.UnsignedByte,
-                            data);
-                    }
-                }
-                CheckGlErrors();
+#pragma warning disable CS9193
+                    _gl.TexParameterI(GLEnum.Texture2D, GLEnum.TextureMagFilter, (int)GlCode(delta.Options.Magnification, null));
+                    _gl.TexParameterI(GLEnum.Texture2D, GLEnum.TextureMinFilter, (int)GlCode(delta.Options.Minification, delta.Options.MipmapMode));
+                    _gl.TexParameterI(GLEnum.Texture2D, GLEnum.TextureWrapS, (int)GlCode(delta.Options.WrapMode));
+                    _gl.TexParameterI(GLEnum.Texture2D, GLEnum.TextureWrapT, (int)GlCode(delta.Options.WrapMode));
+#pragma warning restore CS9193
 
-                if (delta.Options.MipmapMode.HasValue)
-                {
-                    _gl.GenerateMipmap(GLEnum.Texture2D);
+                    CheckGlErrors();
+                    _gl.PixelStore(GLEnum.UnpackAlignment, 1);
+                    CheckGlErrors();
+
+                    fixed (Color32* data = image.Value.Pixels.ToArray())
+                    {
+                        if (delta.Pos is null)
+                        {
+                            _gl.TexImage2D(GLEnum.Texture2D, 0, (int)GLEnum.Rgba8, (uint)image.Value.Size[0], (uint)image.Value.Size[1], 0, GLEnum.Rgba, GLEnum.UnsignedByte,
+                                data);
+                        }
+                        else
+                        {
+                            _gl.TexSubImage2D(GLEnum.Texture2D, 0, (int)delta.Pos.Value[0], (int)delta.Pos.Value[1], (uint)image.Value.Size[0], (uint)image.Value.Size[1], GLEnum.Rgba, GLEnum.UnsignedByte,
+                                data);
+                        }
+                    }
+                    CheckGlErrors();
+
+                    if (delta.Options.MipmapMode.HasValue)
+                    {
+                        _gl.GenerateMipmap(GLEnum.Texture2D);
+                    }
+                    CheckGlErrors();
+                    break;
                 }
-                CheckGlErrors();
-                break;
-            }
         }
     }
 

@@ -45,7 +45,7 @@ public class Menu : IStates
     /// <summary>
     /// Die Egui-Integration für Silk.NET.
     /// </summary>
-    private Basics.SilkGlIntegration _uiIntegration = null!;
+    private GameEguiIntegration _uiIntegration = null!;
     
     /// <summary>
     /// Gibt an, ob die Einstellungen angezeigt werden sollen.
@@ -77,7 +77,7 @@ public class Menu : IStates
         //Egui.NET
         _uiContext = new Context();
         
-        _uiIntegration = new Basics.SilkGlIntegration(_uiContext, WindowSetup.Window, _inputContext, _inputManager);
+        _uiIntegration = new GameEguiIntegration(_uiContext, WindowSetup.Window, _inputContext, _inputManager);
     }
 
     /// <summary>

@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BlockGame\Blockgame.csproj" />
+    <ProjectReference Include="..\BlockGame\BlockGame.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

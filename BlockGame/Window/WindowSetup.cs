@@ -126,8 +126,15 @@ public class WindowSetup
         }
         else
         {
+            // Den Monitor abfragen, auf dem das Fenster sich GERADE befindet -
+            // nicht einfach den primären, falls das Fenster auf einem anderen steht.
+            var monitor = Window.Monitor;
+
             Window.WindowBorder = WindowBorder.Hidden;
-            Window.WindowState = WindowState.Maximized;
+            Window.WindowState = WindowState.Normal;
+
+            Window.Position = monitor.Bounds.Origin;
+            Window.Size = new Vector2D<int>(monitor.Bounds.Size.X, monitor.Bounds.Size.Y - 1);
         }
 
         NativeWindowHelper.DisableWindowAnimations(hwnd, false);

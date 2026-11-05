@@ -19,8 +19,8 @@ public class Lod2Mesher : BaseMesher
     public Lod2Mesher(ChunkCoord position, ChunkData chunkData, ChunkProvider? provider = null, BlockRegistry? blockRegistry = null)
     : base(provider, blockRegistry)
     {
-        if (chunkData == null || chunkData.Blocks == null) return;
         this.ChunkPosition = position;
+        if (chunkData == null || chunkData.Blocks == null) return;
         this._blockData = chunkData.Blocks;
         CreateNeighborCache();
         BuildMeshData();

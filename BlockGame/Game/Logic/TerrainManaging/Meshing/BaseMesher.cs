@@ -97,6 +97,12 @@ public class BaseMesher : IDisposable
     /// Gibt an, ob dieses Mesh leer ist (keine Indices).
     /// </summary>
     public bool IsEmpty => _indicesCount == 0;
+
+    // Borrowed CPU views: valid only until upload or disposal; never retain across pool reuse.
+    internal ReadOnlySpan<byte> CpuVertices => !_disposed && !_uploaded
+        ? CollectionsMarshal.AsSpan(_vertices) : throw new InvalidOperationException("CPU mesh buffers no longer owned.");
+    internal ReadOnlySpan<uint> CpuIndices => !_disposed && !_uploaded
+        ? CollectionsMarshal.AsSpan(_indices) : throw new InvalidOperationException("CPU mesh buffers no longer owned.");
     
     /// <summary>
     /// Der ChunkProvider für diesen Mesher.

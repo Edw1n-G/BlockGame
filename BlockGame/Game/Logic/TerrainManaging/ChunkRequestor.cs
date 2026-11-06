@@ -26,29 +26,11 @@ public class ChunkRequestor
     private readonly GameSettings _settings;
     
     /// <summary>
-    /// Render-Entfernung in Chunks.
-    /// </summary>
-    private int _renderDistance;
-    
-    /// <summary>
-    /// Entfernung für Level-of-Detail Level 1.
-    /// </summary>
-    private int _lod1Distance;
-    
-    /// <summary>
-    /// Entfernung für Level-of-Detail Level 2.
-    /// </summary>
-    private int _lod2Distance;
-    
-    /// <summary>
-    /// Vertikale Render-Entfernung in Chunks.
-    /// </summary>
-    private int _verticalRenderDistance;
-    
-    /// <summary>
     /// Menge aller aktiven Chunks.
     /// </summary>
-    private HashSet<ChunkCoord> _activeChunks = new();
+    private readonly HashSet<ChunkCoord> _activeChunks = new();
+    private readonly ChunkSelectionPlan _selectionPlan = new();
+    private ChunkSelectionRegion? _selectedRegion;
     
     /// <summary>
     /// Lock-Objekt für Thread-Synchronisation.
@@ -59,6 +41,8 @@ public class ChunkRequestor
     private bool _isUpdating = false;
     private volatile bool _stopping;
     private Task? _updateTask;
+    private int _resetVersion;
+    private int _updateVersion;
     public Exception? LastUpdateFailure { get; private set; }
 
     /// <summary>
@@ -72,11 +56,6 @@ public class ChunkRequestor
         _player = player;
         _chunkProvider = chunkProvider;
         _settings = settings ?? chunkProvider.Settings;
-        _renderDistance = _settings.RenderDistance;
-        _lod1Distance = _settings.Lod1Distance;
-        _lod2Distance = _settings.Lod2Distance;
-        _verticalRenderDistance = _settings.VerticalRenderDistance;
-
         // Event abonnieren: wird gefeuert, wenn der Spieler einen neuen Chunk betritt
         _player.OnChunkChanged += OnPlayerChunkChanged;
     }
@@ -92,6 +71,7 @@ public class ChunkRequestor
         {
             if (_stopping) return;
             _lastPlayerChunk = playerChunk;
+            _updateVersion++;
             if (_isUpdating) return;
             _isUpdating = true;
             _updateTask = Task.Run(ProcessChunkUpdates);
@@ -100,71 +80,79 @@ public class ChunkRequestor
 
     private void ProcessChunkUpdates()
     {
-        while (true)
+        try
         {
-            ChunkCoord targetChunk;
-            lock (_chunkLock)
+            while (true)
             {
-                if (_stopping) return;
-                targetChunk = _lastPlayerChunk;
-            }
-            
-            //TODO: dreifache for loop ersetzen durch z.B offsets oder nur ränder neu berechnen
-            
-            int renderDistance = _settings.RenderDistance;
-            int verticalRenderDistance = _settings.VerticalRenderDistance;
-            float renderDistanceSq = renderDistance * renderDistance;
-            float verticalRenderDistanceSq = verticalRenderDistance * verticalRenderDistance;
-
-            HashSet<ChunkCoord> newActiveChunks = new(renderDistance * renderDistance * verticalRenderDistance * 8);
-
-            for (int x = -renderDistance; x <= renderDistance; x++)
-            {
-                if (_stopping) return;
-                for (int z = -renderDistance; z <= renderDistance; z++)
+                ChunkCoord targetChunk;
+                int resetVersion, updateVersion, horizontal, vertical;
+                ChunkSelectionRegion? previous;
+                lock (_chunkLock)
                 {
-                    for (int y = -verticalRenderDistance; y <= verticalRenderDistance; y++)
+                    if (_stopping) { _isUpdating = false; return; }
+                    targetChunk = _lastPlayerChunk;
+                    resetVersion = _resetVersion; updateVersion = _updateVersion;
+                    horizontal = _settings.RenderDistance; vertical = _settings.VerticalRenderDistance;
+                    previous = _selectedRegion;
+                }
+                bool Superseded() => _stopping || Volatile.Read(ref _updateVersion) != updateVersion || Volatile.Read(ref _resetVersion) != resetVersion;
+                bool completed = false;
+                int applied = 0;
+                try
+                {
+                    if (_selectionPlan.TryBuild(previous,targetChunk,horizontal,vertical,Superseded))
                     {
-                        float distanceFactor = (x * x + z * z) / renderDistanceSq + (y * y) / verticalRenderDistanceSq;
-                        if (distanceFactor > 1f) continue;
-
-                        ChunkCoord coord = new ChunkCoord(targetChunk.X + x, targetChunk.Y + y, targetChunk.Z + z, 0);
-                        newActiveChunks.Add(coord);
+                        foreach (var coord in _selectionPlan.Added)
+                        {
+                            if (Superseded()) break;
+                            // Never hold the requestor lock across a potentially blocking provider call.
+                            try { _chunkProvider.RequestChunk(coord); }
+                            catch { _chunkProvider.UnloadChunk(coord); throw; }
+                            lock (_chunkLock)
+                            {
+                                if (Superseded()) { _chunkProvider.UnloadChunk(coord); break; }
+                                _activeChunks.Add(coord); applied++;
+                            }
+                        }
+                        lock (_chunkLock)
+                        {
+                            if (!Superseded() && applied == _selectionPlan.Added.Count)
+                            {
+                                foreach (var coord in _selectionPlan.Removed)
+                                {
+                                    _chunkProvider.UnloadChunk(coord); _activeChunks.Remove(coord);
+                                }
+                                _selectedRegion = _selectionPlan.Target;
+                                completed = true; _isUpdating = false;
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    if (!completed)
+                    {
+                        // Keep the last committed region valid. Undo only this canceled plan's additions.
+                        lock (_chunkLock)
+                            for (int i = 0; i < applied; i++)
+                                if (_activeChunks.Remove(_selectionPlan.Added[i])) _chunkProvider.UnloadChunk(_selectionPlan.Added[i]);
+                    }
+                }
+                if (completed) return;
+                lock (_chunkLock)
+                {
+                    // An explicit unload stays empty until a newer player/settings notification arrives.
+                    if (_stopping || resetVersion != _resetVersion && updateVersion == _updateVersion)
+                    {
+                        _isUpdating = false; return;
                     }
                 }
             }
-
-            HashSet<ChunkCoord> pendingRequests = new();
-            lock (_chunkLock)
-            {
-                foreach (var chunk in newActiveChunks)
-                {
-                    if (!_activeChunks.Contains(chunk))
-                    {
-                        pendingRequests.Add(chunk);
-                    }
-                }
-            }
-
-            foreach (var chunk in pendingRequests)
-            {
-                if (_stopping) return;
-                _chunkProvider.RequestChunk(chunk);
-            }
-
-            lock (_chunkLock)
-            {
-                if (_stopping) return;
-                if (_lastPlayerChunk != targetChunk)
-                {
-                    continue;
-                }
-
-                UnloadDistantChunks(newActiveChunks);
-                _activeChunks = newActiveChunks;
-                _isUpdating = false;
-                break;
-            }
+        }
+        catch (Exception ex)
+        {
+            lock (_chunkLock) { LastUpdateFailure = ex; _isUpdating = false; }
+            throw;
         }
     }
 
@@ -193,28 +181,16 @@ public class ChunkRequestor
     }
 
     /// <summary>
-    /// Entlädt Chunks, die nicht mehr im aktiven Set sind.
-    /// </summary>
-    /// <param name="newActiveChunks">Die Menge der neuen aktiven Chunks.</param>
-    private void UnloadDistantChunks(HashSet<ChunkCoord> newActiveChunks)
-    {
-        // Alle Chunks finden, die vorher aktiv waren aber jetzt nicht mehr
-        foreach (ChunkCoord oldChunk in _activeChunks)
-        {
-            if (!newActiveChunks.Contains(oldChunk))
-            {
-                _chunkProvider.UnloadChunk(oldChunk);
-            }
-        }
-    }
-    
-    /// <summary>
     /// Entlädt alle aktuell geladenen Chunks und leert die aktiven Chunks.
     /// </summary>
     public void UnloadAllChunks()
     {
         lock (_chunkLock)
         {
+            _resetVersion++;
+            _selectedRegion = null;
+            foreach (var chunk in _activeChunks)
+                _chunkProvider.UnloadChunk(chunk);
             foreach (var chunk in _chunkProvider.LoadedChunks.Keys.ToList())
             {
                 _chunkProvider.UnloadChunk(chunk);

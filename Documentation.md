@@ -8,7 +8,7 @@ EdwinCraft (solution `Rendering.sln`, project `BlockGame`, root namespace `Basic
 |---|---|
 | Language / runtime | C#, `net10.0`, nullable + implicit usings enabled, unsafe code allowed |
 | Windowing / input / GL | Silk.NET 2.23.0 (`Windowing`, `Input`, `OpenGL`) |
-| UI | `Egui.Silk.NET` + `Egui.Silk.NET.OpenGL` 0.10.5 (with a local GL integration, see §7) |
+| UI | `Egui.Silk.NET` + `Egui.Silk.NET.OpenGL` 0.10.5 (package integration, see §7) |
 | Noise | FastNoise2 via native `FastNoise.dll` (P/Invoke wrapper `FastNoise2.cs`) |
 | Images | StbImageSharp (textures), System.Drawing.Common |
 | Chunk size | 16×16×16 blocks (`ChunkData.ChunkSize`) |
@@ -27,10 +27,11 @@ dotnet run --project BlockGame/BlockGame.csproj
 
 The working directory must allow `Content/` to be found. `BlockRegistry.ResolveContentRoot` tries `./Content`, `<AppBase>/Content`, `<cwd>/BlockGame/Content`, `<cwd>/../BlockGame/Content`. The csproj also copies `Content/**/*.json` and `*.png` and the shaders to the output directory. Shaders are loaded from `Game/Graphics/Shader/` relative to the working directory.
 
-Tests / benchmarks (a console `Exe`, not a test framework):
+Headless correctness tests (Windows x64, pinned SDK from `global.json`; no GL context required):
 
 ```
-dotnet run --project BlockGame.Tests/BlockGame.Tests.csproj
+dotnet test --project BlockGame.Tests/BlockGame.Tests.csproj
+./verify-tests.ps1 -Repeats 20 -ParallelThreads 4
 ```
 
 ### Controls (defaults from `InputManager`)
@@ -55,8 +56,6 @@ Rendering.sln
 README.md, Documentation.md, AGENTS.md
 BlockGame/                         main project (Exe)
 ├─ Programm.cs                     entry point (class "Programm") → StateManager.Run()
-├─ SilkIntegration.cs              Egui ↔ Silk.NET input/platform base class
-├─ SilkGlIntegration.cs            Egui OpenGL renderer (custom)
 ├─ FastNoise.dll, NodeEditorIpc.dll  native libs (copied to output)
 ├─ EngineStates/                   StateManager, IStates, Menu, Game
 ├─ Window/WindowSetup.cs           window creation, fullscreen/borderless, fps/vsync hooks
@@ -70,7 +69,9 @@ BlockGame/                         main project (Exe)
 │  ├─ Logic/
 │  │  ├─ GameSettings.cs, GameLogic.cs (empty placeholder)
 │  │  ├─ Player/                   PlayerCharacter, Camera, PlayerMovement
-│  │  └─ TerrainManaging/          ChunkProvider, ChunkRequestor, ChunkData, World, PooledMeshBuffer
+│  │  └─ TerrainManaging/          ChunkProvider facade, ChunkRequestor, ChunkData, World
+│  │     ├─ ChunkLifetimeStore, MeshRequestCoordinator, ChunkMeshResources
+│  │     ├─ ChunkBlockAccess, ChunkNeighbors, ChunkSelection
 │  │     ├─ Generation/            TerrainGenerator
 │  │     │  └─ Noise/              NoiseCalculator, WorldtypeNoiseCalculator, FastNoise2.cs (wrapper)
 │  │     └─ Meshing/               BaseMesher, Lod0Mesher, LOD1Mesher, LOD2Mesher, LOD3Mesher (stub)
@@ -83,7 +84,10 @@ BlockGame/                         main project (Exe)
       ├─ Textures/*.png            one PNG per texture (all must share one size)
       ├─ WorldTypes/               1.txt (encoded noise tree), overworld/world_def.json (empty)
       └─ images/me.png             menu portrait (embedded resource)
-BlockGame.Tests/                   console test/benchmark runner (Program.cs)
+BlockGame.Tests/                   xUnit v3 / Microsoft.Testing.Platform executable
+BlockGame.Workloads/               versioned shared CPU fixtures and frozen terrain
+BlockGame.Benchmarks/              BenchmarkDotNet executable (Release, Windows x64)
+verify-tests.ps1, run-benchmarks.ps1  bounded verification and measurement entry points
 ```
 
 Namespaces do not always mirror folders. Examples: jobs live in `Basics.Game.Utilities`, `PlayerMovement` in `Basics.Game.Player`, `PlayerCharacter` in `Basics.Game.Logic.Player`, the physics structs in `Basics.PhysicsSystem.Structs`, input in `Basics.Input`, `Renderer`/`Frustum` in `Basics.Game.Graphics`, `Shader` in `Basics.Graphics`. Source comments and XML docs are mostly in German.
@@ -135,9 +139,9 @@ Per frame: `Update` → `PlayerMovement.MovementUpdate` and `ChunkProvider.Reque
 ### 4.5 Terrain pipeline (streaming → generation → meshing → upload)
 
 1. `PlayerCharacter.Move` raises `OnChunkChanged` when the player enters a new chunk (also on `ForceChunkUpdate`, which is bound to `UIManager.OnRenderDistanceChanged`).
-2. `ChunkRequestor` (on a `Task.Run`, coalescing updates) computes an ellipsoid of LOD-0 chunks around the player: `(x²+z²)/RenderDistance² + y²/VerticalRenderDistance² ≤ 1`. It calls `ChunkProvider.RequestChunk` for new ones, then unloads chunks that left the set. `UnloadAllChunks()` clears everything (UI button).
+2. `ChunkRequestor` runs one coalescing task. A reusable `ChunkSelectionPlan` compares Y intervals in cached ellipsoid X/Z columns to find entering/leaving LOD-0 chunks, without rebuilding and comparing full sets on every movement. `Calculate` remains the complete-set API and uses scanlines plus result preallocation (a bounded direct scan for tiny radii). The ellipsoid predicate is preserved. Update/reset versions cancel obsolete planning and further requests; provisional additions are rolled back before retry. Completed transitions commit the active region and unload departed chunks. `UnloadAllChunks()` invalidates that region and leaves it empty until another notification.
 3. `RequestChunk` skips chunks already in `LoadedChunks`/`Chunkdata`, otherwise enqueues `ChunkLoadorGenerateJob` on the low-priority queue.
-4. `ChunkLoadorGenerateJob` tries loading from disk (placeholder, always fails), otherwise `TerrainGenerator.GenerateChunk`, stores the result in `Chunkdata`, and calls `OnChunkDataGenerated`. That tries to queue the chunk and its 26 neighbors for meshing.
+4. `ChunkLoadorGenerateJob` tries loading from disk (placeholder, always fails), otherwise generates data and publishes through `ChunkLifetimeStore` only if its generation still owns the request. It then asks the provider to remesh the chunk and its 26 neighbors.
 5. A chunk is queued only if it exists and all 26 neighbors exist in `Chunkdata` (so AO and face culling across borders are correct). `QueuedForMeshing` de-duplicates by coordinate and stores a generation number; `PendingMeshRequests` carries the coordinate and generation. Chunks beyond `MapSize` are generated as empty chunks so neighbors can still mesh.
 6. `Game.Update` → `ChunkProvider.RequestMeshes()` moves pending requests to the scheduler as `MeshgenerateJob`s while `UploadQueue.Count < MaxChunkMeshesInRam`.
 7. `MeshgenerateJob` picks `Lod0Mesher` / `Lod1Mesher` / `Lod2Mesher` by `ChunkCoord.LodLevel` (other levels throw), builds the CPU mesh and enqueues it on `UploadQueue`.
@@ -145,6 +149,8 @@ Per frame: `Update` → `PlayerMovement.MovementUpdate` and `ChunkProvider.Reque
 9. `ChunkProvider.ModifyBlock` edits `ChunkData`, remeshes that chunk and, if the block is on a border, the adjacent chunk(s) via `RemeshChunk` (requires all neighbors loaded). The old mesh stays visible until the new one is uploaded.
 
 Note: the requestor currently only requests LOD 0. LOD 1/2 meshers exist and are reachable only if LOD>0 coordinates get into the pipeline.
+
+The provider delegates instance-owned state: `ChunkLifetimeStore` owns data/load generations and the lifetime gate; `MeshRequestCoordinator` owns mesh generations/dispatch; `ChunkMeshResources` owns queues and pools; `ChunkBlockAccess` converts world coordinates and requests remeshing; `ChunkNeighbors` checks neighbor availability. Public provider APIs remain the coordination boundary. `ChunkSelection.Calculate` computes a full ellipsoid independently; `ChunkSelectionPlan` provides incremental geometry differences. `ChunkRequestor` retains asynchronous coalescing, reset/movement bookkeeping, event subscription and stop/join ownership. Pure selection or closed CPU movement-path timings must not be presented as asynchronous requestor or streaming throughput.
 
 ### 4.6 Threading rules
 
@@ -225,7 +231,7 @@ Block definitions live at `Content/<Namespace>/Blocks/**/*.json` (nesting allowe
 
 ## 7. UI and input
 
-- **Egui.NET**: `GameEguiIntegration` wraps the locally compiled `SilkGlIntegration` and removes pointer-move events while the mouse is locked. The local integration collects Silk input and renders Egui with OpenGL. These files currently shadow identically named package types (CS0436); temporarily excluding them builds successfully against package 0.10.5, but runtime behavior has not yet been compared. They are retained pending the UI smoke check; their provenance is not recorded.
+- **Egui.NET**: `GameEguiIntegration` wraps the package `SilkGlIntegration` and removes pointer-move events while the mouse is locked. The former local Silk integration files have been removed. The previous milestone records a user-reported Windows UI smoke pass; the current headless checks do not independently validate graphics or input behavior.
 - **In game** (`UIManager.Draw`): crosshair, "Engine Settings" window (horizontal/vertical render distance sliders raising `OnRenderDistanceChanged`, "Unload All Chunks"), "PlayerSettings" window (move speed, mouse sensitivity), and a player info box (position, chunk, FPS). Press F to unlock the mouse before using the windows.
 - **InputManager** (instance): `Actions` enum → key (`_keyBindings`) or mouse button (`_mouseBindings`), and `Actions` → callback (`SetActionBindings`). Key-down and mouse-click events invoke callbacks; held-key polling uses `IsActionPressed`. Do not map raw Silk.NET inputs directly; add an `Actions` entry, a default binding and a callback. `PlayerMovement.MovementUpdate` polls movement actions each update; `LookUpdate` handles mouse deltas via `Camera.Rotate`.
 - **Movement**: the player is a free-flying camera (no gravity or collision). `PlayerCharacter.Move` moves relative to the horizontal look direction. The debug camera (`F1`) moves independently with no chunk streaming events.
@@ -270,12 +276,22 @@ Window defaults (`WindowSetup`): 800×600, title "Game", 60 updates/s initially 
 
 ## 11. Tests
 
-`BlockGame.Tests` is a console program (references the main project, copies the native DLLs and `Content`). It runs:
-1. `TestIsolatedSessionsSideBySide`: two `EngineSession`s with different settings, verifying isolation of settings, chunks, `World`, `Physics` and pools.
-2. `TestScopedStaticFacades`: static facades (`GameSettings.Current`, `World`, `Physics`) follow `session.Activate()`.
-3. `TestFiftyBenchmarkIterationsLoop`: 50 create/generate/mesh/dispose iterations with a clean-state check.
+`BlockGame.Tests` uses xUnit v3 (`xunit.v3.mtp-v2`) and Microsoft.Testing.Platform. `global.json` selects MTP and SDK 10.0.103 with `latestPatch`. Tests cover chunk coordinates/data, generation, meshing, world access, raycasting, session isolation, scheduler shutdown, stale uploads and requestor movement. Tests touching process-wide facades/events use the nonparallel `StaticFacades` collection; instance tests can run with collection parallelism.
 
-`TestConcurrentSessionsWithDifferentRegistriesMeshCorrectly` exists but is not called from `Main`. Tests run headless (no GL); sessions use `BlockRegistry.InitializeHeadless`. The process returns exit code 0/1.
+For direct runner discovery and execution after building:
+
+```powershell
+dotnet build BlockGame.Tests/BlockGame.Tests.csproj
+dotnet BlockGame.Tests/bin/Debug/net10.0/BlockGame.Tests.dll -list full
+dotnet BlockGame.Tests/bin/Debug/net10.0/BlockGame.Tests.dll -parallelMode none -maxThreads 4
+dotnet BlockGame.Tests/bin/Debug/net10.0/BlockGame.Tests.dll -parallelMode collections -maxThreads 4
+```
+
+The historical archived-main baseline passed 301 tests in 20 serial and 20 collection-parallel runs. The provider/requestor split initially passed 306/306 once in each mode; milestone-two fixture checks increased the suite to 331. The subsequent [selection worker trial](BENCHMARK_WORKER_TRIAL.md) passed 352 tests across 20 serial and 20 collection-parallel Debug runs plus Release before measurement (SDK 10.0.103). Logs are under `out/selection-trial/` and `out/benchmark-implementation/`. Repeated passes do not prove race freedom.
+
+Headless tests still require the bundled Windows x64 `FastNoise.dll` and copied content. The native binary's source/build provenance is unresolved; its SHA-256 is `BBB9741E55EF11596FA18E163548D40D853AEDF920338298651D9CA35D5D1050`. Shared-node stress tests passing does not establish upstream version guarantees. Contexts own/dispose injected dependencies; join workers/requestor tasks before disposal and retain resources on timeout.
+
+Tests establish correctness. Their durations are not benchmark results. Run `./run-benchmarks.ps1 -Mode Smoke` to verify all CPU cases or `-Mode Measure` to collect actual measurements after correctness preflight. See [benchmark commands and interpretation](BlockGame.Benchmarks/README.md) and the ordered [plan and gate evidence](BENCHMARK_MILESTONE_DRAFT.md). The harness records dirty source/native/content identities and retains raw measurements; no revision comparison verdict is produced yet. GPU behavior remains a separate manual validation boundary.
 
 ## 12. Conventions
 

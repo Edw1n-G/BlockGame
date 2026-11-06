@@ -22,6 +22,8 @@ public class NoiseCalculator : IDisposable
         EngineContext.Current?.NoiseCalculator ?? _fallbackInstance.Value;
     
     private FastNoise? _Node;
+    internal uint ActiveFeatureSet => _Node?.GetActiveFeatureSet()
+        ?? throw new ObjectDisposedException(nameof(NoiseCalculator));
     private readonly GameSettings? _settings;
     private readonly string? _customWorldtype;
     private readonly int? _customSeed;

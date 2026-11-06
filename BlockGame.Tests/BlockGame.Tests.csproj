@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BlockGame\BlockGame.csproj" />
+    <ProjectReference Include="..\BlockGame.Workloads\BlockGame.Workloads.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

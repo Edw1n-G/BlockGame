@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../BlockGame/BlockGame.csproj" />
+    <EmbeddedResource Include="FrozenTerrain.json" Condition="Exists('FrozenTerrain.json')" />
+  </ItemGroup>
+</Project>

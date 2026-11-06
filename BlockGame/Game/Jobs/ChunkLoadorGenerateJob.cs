@@ -112,57 +112,5 @@ public class ChunkLoadorGenerateJob : IJob
     /// </summary>
     /// <param name="provider">Der <see cref="ChunkProvider"/> für die Meshing-Anfragen.</param>
     /// <param name="coord">Die Koordinaten des zu prüfenden Chunks.</param>
-    private void TryQueueForMeshing(ChunkProvider provider, ChunkCoord coord)
-    {
-        // Selbstcheck um existenzkrisen zu vermeiden
-        if (!provider.Chunkdata.ContainsKey(coord)) return;
-        
-        // Sind direkte Nachbarn im Dictionary?
-        if (!HasAllNeighbors(provider, coord)) return;
-        
-        provider.QueueMesh(coord);
-    }
-    
-    /// <summary>
-    /// Prüft, ob der angegebene Chunk alle notwendigen Nachbarn (26 Nachbarn) geladen hat.
-    /// </summary>
-    /// <param name="provider">Der <see cref="ChunkProvider"/> für die Chunk-Daten.</param>
-    /// <param name="c">Die Koordinaten des zu prüfenden Chunks.</param>
-    /// <returns><c>true</c>, wenn alle Nachbarn geladen sind, andernfalls <c>false</c>.</returns>
-    private bool HasAllNeighbors(ChunkProvider provider, ChunkCoord c)
-    {
-        // 6 direkte Nachbarn
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y, c.Z, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y, c.Z, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y + 1, c.Z, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y - 1, c.Z, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y, c.Z + 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y, c.Z - 1, c.LodLevel))) return false;
-
-        // 12 Kanten-Nachbarn
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y + 1, c.Z + 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y + 1, c.Z - 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y - 1, c.Z + 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X, c.Y - 1, c.Z - 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y, c.Z + 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y, c.Z - 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y, c.Z + 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y, c.Z - 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y + 1, c.Z, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y - 1, c.Z, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y + 1, c.Z, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y - 1, c.Z, c.LodLevel))) return false;
-
-        // 8 Eck-Nachbarn
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y + 1, c.Z + 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y + 1, c.Z - 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y - 1, c.Z + 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X + 1, c.Y - 1, c.Z - 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y + 1, c.Z + 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y + 1, c.Z - 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y - 1, c.Z + 1, c.LodLevel))) return false;
-        if (!provider.Chunkdata.ContainsKey(new ChunkCoord(c.X - 1, c.Y - 1, c.Z - 1, c.LodLevel))) return false;
-
-        return true;
-    }
+    private void TryQueueForMeshing(ChunkProvider provider, ChunkCoord coord) => provider.RemeshChunk(coord);
 }

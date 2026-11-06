@@ -65,8 +65,7 @@ public class SessionLifecycleTests
         var other = new ChunkCoord(1, 0, 0, 0);
         p.UploadQueue.Enqueue(TestHelpers.CreateMesher(session, 0, other, new ChunkData(other)));
         p.UnloadQueue.Enqueue(TestHelpers.CreateMesher(session, 0, other, new ChunkData(other)));
-        p.PendingMeshRequests.Enqueue(other);
-        p.QueuedForMeshing[other] = 1;
+        p.QueueMesh(other);
         p.VertexListPool.Enqueue(new List<byte>());
         p.IndexListPool.Enqueue(new List<uint>());
 

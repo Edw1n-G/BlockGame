@@ -7,6 +7,8 @@ using Basics.Game.Utilities;
 
 namespace Basics.Game.Logic.TerrainManaging;
 
+public readonly record struct MeshRequest(ChunkCoord Coord, long Generation);
+
 /// <summary>
 /// Verwaltet den Chunk-Lebenszyklus: Laden von Disk (Placeholder), Generieren, Speichern.
 /// Zentraler Speicher für alle geladenen Chunks einer Engine-Instanz.
@@ -21,7 +23,11 @@ public class ChunkProvider : IDisposable
     /// <summary>
     /// Chunks, die für das Meshing in die Warteschlange gestellt wurden.
     /// </summary>
-    public ConcurrentDictionary<ChunkCoord, byte> QueuedForMeshing { get; } = new();
+    public ConcurrentDictionary<ChunkCoord, long> QueuedForMeshing { get; } = new();
+    private long _meshGeneration;
+    private long _loadGeneration;
+    private readonly Dictionary<ChunkCoord, long> _pendingLoads = new();
+    private readonly object _chunkLifetimeGate = new();
     
     /// <summary>
     /// Pool für Mesh-Puffer (VBO, EBO, VAO) für das Speichermanagement.
@@ -41,7 +47,7 @@ public class ChunkProvider : IDisposable
     /// <summary>
     /// Anfragen für Meshing, die noch bearbeitet werden müssen.
     /// </summary>
-    public ConcurrentQueue<ChunkCoord> PendingMeshRequests { get; } = new();
+    public ConcurrentQueue<MeshRequest> PendingMeshRequests { get; } = new();
 
     /// <summary>
     /// Meshes, die für den Upload zur GPU bereit sind.
@@ -106,16 +112,43 @@ public class ChunkProvider : IDisposable
     /// und generiert ihn ansonsten neu.
     /// </summary>
     /// <param name="coord">Die Koordinaten desChunks.</param>
-    public void RequestChunk(ChunkCoord coord)
+    public virtual void RequestChunk(ChunkCoord coord)
     {
-        // Bereits geladen oder Daten bereits generiert? → nichts tun
-        if (LoadedChunks.ContainsKey(coord))
-            return;
-        
-        if (Chunkdata.ContainsKey(coord))
-            return;
+        if (_jobScheduler is null) return;
+        long? generation = BeginChunkRequest(coord);
+        if (generation is null) return;
+        var job = new ChunkLoadorGenerateJob(coord, generation.Value);
+        if (!_jobScheduler.EnqueueLow(job)) CompleteChunkRequest(coord, generation.Value);
+    }
 
-        _jobScheduler?.EnqueueLow(new ChunkLoadorGenerateJob(coord));
+    internal long? BeginChunkRequest(ChunkCoord coord)
+    {
+        lock (_chunkLifetimeGate)
+        {
+            if (LoadedChunks.ContainsKey(coord) || Chunkdata.ContainsKey(coord) || _pendingLoads.ContainsKey(coord))
+                return null;
+            long generation = ++_loadGeneration;
+            _pendingLoads.Add(coord, generation);
+            return generation;
+        }
+    }
+
+    internal bool TryPublishChunkData(ChunkCoord coord, long generation, ChunkData data)
+    {
+        lock (_chunkLifetimeGate)
+        {
+            if (!_pendingLoads.TryGetValue(coord, out long current) || current != generation)
+                return false;
+            _pendingLoads.Remove(coord);
+            return Chunkdata.TryAdd(coord, data);
+        }
+    }
+
+    internal void CompleteChunkRequest(ChunkCoord coord, long generation)
+    {
+        lock (_chunkLifetimeGate)
+            if (_pendingLoads.TryGetValue(coord, out long current) && current == generation)
+                _pendingLoads.Remove(coord);
     }
     
     /// <summary>
@@ -127,9 +160,11 @@ public class ChunkProvider : IDisposable
         int maxMeshesInRam = _settings.MaxChunkMeshesInRam;
 
         while (UploadQueue.Count < maxMeshesInRam && 
-               PendingMeshRequests.TryDequeue(out ChunkCoord coord))
+               PendingMeshRequests.TryDequeue(out MeshRequest request))
         {
-            _jobScheduler?.EnqueueLow(new MeshgenerateJob(coord));
+            if (!QueuedForMeshing.TryGetValue(request.Coord, out long current) || current != request.Generation) continue;
+            var job = new MeshgenerateJob(request, this);
+            if (_jobScheduler is null || !_jobScheduler.EnqueueLow(job)) job.Discard(null);
         }
     }
 
@@ -214,9 +249,44 @@ public class ChunkProvider : IDisposable
         if (!Chunkdata.ContainsKey(coord)) return;
         if (!HasAllNeighbors(coord)) return;
 
-        if (QueuedForMeshing.TryAdd(coord, 1))
+        QueueMesh(coord);
+    }
+
+    internal void QueueMesh(ChunkCoord coord)
+    {
+        long generation = Interlocked.Increment(ref _meshGeneration);
+        if (QueuedForMeshing.TryAdd(coord, generation)) PendingMeshRequests.Enqueue(new(coord, generation));
+    }
+
+    internal bool CompleteMeshRequest(MeshRequest request) =>
+        QueuedForMeshing.TryRemove(new KeyValuePair<ChunkCoord, long>(request.Coord, request.Generation));
+
+    /// <summary>Cheap early check; acceptance must still be checked after GPU upload.</summary>
+    public bool IsUploadCurrent(BaseMesher mesh)
+    {
+        lock (_chunkLifetimeGate)
+            return mesh.SourceChunkData is not null &&
+                   Chunkdata.TryGetValue(mesh.ChunkPosition, out var current) &&
+                   ReferenceEquals(current, mesh.SourceChunkData);
+    }
+
+    /// <summary>Installs only a mesh built from the current chunk lifetime.</summary>
+    public bool AcceptUpload(BaseMesher mesh)
+    {
+        lock (_chunkLifetimeGate)
         {
-            PendingMeshRequests.Enqueue(coord);
+            if (mesh.SourceChunkData is null ||
+                !Chunkdata.TryGetValue(mesh.ChunkPosition, out var current) ||
+                !ReferenceEquals(current, mesh.SourceChunkData))
+            {
+                mesh.Dispose();
+                return false;
+            }
+
+            if (LoadedChunks.TryGetValue(mesh.ChunkPosition, out var oldMesh))
+                UnloadQueue.Enqueue(oldMesh);
+            LoadedChunks[mesh.ChunkPosition] = mesh;
+            return true;
         }
     }
 
@@ -253,13 +323,16 @@ public class ChunkProvider : IDisposable
     /// <param name="coord">Die Koordinaten des zu entladenden Chunks.</param>
     public void UnloadChunk(ChunkCoord coord)
     {
-        if (LoadedChunks.TryRemove(coord, out BaseMesher? chunk))
+        lock (_chunkLifetimeGate)
         {
-            UnloadQueue.Enqueue(chunk);
+            if (LoadedChunks.TryRemove(coord, out BaseMesher? chunk))
+                UnloadQueue.Enqueue(chunk);
+
+            Chunkdata.TryRemove(coord, out _);
+            _pendingLoads.Remove(coord);
+            // Unload drops whichever request currently owns this coordinate.
+            QueuedForMeshing.TryRemove(coord, out _);
         }
-        
-        Chunkdata.TryRemove(coord, out _);
-        QueuedForMeshing.TryRemove(coord , out _);
     }
 
     /// <summary>
@@ -292,6 +365,7 @@ public class ChunkProvider : IDisposable
         }
         LoadedChunks.Clear();
         Chunkdata.Clear();
+        lock (_chunkLifetimeGate) _pendingLoads.Clear();
         QueuedForMeshing.Clear();
 
         while (PendingMeshRequests.TryDequeue(out _)) { }

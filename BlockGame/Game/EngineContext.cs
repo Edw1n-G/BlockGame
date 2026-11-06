@@ -124,9 +124,9 @@ public class EngineContext : IDisposable
         }
     }
 
-    public void Dispose()
+    public bool Shutdown(TimeSpan? timeout = null)
     {
-        JobScheduler.Stop();
+        if (!JobScheduler.Stop(timeout)) return false;
         ChunkProvider.Dispose();
         NoiseCalculator.Dispose();
         BlockRegistry.Dispose();
@@ -139,5 +139,8 @@ public class EngineContext : IDisposable
         {
             _currentContext.Value = null;
         }
+        return true;
     }
+
+    public void Dispose() => Shutdown();
 }

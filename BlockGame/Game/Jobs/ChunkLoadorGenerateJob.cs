@@ -12,14 +12,16 @@ public class ChunkLoadorGenerateJob : IJob
 {
     /// <summary>Die Koordinaten des zu ladenden/generierenden Chunks.</summary>
     private ChunkCoord ChunkCoord;
+    private readonly long _generation;
     
     /// <summary>
     /// Initialisiert eine neue Instanz von <see cref="ChunkLoadorGenerateJob"/>.
     /// </summary>
     /// <param name="chunkCoord">Die Koordinaten des zu ladenden/generierenden Chunks.</param>
-    public ChunkLoadorGenerateJob(ChunkCoord chunkCoord)
+    public ChunkLoadorGenerateJob(ChunkCoord chunkCoord, long generation)
     {
         this.ChunkCoord = chunkCoord;
+        _generation = generation;
     }
     
     /// <summary>
@@ -28,18 +30,27 @@ public class ChunkLoadorGenerateJob : IJob
     /// <param name="context">Der <see cref="JobContext"/> mit den notwendigen Ressourcen.</param>
     public void Execute(JobContext context)
     {
-        // Versuch von Festplatte zu laden (Placeholder)
-        if (TryLoadFromDisk(ChunkCoord, out BaseMesher? loadedChunk))
+        try
         {
-            context.Provider.LoadedChunks.TryAdd(ChunkCoord, loadedChunk!);
-            return;
+            // Versuch von Festplatte zu laden (Placeholder)
+            if (TryLoadFromDisk(ChunkCoord, out BaseMesher? loadedChunk))
+            {
+                if (loadedChunk?.SourceChunkData is { } source &&
+                    context.Provider.TryPublishChunkData(ChunkCoord, _generation, source))
+                    context.Provider.UploadQueue.Enqueue(loadedChunk);
+                else loadedChunk?.Dispose();
+                return;
+            }
+
+            ChunkData newChunk = context.TerrainGen.GenerateChunk(ChunkCoord);
+            if (!context.Provider.TryPublishChunkData(ChunkCoord, _generation, newChunk)) return;
+
+            OnChunkDataGenerated(context.Provider, ChunkCoord);
         }
-        
-        ChunkData newChunk = context.TerrainGen.GenerateChunk(ChunkCoord);
-        context.Provider.Chunkdata.TryAdd(ChunkCoord, newChunk);
-        
-        OnChunkDataGenerated(context.Provider, ChunkCoord);
+        finally { context.Provider.CompleteChunkRequest(ChunkCoord, _generation); }
     }
+
+    public void Discard(JobContext? context) => context?.Provider.CompleteChunkRequest(ChunkCoord, _generation);
     
     /// <summary>
     /// Versucht, einen Chunk von der Festplatte zu laden (derzeit nicht implementiert).
@@ -109,10 +120,7 @@ public class ChunkLoadorGenerateJob : IJob
         // Sind direkte Nachbarn im Dictionary?
         if (!HasAllNeighbors(provider, coord)) return;
         
-        if (provider.QueuedForMeshing.TryAdd(coord, 1))
-        {
-            provider.PendingMeshRequests.Enqueue(coord);
-        }
+        provider.QueueMesh(coord);
     }
     
     /// <summary>

@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="TestData/BenchmarkControls/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -24,6 +25,8 @@
   <ItemGroup>
     <ProjectReference Include="..\BlockGame\BlockGame.csproj" />
     <ProjectReference Include="..\BlockGame.Workloads\BlockGame.Workloads.csproj" />
+    <ProjectReference Include="..\BlockGame.Benchmarking\BlockGame.Benchmarking.csproj" />
+    <ProjectReference Include="..\BlockGame.Benchmarks\BlockGame.Benchmarks.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

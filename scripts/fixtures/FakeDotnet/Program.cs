@@ -1,5 +1,7 @@
 // Stand-in executable for orchestration failures. Never referenced by engine/tests/benchmarks.
 if (args[0] is "restore" or "build") return 0;
+if (args.Contains("--list-json")) { Console.WriteLine("[{\"family\":\"selection-full\",\"needsNative\":false}]"); return 0; }
+if (args.Contains("--preflight-only")) return 0;
 if (args[0].Contains("BlockGame.Tests"))
 {
     string mode = Environment.GetEnvironmentVariable("EDWINCRAFT_SCRIPT_TEST_RESULT");
@@ -24,5 +26,7 @@ if (args[0] == "lock")
     Thread.Sleep(60_000); return 0;
 }
 if (args[0] == "fail") return 7;
+if (args[0] == "stream") { Console.WriteLine("STREAM-READY"); Console.Out.Flush(); Thread.Sleep(2000); Console.Error.WriteLine("STREAM-END"); return 0; }
+if (args[0] == "flood") { for(int i=0;i<2000;i++){Console.WriteLine("out-"+i);Console.Error.WriteLine("err-"+i);} return 0; }
 File.WriteAllText(Environment.GetEnvironmentVariable("EDWINCRAFT_SCRIPT_TEST_MARKER")!, "benchmark launched");
 return 0;

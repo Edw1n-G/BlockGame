@@ -32,10 +32,8 @@ This document provides essential context and guidelines for AI coding agents wor
 
 ## Verification and performance work
 
-- `ChunkProvider` delegates lifetime, mesh requests, block access, neighbors and resources to instance-owned collaborators. Keep these internals behind provider APIs. `ChunkSelection.Calculate` is pure selection; `ChunkRequestor` retains asynchronous movement/reset/event/stop ownership.
-- Use PowerShell 7: `./verify-tests.ps1 -Repeats 20 -ParallelThreads 4` for repeated correctness; `./run-benchmarks.ps1 -Mode Smoke` for all generated Release benchmark cases. The measurement wrapper also runs Debug/Release correctness first. Failures, skipped tests and zero discovery stop execution.
-- Actual CPU measurements use `./run-benchmarks.ps1 -Mode Measure -OutputDirectory out/benchmarks/<unique-run>`. Preserve raw bundles, workload versions, source/native/content identities and environment/load notes. Smoke/test durations are not performance baselines. Review repeated same-machine measurements before judging impact; automated Git-revision comparison is a separate milestone.
-- See `BlockGame.Benchmarks/README.md` and `BENCHMARK_MILESTONE_DRAFT.md` for measured operation boundaries, limitations and current gate evidence. GPU calls remain on the main thread.
-- Chunk requestor movement uses reusable column-interval differences. Preserve the invariant that its committed selection region describes its active set: canceled/failed plans roll back additions; explicit unload invalidates the region. Test rapid notifications, reset, resize, provider failure and coordinate wraparound when changing this path.
-- `BENCHMARK_WORKER_TRIAL.md` records a completed selection optimization experiment and pipeline friction. Use multiple `-Case` patterns to select reference/candidate families together; distinguish fresh-set calls from warmed closed movement paths and include complete operation units when reporting results.
-
+- Read `BlockGame.Benchmarks/README.md` for the short worker workflow; history is optional in `docs/benchmark-history/`.
+- Use full correctness before acceptance. Focused family smoke is iteration-only; all GPU rules above still apply.
+- Compare actual clean Git engine revisions using `compare-benchmarks.ps1` and the same captured harness. Never substitute a hand-copied reference as a revision baseline.
+- Pair scenario ID/version/unit/input fingerprint; preserve correctness outputs, source/runtime/native identities and portable ZIP/hash evidence. Early-return/near-zero/noisy rows cannot establish speedup headlines. Policy remains advisory.
+- Keep the requestor's committed region consistent with its active set; canceled/failed plans roll back additions and explicit unload invalidates the region. Retain movement/reset/resize/failure/wraparound tests.

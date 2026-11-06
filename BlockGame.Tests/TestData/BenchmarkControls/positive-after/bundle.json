@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "runPath": "benchmark-run.json",
+  "files": [
+    {
+      "path": "BlockGame.Benchmarks.SelectionDeltaBenchmarks-report-full.json",
+      "bytes": 174542,
+      "sha256": "C0BD20858F86E08A0A4247D1A190ADB22F8A7A85E763E7C21A04C82A3AF1F023"
+    },
+    {
+      "path": "benchmark-run.json",
+      "bytes": 2243,
+      "sha256": "B84CA0AA41DA5117C2929DB0EE5C7948EA2BB6FB1252280E973E4325DEFCFC70"
+    },
+    {
+      "path": "original-manifest.json",
+      "bytes": 32258,
+      "sha256": "CD12AA9A6608A82481FC32D60AB26BE7EE4EB4A97A5C55624042E7896207DC09"
+    }
+  ]
+}

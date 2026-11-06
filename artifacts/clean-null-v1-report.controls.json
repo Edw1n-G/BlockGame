@@ -1,0 +1,678 @@
+{
+  "status": "passed",
+  "purpose": "Comparator calibration/validation only; copied-model effect is not an engine revision claim",
+  "checks": [
+    {
+      "name": "null-and-noisy",
+      "report": {
+        "schemaVersion": 1,
+        "purpose": "calibration fixture validation only",
+        "policy": {
+          "practicalPercent": 5,
+          "absoluteDeltaNs": 10,
+          "nearZeroNs": 100,
+          "maxCvPercent": 3,
+          "minimumSamples": 10,
+          "uncertaintyMultiplier": 3
+        },
+        "rows": [
+          {
+            "scenarioId": "MeshingBenchmarks/allocated-air",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 1365.3088643000676,
+            "candidateNs": 1352.7488708496094,
+            "absoluteDeltaNs": -12.55999345045825,
+            "ratio": 0.9908006211789322,
+            "percentChange": -0.9199378821067857,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "MeshingBenchmarks/allocated-air",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "72D033BE6CA977C5E28FAD4B893B2C04A4F357B7EF12BC684C2C06F960F44E2D",
+              "inputs": {
+                "legacyScenario": "allocated-air",
+                "legacyFamily": "MeshingBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "MeshingBenchmarks/checkerboard",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 1446538.2421875,
+            "candidateNs": 1443872.03125,
+            "absoluteDeltaNs": -2666.2109375,
+            "ratio": 0.9981568334249719,
+            "percentChange": -0.18431665750281673,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "MeshingBenchmarks/checkerboard",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "5A3AECBE5D27A1A1E819D97C66152AE38DAE1052E08F4E75E546DA7DF43A2E63",
+              "inputs": {
+                "legacyScenario": "checkerboard",
+                "legacyFamily": "MeshingBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "MeshingBenchmarks/exposed-solid",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 214649.57798549108,
+            "candidateNs": 211736.60539899554,
+            "absoluteDeltaNs": -2912.97258649554,
+            "ratio": 0.9864291716115443,
+            "percentChange": -1.357082838845571,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "MeshingBenchmarks/exposed-solid",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "84EFDAF62EC7C3938CE26667465797587FFCFA3BD0C97B5A1E713C86923DC00D",
+              "inputs": {
+                "legacyScenario": "exposed-solid",
+                "legacyFamily": "MeshingBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "MeshingBenchmarks/floor",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 136871.28255208334,
+            "candidateNs": 136360.45735677084,
+            "absoluteDeltaNs": -510.8251953125,
+            "ratio": 0.9962678424152407,
+            "percentChange": -0.3732157584759365,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "MeshingBenchmarks/floor",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "E312E5B994C56AF246B082AEF5E9394CD5B11F2532DDAE12F73A6C8E00C51C39",
+              "inputs": {
+                "legacyScenario": "floor",
+                "legacyFamily": "MeshingBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "MeshingBenchmarks/frozen-terrain",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 31837.79073079427,
+            "candidateNs": 31188.24506487165,
+            "absoluteDeltaNs": -649.5456659226184,
+            "ratio": 0.9795982808161886,
+            "percentChange": -2.0401719183811404,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "MeshingBenchmarks/frozen-terrain",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "38FD087E9D164B2AAE679D42E8811EB3A4D1E49857E8C53E4C202D7FCB841A37",
+              "inputs": {
+                "legacyScenario": "frozen-terrain",
+                "legacyFamily": "MeshingBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "MeshingBenchmarks/null-air",
+            "status": "inconclusive",
+            "reason": "Near-zero timing: below declared resolution floor; ratios suppressed",
+            "baselineNs": 26.459135214487713,
+            "candidateNs": 27.33073490006583,
+            "absoluteDeltaNs": 0.8715996855781185,
+            "ratio": null,
+            "percentChange": null,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "MeshingBenchmarks/null-air",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "6D02A511F5AB66B0E604AA71E7CE5584A1FE4256C95E3CEBBFBDA34237D50E1B",
+              "inputs": {
+                "legacyScenario": "null-air",
+                "legacyFamily": "MeshingBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "MeshingBenchmarks/occluded-solid",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 13025.78594501202,
+            "candidateNs": 13222.303682215073,
+            "absoluteDeltaNs": 196.5177372030539,
+            "ratio": 1.0150868237841961,
+            "percentChange": 1.5086823784196046,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "MeshingBenchmarks/occluded-solid",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "824FF59E0766165C5BCA2A9CD043B1AEC0A304E21B8C07D5FC61936518621D57",
+              "inputs": {
+                "legacyScenario": "occluded-solid",
+                "legacyFamily": "MeshingBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "NoiseBenchmarks/grid-s1",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 47459.56769670759,
+            "candidateNs": 47388.68408203125,
+            "absoluteDeltaNs": -70.8836146763424,
+            "ratio": 0.9985064420491706,
+            "percentChange": -0.14935579508293712,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "NoiseBenchmarks/grid-s1",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "612BCB2AF34A10581CB1EF25F79E5656651C45E62189780F243948A4E9AFE15C",
+              "inputs": {
+                "legacyScenario": "grid-s1",
+                "legacyFamily": "NoiseBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "NoiseBenchmarks/grid-s42",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 47620.26062011719,
+            "candidateNs": 47619.173583984375,
+            "absoluteDeltaNs": -1.0870361328125,
+            "ratio": 0.9999771728226882,
+            "percentChange": -0.0022827177311862115,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "NoiseBenchmarks/grid-s42",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "0B2F1D84D22B9BA3AF537593D2D0517658CD82F60D81C87410F516572651AFCB",
+              "inputs": {
+                "legacyScenario": "grid-s42",
+                "legacyFamily": "NoiseBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "SelectionBenchmarks/negative",
+            "status": "inconclusive",
+            "reason": "Near-zero timing: below declared resolution floor; ratios suppressed",
+            "baselineNs": 78.37116462843758,
+            "candidateNs": 78.6821683247884,
+            "absoluteDeltaNs": 0.3110036963508236,
+            "ratio": null,
+            "percentChange": null,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "SelectionBenchmarks/negative",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "6B6CCF46748C3CE00FDC1C9167F5356CC5B036959D39FE3C15055785AE4A2000",
+              "inputs": {
+                "legacyScenario": "negative",
+                "legacyFamily": "SelectionBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "SelectionBenchmarks/typical",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 538381.3514122596,
+            "candidateNs": 528139.1977163461,
+            "absoluteDeltaNs": -10242.153695913497,
+            "ratio": 0.9809760243941461,
+            "percentChange": -1.9023975605853927,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "SelectionBenchmarks/typical",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "8516D5C9CDB6AA7DBF4BB6404B74FE993CF093C6E0CAA77DA2678336BF44F22E",
+              "inputs": {
+                "legacyScenario": "typical",
+                "legacyFamily": "SelectionBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "SelectionBenchmarks/vertical",
+            "status": "inconclusive",
+            "reason": "Near-zero timing: below declared resolution floor; ratios suppressed",
+            "baselineNs": 65.49743918272165,
+            "candidateNs": 64.31404948234558,
+            "absoluteDeltaNs": -1.1833897003760683,
+            "ratio": null,
+            "percentChange": null,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "SelectionBenchmarks/vertical",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "C582BB60C125DE48BDB420CBE5DC9D482878557068050BA5B2EAB40C4A349BD4",
+              "inputs": {
+                "legacyScenario": "vertical",
+                "legacyFamily": "SelectionBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "SelectionBenchmarks/zero",
+            "status": "inconclusive",
+            "reason": "Near-zero timing: below declared resolution floor; ratios suppressed",
+            "baselineNs": 12.645581896815981,
+            "candidateNs": 12.648510015927828,
+            "absoluteDeltaNs": 0.002928119111846428,
+            "ratio": null,
+            "percentChange": null,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "SelectionBenchmarks/zero",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "0B0DC92F1003F3AF5005E6F57C0E45C6F4BF798020EB313EA2FC23600ACA3F39",
+              "inputs": {
+                "legacyScenario": "zero",
+                "legacyFamily": "SelectionBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "TerrainBenchmarks/air-s1",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 51203.66777692522,
+            "candidateNs": 51995.27165339543,
+            "absoluteDeltaNs": 791.6038764702098,
+            "ratio": 1.0154599057223581,
+            "percentChange": 1.545990572235811,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "TerrainBenchmarks/air-s1",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "E6E3FEDAA7F4A19BEC270DB963FF2D5484778553D8152372E58C164636FCF33C",
+              "inputs": {
+                "legacyScenario": "air-s1",
+                "legacyFamily": "TerrainBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "TerrainBenchmarks/air-s42",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 52011.21262770433,
+            "candidateNs": 51300.95967610677,
+            "absoluteDeltaNs": -710.2529515975548,
+            "ratio": 0.9863442339504457,
+            "percentChange": -1.3655766049554303,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "TerrainBenchmarks/air-s42",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "7B47D37184657C8D320DD350493270E3B74931C333111B686355CE39807534C7",
+              "inputs": {
+                "legacyScenario": "air-s42",
+                "legacyFamily": "TerrainBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "TerrainBenchmarks/outside-s1",
+            "status": "inconclusive",
+            "reason": "Early-return/diagnostic timing: ratios and percentages suppressed",
+            "baselineNs": 2.7307337149977684,
+            "candidateNs": 2.7741153879712024,
+            "absoluteDeltaNs": 0.04338167297343398,
+            "ratio": null,
+            "percentChange": null,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "TerrainBenchmarks/outside-s1",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "DCF3DD41F003B305909D12E1BA18E6F88FEC67B5ABCD354EF24A44F9177AD33E",
+              "inputs": {
+                "legacyScenario": "outside-s1",
+                "legacyFamily": "TerrainBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "diagnostic"
+            }
+          },
+          {
+            "scenarioId": "TerrainBenchmarks/outside-s42",
+            "status": "inconclusive",
+            "reason": "Early-return/diagnostic timing: ratios and percentages suppressed",
+            "baselineNs": 2.8035858335594335,
+            "candidateNs": 2.7782734702615177,
+            "absoluteDeltaNs": -0.025312363297915752,
+            "ratio": null,
+            "percentChange": null,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "TerrainBenchmarks/outside-s42",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "73FFE873C11619B97E638347E08996CEB1420704A7A063FDC318277780F8FC23",
+              "inputs": {
+                "legacyScenario": "outside-s42",
+                "legacyFamily": "TerrainBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "diagnostic"
+            }
+          },
+          {
+            "scenarioId": "TerrainBenchmarks/solid-s1",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 54066.60679408482,
+            "candidateNs": 54765.249868539664,
+            "absoluteDeltaNs": 698.6430744548416,
+            "ratio": 1.0129218960811737,
+            "percentChange": 1.2921896081173654,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "TerrainBenchmarks/solid-s1",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "1BC24141363681AC1D0C3C0A3CE3B4EB98F897371EE40C11A4AF730F334DEBCA",
+              "inputs": {
+                "legacyScenario": "solid-s1",
+                "legacyFamily": "TerrainBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "TerrainBenchmarks/solid-s42",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 55010.44522798978,
+            "candidateNs": 55284.18172200521,
+            "absoluteDeltaNs": 273.73649401542934,
+            "ratio": 1.0049760821400542,
+            "percentChange": 0.49760821400541927,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "TerrainBenchmarks/solid-s42",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "90FB74E79610A83D5002B2EA0EFBDC6E33F4DAF8D15BAFA58FCBF63BF52553BD",
+              "inputs": {
+                "legacyScenario": "solid-s42",
+                "legacyFamily": "TerrainBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "TerrainBenchmarks/surface-s1",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 54941.620279947914,
+            "candidateNs": 54906.002604166664,
+            "absoluteDeltaNs": -35.61767578125,
+            "ratio": 0.9993517177760728,
+            "percentChange": -0.06482822239272294,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "TerrainBenchmarks/surface-s1",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "E8EDEBC78A799C059A7547125F830FA681B8F8F32CE03CCE3E8C6EE241E5795C",
+              "inputs": {
+                "legacyScenario": "surface-s1",
+                "legacyFamily": "TerrainBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          },
+          {
+            "scenarioId": "TerrainBenchmarks/surface-s42",
+            "status": "inconclusive",
+            "reason": "Within practical drift/uncertainty budget",
+            "baselineNs": 54408.048502604164,
+            "candidateNs": 55597.32177734375,
+            "absoluteDeltaNs": 1189.2732747395858,
+            "ratio": 1.021858407119356,
+            "percentChange": 2.1858407119355934,
+            "allocationDeltaBytes": 0,
+            "allocationStatus": "unchanged",
+            "contract": {
+              "id": "TerrainBenchmarks/surface-s42",
+              "version": 1,
+              "unit": "single-operation",
+              "inputFingerprint": "D0AF91044C16E4753A0346EA608C93BD91AD74D2633AD09552881F8C0B96B05D",
+              "inputs": {
+                "legacyScenario": "surface-s42",
+                "legacyFamily": "TerrainBenchmarks",
+                "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+              },
+              "timingClass": "normal"
+            }
+          }
+        ],
+        "baselineRevision": "c2a6ab2c8539e19d7a5151a5ed21f6c89471ce33",
+        "candidateRevision": "c2a6ab2c8539e19d7a5151a5ed21f6c89471ce33",
+        "harnessFingerprint": "6D8B7CCE9D65FECF4A748170F2E49358D68C4E46D63904A7653C2C608CCE8533",
+        "environmentFingerprint": "E986E47F5D1920452A79DD9F2E77D8F0C249F399BD961B1527BF5AEED6F80742",
+        "comparatorFingerprint": "B5781F43FCDDE75EB9F6F25F7FD9623CE1ABC557DD6B63E5674B3F2E9E540AD6"
+      }
+    },
+    {
+      "name": "positive-model",
+      "report": {
+        "schemaVersion": 1,
+        "purpose": "calibration fixture validation only",
+        "policy": {
+          "practicalPercent": 5,
+          "absoluteDeltaNs": 10,
+          "nearZeroNs": 100,
+          "maxCvPercent": 3,
+          "minimumSamples": 10,
+          "uncertaintyMultiplier": 3
+        },
+        "rows": [
+          {
+            "scenarioId": "selection-movement/walk-x",
+            "status": "improved",
+            "reason": "Exceeds declared practical budget and sampling uncertainty",
+            "baselineNs": 2329780.9635416665,
+            "candidateNs": 56875.458251953125,
+            "absoluteDeltaNs": -2272905.5052897134,
+            "ratio": 0.02441236285384214,
+            "percentChange": -97.5587637146158,
+            "allocationDeltaBytes": -2947278,
+            "allocationStatus": "decreased",
+            "contract": {
+              "id": "selection-movement/walk-x",
+              "version": 1,
+              "unit": "closed-path",
+              "inputFingerprint": "1731BBD45F2B1467CA47B3809CB7B501B07727B77BA72CBE7A4E10FE938F0770",
+              "inputs": {
+                "legacyScenario": "walk-x",
+                "legacyFamily": "selection-movement",
+                "workloadSource": "62AEEB8AF67EDC96050D377B5E9CE19C804FC32C60EF89E4FCB3CF86AE67DFB4"
+              },
+              "timingClass": "normal"
+            }
+          }
+        ],
+        "baselineRevision": "c2a6ab2c8539e19d7a5151a5ed21f6c89471ce33",
+        "candidateRevision": "c2a6ab2c8539e19d7a5151a5ed21f6c89471ce33",
+        "harnessFingerprint": "B4BEFBB16D7A7478DD5A7BBEA741369073FE4C12C6E05C92B274F943EEDDB69E",
+        "environmentFingerprint": "E986E47F5D1920452A79DD9F2E77D8F0C249F399BD961B1527BF5AEED6F80742",
+        "comparatorFingerprint": "B5781F43FCDDE75EB9F6F25F7FD9623CE1ABC557DD6B63E5674B3F2E9E540AD6"
+      }
+    },
+    {
+      "name": "early-return",
+      "report": {
+        "schemaVersion": 1,
+        "purpose": "calibration fixture validation only",
+        "policy": {
+          "practicalPercent": 5,
+          "absoluteDeltaNs": 10,
+          "nearZeroNs": 100,
+          "maxCvPercent": 3,
+          "minimumSamples": 10,
+          "uncertaintyMultiplier": 3
+        },
+        "rows": [
+          {
+            "scenarioId": "selection-movement/same",
+            "status": "inconclusive",
+            "reason": "Early-return/diagnostic timing: ratios and percentages suppressed",
+            "baselineNs": 2121482.3958333335,
+            "candidateNs": 28.586028814315796,
+            "absoluteDeltaNs": -2121453.809804519,
+            "ratio": null,
+            "percentChange": null,
+            "allocationDeltaBytes": -2801102,
+            "allocationStatus": "decreased",
+            "contract": {
+              "id": "selection-movement/same",
+              "version": 1,
+              "unit": "closed-path",
+              "inputFingerprint": "47C0E8C2A023128863ACD4EB09BACB3956E904DBCE2DBCD5E0B0D269DCE7314D",
+              "inputs": {
+                "legacyScenario": "same",
+                "legacyFamily": "selection-movement",
+                "workloadSource": "62AEEB8AF67EDC96050D377B5E9CE19C804FC32C60EF89E4FCB3CF86AE67DFB4"
+              },
+              "timingClass": "early-return"
+            }
+          }
+        ],
+        "baselineRevision": "c2a6ab2c8539e19d7a5151a5ed21f6c89471ce33",
+        "candidateRevision": "c2a6ab2c8539e19d7a5151a5ed21f6c89471ce33",
+        "harnessFingerprint": "B4BEFBB16D7A7478DD5A7BBEA741369073FE4C12C6E05C92B274F943EEDDB69E",
+        "environmentFingerprint": "E986E47F5D1920452A79DD9F2E77D8F0C249F399BD961B1527BF5AEED6F80742",
+        "comparatorFingerprint": "B5781F43FCDDE75EB9F6F25F7FD9623CE1ABC557DD6B63E5674B3F2E9E540AD6"
+      }
+    },
+    {
+      "name": "measured-negative",
+      "report": {
+        "schemaVersion": 1,
+        "purpose": "calibration fixture validation only",
+        "policy": {
+          "practicalPercent": 5,
+          "absoluteDeltaNs": 10,
+          "nearZeroNs": 100,
+          "maxCvPercent": 3,
+          "minimumSamples": 10,
+          "uncertaintyMultiplier": 3
+        },
+        "rows": [
+          {
+            "scenarioId": "selection-full/typical",
+            "status": "regressed",
+            "reason": "Exceeds declared practical budget and sampling uncertainty",
+            "baselineNs": 451884.4482421875,
+            "candidateNs": 780646.142578125,
+            "absoluteDeltaNs": 328761.6943359375,
+            "ratio": 1.7275348722772101,
+            "percentChange": 72.75348722772102,
+            "allocationDeltaBytes": 576127,
+            "allocationStatus": "increased",
+            "contract": {
+              "id": "selection-full/typical",
+              "version": 1,
+              "unit": "one-fresh-complete-set",
+              "inputFingerprint": "CE4E5A878A917C6F01C5DAB6686612D4B3BE844EBF678151442945C59180134B",
+              "inputs": {
+                "definition": {
+                  "x": 12,
+                  "y": 6,
+                  "z": -8,
+                  "horizontal": 20,
+                  "vertical": 15,
+                  "lod": 0,
+                  "storage": "fresh complete HashSet"
+                },
+                "parameters": {}
+              },
+              "timingClass": "normal"
+            }
+          }
+        ],
+        "baselineRevision": "907f124c13f46a50d0db4028066b9faf76938cd6",
+        "candidateRevision": "907f124c13f46a50d0db4028066b9faf76938cd6",
+        "harnessFingerprint": "75E1729FD88F2CCD45E921B67F71DCF8D59D1D17C478DFBA4273FE47E0C57DA8",
+        "environmentFingerprint": "24049B08C165F23CB8938FAAD69EBED235AECE5B387E514BB7E85DBF53B0C10D",
+        "comparatorFingerprint": "B5781F43FCDDE75EB9F6F25F7FD9623CE1ABC557DD6B63E5674B3F2E9E540AD6"
+      }
+    }
+  ],
+  "fixtureFingerprint": "1B1BA01BC77F028F6E95D050D8120CB190C020A80C6FDE445478F95D15D3103B"
+}

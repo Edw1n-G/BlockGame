@@ -274,24 +274,11 @@ Window defaults (`WindowSetup`): 800×600, title "Game", 60 updates/s initially 
 
 `FastNoise2.cs` is the stock FastNoise2 C# wrapper (metadata lookup, `Set`, `GenUniformGrid2D/3D/4D`, position arrays, single samples) loading `FastNoise.dll` via `DllImport`. Node handles are freed in `Dispose`/finalizer.
 
-## 11. Tests
+## 11. Tests and benchmarks
 
-`BlockGame.Tests` uses xUnit v3 (`xunit.v3.mtp-v2`) and Microsoft.Testing.Platform. `global.json` selects MTP and SDK 10.0.103 with `latestPatch`. Tests cover chunk coordinates/data, generation, meshing, world access, raycasting, session isolation, scheduler shutdown, stale uploads and requestor movement. Tests touching process-wide facades/events use the nonparallel `StaticFacades` collection; instance tests can run with collection parallelism.
+Run `dotnet test --project BlockGame.Tests/BlockGame.Tests.csproj` for MTP correctness or `./verify-tests.ps1 -Repeats 20 -ParallelThreads 4` for repeated Debug/Release verification. The nonparallel StaticFacades collection isolates process-wide events/facades. Headless engine tests still need Windows native DLLs/content; GPU validation remains separate.
 
-For direct runner discovery and execution after building:
-
-```powershell
-dotnet build BlockGame.Tests/BlockGame.Tests.csproj
-dotnet BlockGame.Tests/bin/Debug/net10.0/BlockGame.Tests.dll -list full
-dotnet BlockGame.Tests/bin/Debug/net10.0/BlockGame.Tests.dll -parallelMode none -maxThreads 4
-dotnet BlockGame.Tests/bin/Debug/net10.0/BlockGame.Tests.dll -parallelMode collections -maxThreads 4
-```
-
-The historical archived-main baseline passed 301 tests in 20 serial and 20 collection-parallel runs. The provider/requestor split initially passed 306/306 once in each mode; milestone-two fixture checks increased the suite to 331. The subsequent [selection worker trial](BENCHMARK_WORKER_TRIAL.md) passed 352 tests across 20 serial and 20 collection-parallel Debug runs plus Release before measurement (SDK 10.0.103). Logs are under `out/selection-trial/` and `out/benchmark-implementation/`. Repeated passes do not prove race freedom.
-
-Headless tests still require the bundled Windows x64 `FastNoise.dll` and copied content. The native binary's source/build provenance is unresolved; its SHA-256 is `BBB9741E55EF11596FA18E163548D40D853AEDF920338298651D9CA35D5D1050`. Shared-node stress tests passing does not establish upstream version guarantees. Contexts own/dispose injected dependencies; join workers/requestor tasks before disposal and retain resources on timeout.
-
-Tests establish correctness. Their durations are not benchmark results. Run `./run-benchmarks.ps1 -Mode Smoke` to verify all CPU cases or `-Mode Measure` to collect actual measurements after correctness preflight. See [benchmark commands and interpretation](BlockGame.Benchmarks/README.md) and the ordered [plan and gate evidence](BENCHMARK_MILESTONE_DRAFT.md). The harness records dirty source/native/content identities and retains raw measurements; no revision comparison verdict is produced yet. GPU behavior remains a separate manual validation boundary.
+Use the [short worker operating guide](BlockGame.Benchmarks/README.md) for focused smoke, clean sibling Git-revision measurements, portable bundles and advisory comparisons. Scenario contracts separate inputs/units from algorithms. Model references are calibration controls, never production baselines. [Historical evidence](docs/benchmark-history) is retained separately.
 
 ## 12. Conventions
 

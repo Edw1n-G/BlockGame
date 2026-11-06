@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "runPath": "benchmark-run.json",
+  "files": [
+    {
+      "path": "BlockGame.Benchmarks.MeshingBenchmarks-report-full.json",
+      "bytes": 169663,
+      "sha256": "30240F637A2E46FD5BE0C13DC4E7E862215A473C94D83C5AC604CF9117193F52"
+    },
+    {
+      "path": "BlockGame.Benchmarks.NoiseBenchmarks-report-full.json",
+      "bytes": 47230,
+      "sha256": "F40A9DC510C14DC296BE21DA2BF5B62D35F83A25C61C15DE394EB463EE9B5CEF"
+    },
+    {
+      "path": "BlockGame.Benchmarks.SelectionBenchmarks-report-full.json",
+      "bytes": 101831,
+      "sha256": "3E39FD3555DC3DE117100E08D20EA1DD9853030F2512A46A566BC632B73EDB71"
+    },
+    {
+      "path": "BlockGame.Benchmarks.TerrainBenchmarks-report-full.json",
+      "bytes": 223851,
+      "sha256": "38D47F4F6FEFE7D553AB5506E003BCE9A5D192BE6E0D9CC265EDA2AA0142BF94"
+    },
+    {
+      "path": "benchmark-run.json",
+      "bytes": 26452,
+      "sha256": "A09351F496FAC07CC178D60760A319D54C812F09F6584D7F0FF2FBD9364070CD"
+    },
+    {
+      "path": "original-manifest.json",
+      "bytes": 30250,
+      "sha256": "33EB5261E1EE8E19D262C948507B84421430DBD1E8B38F6BAAD54F2F89C183BB"
+    }
+  ]
+}

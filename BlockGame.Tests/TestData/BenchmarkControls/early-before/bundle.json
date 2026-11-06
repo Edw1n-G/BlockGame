@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "runPath": "benchmark-run.json",
+  "files": [
+    {
+      "path": "BlockGame.Benchmarks.SelectionRebuildBenchmarks-report-full.json",
+      "bytes": 159185,
+      "sha256": "47D52BC25EE54241870C61DD991F5327FA0678E756A1B7CF59DD097892DB2027"
+    },
+    {
+      "path": "benchmark-run.json",
+      "bytes": 1912,
+      "sha256": "657E8DAAF420C4C606A3F6509E0D88704FFF745CE474FF708E2FF815E70F9842"
+    },
+    {
+      "path": "original-manifest.json",
+      "bytes": 32258,
+      "sha256": "CD12AA9A6608A82481FC32D60AB26BE7EE4EB4A97A5C55624042E7896207DC09"
+    }
+  ]
+}

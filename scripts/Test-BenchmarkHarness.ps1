@@ -48,12 +48,15 @@ try {
     $bench = "$repo/BlockGame.Benchmarks/bin/Release/net10.0/BlockGame.Benchmarks.dll"
     Expect-Failure 'invalid case' { Invoke-LoggedProcess $Dotnet @($bench,'--list','--case','does-not-exist') "$testRoot/filter.log" 30 } 'exit 1'
     if ((Get-Content "$testRoot/filter.log" -Raw) -notmatch 'No benchmark cases match') { throw 'Unexpected filter rejection' }
-    $union = Invoke-LoggedProcess $Dotnet @($bench,'--list','--case','selectiondelta/walk-x/*','--case','selectionrebuild/walk-x/*') "$testRoot/filter-union.log" 30
-    if (@($union -split "`n" | Where-Object { $_ -match '^selection(delta|rebuild)/walk-x/v1\s*$' }).Count -ne 2) { throw 'Union filter did not select both algorithms' }
+    $union = Invoke-LoggedProcess $Dotnet @($bench,'--list','--case','selectiondelta/walk-x/*','--case','selection/typical/*') "$testRoot/filter-union.log" 30
+    if (@($union -split "`n" | Where-Object { $_ -match '^selection(delta)?/' }).Count -ne 2) { throw 'Union filter did not select both contracts' }
     Expect-Failure 'mixed valid/invalid cases' { Invoke-LoggedProcess $Dotnet @($bench,'--list','--case','selectiondelta/walk-x/*','--case','typo') "$testRoot/filter-mixed.log" 30 } 'exit 1'
     # Copy the launcher output to an isolated directory; never rename/delete the real engine binary or content.
     Copy-Item -LiteralPath "$repo/BlockGame.Benchmarks/bin/Release/net10.0" -Destination "$testRoot/missing-native" -Recurse
     Remove-Item -LiteralPath "$testRoot/missing-native/FastNoise.dll"
+    $cpuBlock=Get-ChildItem "$testRoot/missing-native/Content" -Recurse -Filter stone.json | Select-Object -First 1
+    Remove-Item -LiteralPath $cpuBlock.FullName
+    Invoke-LoggedProcess $Dotnet @("$testRoot/missing-native/BlockGame.Benchmarks.dll",'--preflight-only','--case','selection/zero/*') "$testRoot/cpu-only-preflight.log" 30 | Out-Null
     Expect-Failure 'missing native' { Invoke-LoggedProcess $Dotnet @("$testRoot/missing-native/BlockGame.Benchmarks.dll",'--output',"$testRoot/native-output") "$testRoot/missing-native.log" 30 } 'exit 1'
     if ((Get-Content "$testRoot/missing-native.log" -Raw) -notmatch 'Required native binary missing') { throw 'Unexpected native rejection' }
     Copy-Item -LiteralPath "$repo/BlockGame.Benchmarks/bin/Release/net10.0" -Destination "$testRoot/missing-content" -Recurse
@@ -61,7 +64,27 @@ try {
     Remove-Item -LiteralPath $block.FullName
     Expect-Failure 'missing content' { Invoke-LoggedProcess $Dotnet @("$testRoot/missing-content/BlockGame.Benchmarks.dll",'--output',"$testRoot/content-output") "$testRoot/missing-content.log" 30 } 'exit 1'
     if ((Get-Content "$testRoot/missing-content.log" -Raw) -notmatch 'Required content missing') { throw 'Unexpected content rejection' }
-    @{ status = 'passed'; checks = @('failed/zero/skipped preflight','positive repetition/worker validation','empty case list','no overwrite','concurrency lock','nonzero exit','watchdog tree kill','invalid case','filter union and per-pattern rejection','missing native','missing content'); utc = [DateTime]::UtcNow } | ConvertTo-Json | Set-Content "$testRoot/result.json"
+    $flood=Invoke-LoggedProcess $fake @('flood') "$testRoot/flood.log" 30
+    if($flood -notmatch 'out-1999' -or $flood -notmatch 'err-1999'){throw 'Pipe streaming lost output'}
+    $escapedTools=(Join-Path $PSScriptRoot 'ProcessTools.ps1').Replace("'","''")
+    $escapedFake=$fake.Replace("'","''")
+    $escapedLog="$testRoot/live.log".Replace("'","''")
+    ". '$escapedTools'; Invoke-LoggedProcess '$escapedFake' @('stream') '$escapedLog' 10 | Out-Null" | Set-Content "$testRoot/probe.ps1"
+    $probeStart=[Diagnostics.ProcessStartInfo]::new((Get-Process -Id $PID).Path)
+    $probeStart.UseShellExecute=$false;$probeStart.CreateNoWindow=$true
+    $probeStart.ArgumentList.Add('-NoProfile');$probeStart.ArgumentList.Add('-File');$probeStart.ArgumentList.Add("$testRoot/probe.ps1")
+    $probe=[Diagnostics.Process]::Start($probeStart)
+    try {
+        $deadline=[DateTime]::UtcNow.AddSeconds(5)
+        while(-not (Test-Path "$testRoot/live.log") -or (Get-Content "$testRoot/live.log" -Raw) -notmatch 'STREAM-READY') {
+            if([DateTime]::UtcNow -gt $deadline){throw 'Live log did not flush'}
+            Start-Sleep -Milliseconds 25
+        }
+        if($probe.HasExited){throw 'Output was not visible while process was alive'}
+        if(-not $probe.WaitForExit(10000) -or $probe.ExitCode -ne 0){throw 'Streaming probe failed'}
+    }
+    finally{if(-not $probe.HasExited){$probe.Kill($true);$probe.WaitForExit()};$probe.Dispose()}
+    @{ status = 'passed'; checks = @('failed/zero/skipped preflight','positive repetition/worker validation','empty case list','no overwrite','concurrency lock','nonzero exit','watchdog tree kill','invalid case','filter union and per-pattern rejection','CPU preflight without native/content','native family missing dependencies','live output before exit','both-pipe flood'); utc = [DateTime]::UtcNow } | ConvertTo-Json | Set-Content "$testRoot/result.json"
     Write-Host "Harness checks passed: $testRoot"
 }
 finally {

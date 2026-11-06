@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 2,
+  "kind": "calibration",
+  "mode": "Measure",
+  "engineRevision": "c2a6ab2c8539e19d7a5151a5ed21f6c89471ce33",
+  "engineClean": false,
+  "harnessFingerprint": "B4BEFBB16D7A7478DD5A7BBEA741369073FE4C12C6E05C92B274F943EEDDB69E",
+  "environmentFingerprint": "E986E47F5D1920452A79DD9F2E77D8F0C249F399BD961B1527BF5AEED6F80742",
+  "correctnessPassed": true,
+  "sourceUnchanged": true,
+  "cases": [
+    {
+      "caseId": "BlockGame.Benchmarks.SelectionRebuildBenchmarks.PlanAndApplyPath(Scenario: \"same\")",
+      "scenario": {
+        "id": "selection-movement/same",
+        "version": 1,
+        "unit": "closed-path",
+        "inputs": {
+          "legacyScenario": "same",
+          "legacyFamily": "selection-movement",
+          "workloadSource": "62AEEB8AF67EDC96050D377B5E9CE19C804FC32C60EF89E4FCB3CF86AE67DFB4"
+        },
+        "inputFingerprint": "47C0E8C2A023128863ACD4EB09BACB3956E904DBCE2DBCD5E0B0D269DCE7314D",
+        "timingClass": "early-return"
+      },
+      "implementation": "SelectionRebuildBenchmarks",
+      "samplesNs": [
+        2088542.1875,
+        2132650.78125,
+        2144302.34375,
+        2122720.703125,
+        2119807.421875,
+        2159742.578125,
+        2160331.25,
+        2161140.625,
+        2102330.859375,
+        2126095.703125,
+        2117560.15625,
+        2089480.859375,
+        2112056.640625,
+        2067189.453125,
+        2118284.375
+      ],
+      "bytesPerOperation": 2801102,
+      "diagnostics": [],
+      "success": true
+    }
+  ],
+  "provenance": "Imported historical trial evidence; models/dirty source; comparator tests ONLY. Original manifest SHA256 CD12AA9A6608A82481FC32D60AB26BE7EE4EB4A97A5C55624042E7896207DC09",
+  "evidencePaths": [
+    "benchmark-run.json",
+    "BlockGame.Benchmarks.SelectionRebuildBenchmarks-report-full.json",
+    "original-manifest.json"
+  ]
+}

@@ -1,10 +1,11 @@
-# PowerShell 7: ArgumentList and Kill(entireProcessTree) avoid shell quoting and orphaned native workers.
+# PowerShell 7: stream both pipes without runspace callbacks; keep the watchdog and complete log.
 function Invoke-LoggedProcess {
     param(
         [Parameter(Mandatory)][string]$FilePath,
         [Parameter(Mandatory)][string[]]$ArgumentList,
         [Parameter(Mandatory)][string]$LogPath,
-        [ValidateRange(1,86400)][int]$TimeoutSeconds = 300
+        [ValidateRange(1,86400)][int]$TimeoutSeconds = 300,
+        [switch]$StreamOutput
     )
     $LogPath = [IO.Path]::GetFullPath($LogPath)
     [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($LogPath)) | Out-Null
@@ -18,30 +19,46 @@ function Invoke-LoggedProcess {
     foreach ($argument in $ArgumentList) { $start.ArgumentList.Add($argument) }
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $start
-    $timedOut = $false
+    $capture = [Text.StringBuilder]::new()
+    $writer = [IO.StreamWriter]::new($LogPath, $false)
+    $writer.AutoFlush = $true
     try {
         if (-not $process.Start()) { throw "Cannot start $FilePath" }
-        $stdout = $process.StandardOutput.ReadToEndAsync()
-        $stderr = $process.StandardError.ReadToEndAsync()
+        $outRead = $process.StandardOutput.ReadLineAsync()
+        $errRead = $process.StandardError.ReadLineAsync()
         $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
-        while (-not $process.WaitForExit(200)) {
+        while ($null -ne $outRead -or $null -ne $errRead -or -not $process.HasExited) {
             if ([DateTime]::UtcNow -ge $deadline) {
-                $timedOut = $true
-                $process.Kill($true)
-                if (-not $process.WaitForExit(5000)) { throw "Process tree did not exit after timeout; PID=$($process.Id)" }
-                break
+                if (-not $process.HasExited) { $process.Kill($true); $null = $process.WaitForExit(5000) }
+                $writer.WriteLine("WATCHDOG TIMEOUT: $TimeoutSeconds seconds; owned process tree terminated.")
+                throw "Timed out after $TimeoutSeconds seconds: $LogPath"
+            }
+            $drained = $false
+            if ($null -ne $outRead -and $outRead.IsCompleted) {
+                $line = $outRead.GetAwaiter().GetResult()
+                if ($null -eq $line) { $outRead = $null } else {
+                    $writer.WriteLine($line); $null = $capture.AppendLine($line)
+                    if ($StreamOutput -and $line -match '^// (Benchmark:|\*\* Remained|\*\*\*\*\* Found)|Build Error|^.*: error ') { Write-Host $line }
+                    $outRead = $process.StandardOutput.ReadLineAsync()
+                }
+                $drained = $true
+            }
+            if ($null -ne $errRead -and $errRead.IsCompleted) {
+                $line = $errRead.GetAwaiter().GetResult()
+                if ($null -eq $line) { $errRead = $null } else {
+                    $writer.WriteLine("[stderr] $line"); $null = $capture.AppendLine($line)
+                    if ($StreamOutput) { Write-Host "[stderr] $line" }
+                    $errRead = $process.StandardError.ReadLineAsync()
+                }
+                $drained = $true
+            }
+            if (-not $drained) {
+                $pending = @($outRead, $errRead, [Threading.Tasks.Task]::Delay(50)) | Where-Object { $null -ne $_ }
+                $null = [Threading.Tasks.Task]::WhenAny([Threading.Tasks.Task[]]$pending).GetAwaiter().GetResult()
             }
         }
-        if (-not [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($stdout, $stderr), 5000)) {
-            [IO.File]::WriteAllText($LogPath, "Pipe drain timed out; PID=$($process.Id)")
-            throw "Process output did not close: $LogPath"
-        }
-        $output = $stdout.Result + "`n[stderr]`n" + $stderr.Result
-        if ($timedOut) { $output += "`nWATCHDOG TIMEOUT: $TimeoutSeconds seconds; process tree terminated." }
-        [IO.File]::WriteAllText($LogPath, $output)
-        if ($timedOut) { throw "Timed out after $TimeoutSeconds seconds: $LogPath" }
         if ($process.ExitCode -ne 0) { throw "Process failed with exit $($process.ExitCode): $LogPath" }
-        return $output
+        return $capture.ToString()
     }
-    finally { $process.Dispose() }
+    finally { $writer.Dispose(); $process.Dispose() }
 }

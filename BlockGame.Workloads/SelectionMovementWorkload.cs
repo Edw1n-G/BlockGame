@@ -2,7 +2,7 @@ using Basics.Game.Utilities;
 
 namespace BlockGame.Workloads;
 
-/// <summary>Frozen pre-optimization algorithm; keep independent of production selection.</summary>
+/// <summary>Historical double-precision model, not the actual c2a6ab2 float implementation. Test/control oracle only.</summary>
 public static class SelectionReference
 {
     public static HashSet<ChunkCoord> Calculate(ChunkCoord center, int horizontal, int vertical)

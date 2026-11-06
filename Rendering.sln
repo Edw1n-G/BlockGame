@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlockGame.Workloads", "Bloc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlockGame.Benchmarks", "BlockGame.Benchmarks\BlockGame.Benchmarks.csproj", "{E84AAFA2-31B7-4A5D-9312-41B6DBE5A47C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlockGame.Benchmarking", "BlockGame.Benchmarking\BlockGame.Benchmarking.csproj", "{052A9A6F-6131-43CE-A590-EB8E0B48076F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -66,6 +68,18 @@ Global
 		{E84AAFA2-31B7-4A5D-9312-41B6DBE5A47C}.Release|x64.Build.0 = Release|Any CPU
 		{E84AAFA2-31B7-4A5D-9312-41B6DBE5A47C}.Release|x86.ActiveCfg = Release|Any CPU
 		{E84AAFA2-31B7-4A5D-9312-41B6DBE5A47C}.Release|x86.Build.0 = Release|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Debug|x64.Build.0 = Debug|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Debug|x86.Build.0 = Debug|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Release|x64.ActiveCfg = Release|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Release|x64.Build.0 = Release|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Release|x86.ActiveCfg = Release|Any CPU
+		{052A9A6F-6131-43CE-A590-EB8E0B48076F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

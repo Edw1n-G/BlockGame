@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "runPath": "benchmark-run.json",
+  "files": [
+    {
+      "path": "BlockGame.Benchmarks.SelectionBenchmarks-report-full.json",
+      "bytes": 24058,
+      "sha256": "0043C5B8AE7B737831A0D1BBAEA0A0F37345E8981641C509A567FB298AB85CFB"
+    },
+    {
+      "path": "BlockGame.Benchmarks.SelectionSlowControlBenchmarks-report-full.json",
+      "bytes": 22768,
+      "sha256": "5414F0312DA22B70F00C98C533A497495925515F8CA47B761B70F1E58E3EE2C9"
+    },
+    {
+      "path": "benchmark-run.json",
+      "bytes": 2105,
+      "sha256": "FC1FBB9392BB7339D57D44672354B38F1CA0CB0737CD6F2ABBC1A00346C5B6AB"
+    },
+    {
+      "path": "original-run.json",
+      "bytes": 3149,
+      "sha256": "271386596D4789990A11B24335D86EC49DB90D11535D7DF3CA1686888BEB530A"
+    }
+  ]
+}

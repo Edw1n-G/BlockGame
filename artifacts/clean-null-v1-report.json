@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "purpose": "advisory revision comparison; policy is provisional",
+  "policy": {
+    "practicalPercent": 5,
+    "absoluteDeltaNs": 10,
+    "nearZeroNs": 100,
+    "maxCvPercent": 3,
+    "minimumSamples": 10,
+    "uncertaintyMultiplier": 3
+  },
+  "rows": [
+    {
+      "scenarioId": "selection-full/typical",
+      "status": "inconclusive",
+      "reason": "Within practical drift/uncertainty budget",
+      "baselineNs": 457941.0226004464,
+      "candidateNs": 455707.3307291667,
+      "absoluteDeltaNs": -2233.691871279734,
+      "ratio": 0.9951223154051682,
+      "percentChange": -0.48776845948318337,
+      "allocationDeltaBytes": 0,
+      "allocationStatus": "unchanged",
+      "contract": {
+        "id": "selection-full/typical",
+        "version": 1,
+        "unit": "one-fresh-complete-set",
+        "inputFingerprint": "CE4E5A878A917C6F01C5DAB6686612D4B3BE844EBF678151442945C59180134B",
+        "inputs": {
+          "definition": {
+            "x": 12,
+            "y": 6,
+            "z": -8,
+            "horizontal": 20,
+            "vertical": 15,
+            "lod": 0,
+            "storage": "fresh complete HashSet"
+          },
+          "parameters": {}
+        },
+        "timingClass": "normal"
+      }
+    }
+  ],
+  "baselineRevision": "907f124c13f46a50d0db4028066b9faf76938cd6",
+  "candidateRevision": "907f124c13f46a50d0db4028066b9faf76938cd6",
+  "harnessFingerprint": "85FFF1D6FD5529136AAFE130C8358BB831316ACAAC65ACB16597A064A704B958",
+  "environmentFingerprint": "24049B08C165F23CB8938FAAD69EBED235AECE5B387E514BB7E85DBF53B0C10D",
+  "comparatorFingerprint": "B5781F43FCDDE75EB9F6F25F7FD9623CE1ABC557DD6B63E5674B3F2E9E540AD6"
+}

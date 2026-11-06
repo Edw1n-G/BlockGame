@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "kind": "control-suite",
+  "mode": "Fixtures",
+  "engineRevision": "multiple-historical-sources",
+  "engineClean": false,
+  "harnessFingerprint": "multiple-control-harnesses",
+  "environmentFingerprint": "multiple-control-environments",
+  "correctnessPassed": true,
+  "sourceUnchanged": true,
+  "cases": [],
+  "provenance": "Comparator test evidence collection ONLY. Positive model effect does not establish a real engine-revision speedup.",
+  "evidencePaths": [
+    "early-after/benchmark-run.json",
+    "early-before/benchmark-run.json",
+    "negative-after/benchmark-run.json",
+    "negative-before/benchmark-run.json",
+    "null-a/benchmark-run.json",
+    "null-b/benchmark-run.json",
+    "positive-after/benchmark-run.json",
+    "positive-before/benchmark-run.json"
+  ],
+  "correctnessScope": "calibration"
+}

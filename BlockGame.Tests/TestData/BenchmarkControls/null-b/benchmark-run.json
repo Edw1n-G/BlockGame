@@ -1,0 +1,800 @@
+{
+  "schemaVersion": 2,
+  "kind": "calibration",
+  "mode": "Measure",
+  "engineRevision": "c2a6ab2c8539e19d7a5151a5ed21f6c89471ce33",
+  "engineClean": false,
+  "harnessFingerprint": "6D8B7CCE9D65FECF4A748170F2E49358D68C4E46D63904A7653C2C608CCE8533",
+  "environmentFingerprint": "E986E47F5D1920452A79DD9F2E77D8F0C249F399BD961B1527BF5AEED6F80742",
+  "correctnessPassed": true,
+  "sourceUnchanged": true,
+  "cases": [
+    {
+      "caseId": "BlockGame.Benchmarks.MeshingBenchmarks.BuildAndReturnBuffers(Scenario: \"allocated-air\")",
+      "scenario": {
+        "id": "MeshingBenchmarks/allocated-air",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "allocated-air",
+          "legacyFamily": "MeshingBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "72D033BE6CA977C5E28FAD4B893B2C04A4F357B7EF12BC684C2C06F960F44E2D",
+        "timingClass": "normal"
+      },
+      "implementation": "MeshingBenchmarks",
+      "samplesNs": [
+        1347.314453125,
+        1362.031364440918,
+        1346.5579986572266,
+        1348.056983947754,
+        1346.6243743896484,
+        1348.9011764526367,
+        1347.4472045898438,
+        1348.4460830688477,
+        1345.4530715942383,
+        1360.6870651245117,
+        1350.663948059082,
+        1357.1674346923828,
+        1373.3522415161133,
+        1355.7807922363281
+      ],
+      "bytesPerOperation": 432,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.MeshingBenchmarks.BuildAndReturnBuffers(Scenario: \"checkerboard\")",
+      "scenario": {
+        "id": "MeshingBenchmarks/checkerboard",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "checkerboard",
+          "legacyFamily": "MeshingBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "5A3AECBE5D27A1A1E819D97C66152AE38DAE1052E08F4E75E546DA7DF43A2E63",
+        "timingClass": "normal"
+      },
+      "implementation": "MeshingBenchmarks",
+      "samplesNs": [
+        1441973.2421875,
+        1432923.6328125,
+        1441038.0859375,
+        1453257.2265625,
+        1446387.5,
+        1441498.4375,
+        1437180.6640625,
+        1447279.1015625,
+        1448102.9296875,
+        1445958.203125,
+        1449619.53125,
+        1444245.5078125,
+        1435137.109375,
+        1441243.359375,
+        1452235.9375
+      ],
+      "bytesPerOperation": 432,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.MeshingBenchmarks.BuildAndReturnBuffers(Scenario: \"exposed-solid\")",
+      "scenario": {
+        "id": "MeshingBenchmarks/exposed-solid",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "exposed-solid",
+          "legacyFamily": "MeshingBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "84EFDAF62EC7C3938CE26667465797587FFCFA3BD0C97B5A1E713C86923DC00D",
+        "timingClass": "normal"
+      },
+      "implementation": "MeshingBenchmarks",
+      "samplesNs": [
+        210347.94921875,
+        210045.166015625,
+        211147.6318359375,
+        212067.236328125,
+        216258.0810546875,
+        210629.6142578125,
+        215573.2177734375,
+        215192.28515625,
+        210011.71875,
+        210709.5458984375,
+        210646.77734375,
+        211857.32421875,
+        210184.8388671875,
+        209641.0888671875
+      ],
+      "bytesPerOperation": 432,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.MeshingBenchmarks.BuildAndReturnBuffers(Scenario: \"floor\")",
+      "scenario": {
+        "id": "MeshingBenchmarks/floor",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "floor",
+          "legacyFamily": "MeshingBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "E312E5B994C56AF246B082AEF5E9394CD5B11F2532DDAE12F73A6C8E00C51C39",
+        "timingClass": "normal"
+      },
+      "implementation": "MeshingBenchmarks",
+      "samplesNs": [
+        137452.978515625,
+        135597.998046875,
+        136393.310546875,
+        135788.330078125,
+        135773.5595703125,
+        136102.7099609375,
+        136688.525390625,
+        136868.9208984375,
+        136918.3349609375,
+        137032.6416015625,
+        135550.048828125,
+        135872.900390625,
+        136020.8251953125,
+        136508.88671875,
+        136836.8896484375
+      ],
+      "bytesPerOperation": 432,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.MeshingBenchmarks.BuildAndReturnBuffers(Scenario: \"frozen-terrain\")",
+      "scenario": {
+        "id": "MeshingBenchmarks/frozen-terrain",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "frozen-terrain",
+          "legacyFamily": "MeshingBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "38FD087E9D164B2AAE679D42E8811EB3A4D1E49857E8C53E4C202D7FCB841A37",
+        "timingClass": "normal"
+      },
+      "implementation": "MeshingBenchmarks",
+      "samplesNs": [
+        31226.3671875,
+        31114.947509765625,
+        31421.978759765625,
+        31392.24853515625,
+        31433.8623046875,
+        30912.689208984375,
+        30994.05517578125,
+        30875.726318359375,
+        30959.466552734375,
+        31504.16259765625,
+        31526.3916015625,
+        31234.442138671875,
+        30988.6962890625,
+        31050.396728515625
+      ],
+      "bytesPerOperation": 432,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.MeshingBenchmarks.BuildAndReturnBuffers(Scenario: \"null-air\")",
+      "scenario": {
+        "id": "MeshingBenchmarks/null-air",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "null-air",
+          "legacyFamily": "MeshingBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "6D02A511F5AB66B0E604AA71E7CE5584A1FE4256C95E3CEBBFBDA34237D50E1B",
+        "timingClass": "normal"
+      },
+      "implementation": "MeshingBenchmarks",
+      "samplesNs": [
+        26.82577818632126,
+        27.514849603176117,
+        27.262724936008453,
+        27.49408334493637,
+        27.499260008335114,
+        27.35063284635544,
+        27.528531849384308,
+        27.245621383190155,
+        27.080155909061432,
+        27.35128551721573,
+        27.757416665554047,
+        27.202750742435455,
+        27.305690944194794,
+        27.21150666475296
+      ],
+      "bytesPerOperation": 432,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.MeshingBenchmarks.BuildAndReturnBuffers(Scenario: \"occluded-solid\")",
+      "scenario": {
+        "id": "MeshingBenchmarks/occluded-solid",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "occluded-solid",
+          "legacyFamily": "MeshingBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "824FF59E0766165C5BCA2A9CD043B1AEC0A304E21B8C07D5FC61936518621D57",
+        "timingClass": "normal"
+      },
+      "implementation": "MeshingBenchmarks",
+      "samplesNs": [
+        12813.230895996094,
+        12955.95703125,
+        13466.659545898438,
+        13270.440673828125,
+        12999.7802734375,
+        13585.734558105469,
+        13869.61669921875,
+        13121.717834472656,
+        13464.212036132812,
+        13426.089477539062,
+        12947.731018066406,
+        13178.030395507812,
+        13059.713745117188,
+        13216.065979003906,
+        13261.3525390625,
+        12987.661743164062,
+        13155.168151855469
+      ],
+      "bytesPerOperation": 432,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.NoiseBenchmarks.GenerateGridAndArray(Scenario: \"grid-s1\")",
+      "scenario": {
+        "id": "NoiseBenchmarks/grid-s1",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "grid-s1",
+          "legacyFamily": "NoiseBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "612BCB2AF34A10581CB1EF25F79E5656651C45E62189780F243948A4E9AFE15C",
+        "timingClass": "normal"
+      },
+      "implementation": "NoiseBenchmarks",
+      "samplesNs": [
+        47066.61376953125,
+        47368.46923828125,
+        47904.229736328125,
+        47253.460693359375,
+        47308.4228515625,
+        48167.27294921875,
+        47404.925537109375,
+        47269.744873046875,
+        47285.83984375,
+        47107.09228515625,
+        47317.425537109375,
+        47415.380859375,
+        47184.014892578125
+      ],
+      "bytesPerOperation": 17432,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.NoiseBenchmarks.GenerateGridAndArray(Scenario: \"grid-s42\")",
+      "scenario": {
+        "id": "NoiseBenchmarks/grid-s42",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "grid-s42",
+          "legacyFamily": "NoiseBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "0B2F1D84D22B9BA3AF537593D2D0517658CD82F60D81C87410F516572651AFCB",
+        "timingClass": "normal"
+      },
+      "implementation": "NoiseBenchmarks",
+      "samplesNs": [
+        47336.517333984375,
+        47259.38720703125,
+        47357.21435546875,
+        47450.37841796875,
+        48051.385498046875,
+        47275.2685546875,
+        47210.748291015625,
+        47221.356201171875,
+        47778.582763671875,
+        47728.765869140625,
+        48289.105224609375,
+        48090.960693359375,
+        47900.653076171875,
+        47446.612548828125,
+        47890.667724609375
+      ],
+      "bytesPerOperation": 17432,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.SelectionBenchmarks.CalculateAndAllocateSet(Scenario: \"negative\")",
+      "scenario": {
+        "id": "SelectionBenchmarks/negative",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "negative",
+          "legacyFamily": "SelectionBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "6B6CCF46748C3CE00FDC1C9167F5356CC5B036959D39FE3C15055785AE4A2000",
+        "timingClass": "normal"
+      },
+      "implementation": "SelectionBenchmarks",
+      "samplesNs": [
+        80.15375137329102,
+        78.91024351119995,
+        77.8894305229187,
+        80.92880249023438,
+        77.64697074890137,
+        77.92762517929077,
+        77.52847671508789,
+        78.37609052658081,
+        79.71996068954468,
+        78.05612087249756,
+        80.47182559967041,
+        78.18421125411987,
+        77.67883539199829,
+        78.19854021072388,
+        78.5616397857666
+      ],
+      "bytesPerOperation": 368,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.SelectionBenchmarks.CalculateAndAllocateSet(Scenario: \"typical\")",
+      "scenario": {
+        "id": "SelectionBenchmarks/typical",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "typical",
+          "legacyFamily": "SelectionBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "8516D5C9CDB6AA7DBF4BB6404B74FE993CF093C6E0CAA77DA2678336BF44F22E",
+        "timingClass": "normal"
+      },
+      "implementation": "SelectionBenchmarks",
+      "samplesNs": [
+        516804.98046875,
+        547486.03515625,
+        535259.765625,
+        530599.609375,
+        525662.59765625,
+        534096.484375,
+        526915.52734375,
+        533254.78515625,
+        526153.515625,
+        524888.76953125,
+        519000.09765625,
+        517798.828125,
+        527888.57421875
+      ],
+      "bytesPerOperation": 1400491,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.SelectionBenchmarks.CalculateAndAllocateSet(Scenario: \"vertical\")",
+      "scenario": {
+        "id": "SelectionBenchmarks/vertical",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "vertical",
+          "legacyFamily": "SelectionBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "C582BB60C125DE48BDB420CBE5DC9D482878557068050BA5B2EAB40C4A349BD4",
+        "timingClass": "normal"
+      },
+      "implementation": "SelectionBenchmarks",
+      "samplesNs": [
+        64.6214485168457,
+        63.54280710220337,
+        63.85800838470459,
+        64.29030895233154,
+        63.76652717590332,
+        63.803744316101074,
+        64.28525447845459,
+        65.62048196792603,
+        64.68729972839355,
+        63.74797821044922,
+        64.49694633483887,
+        64.99342918395996,
+        64.47467803955078,
+        64.20778036117554
+      ],
+      "bytesPerOperation": 368,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.SelectionBenchmarks.CalculateAndAllocateSet(Scenario: \"zero\")",
+      "scenario": {
+        "id": "SelectionBenchmarks/zero",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "zero",
+          "legacyFamily": "SelectionBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "0B0DC92F1003F3AF5005E6F57C0E45C6F4BF798020EB313EA2FC23600ACA3F39",
+        "timingClass": "normal"
+      },
+      "implementation": "SelectionBenchmarks",
+      "samplesNs": [
+        12.88936585187912,
+        12.539848685264587,
+        12.60872483253479,
+        12.556959688663483,
+        12.554404139518738,
+        12.613677978515625,
+        12.608496844768524,
+        12.609687447547913,
+        12.701089680194855,
+        12.549783289432526,
+        12.779378890991211,
+        12.621055543422699,
+        12.798157334327698
+      ],
+      "bytesPerOperation": 176,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.TerrainBenchmarks.GenerateChunk(Scenario: \"air-s1\")",
+      "scenario": {
+        "id": "TerrainBenchmarks/air-s1",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "air-s1",
+          "legacyFamily": "TerrainBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "E6E3FEDAA7F4A19BEC270DB963FF2D5484778553D8152372E58C164636FCF33C",
+        "timingClass": "normal"
+      },
+      "implementation": "TerrainBenchmarks",
+      "samplesNs": [
+        52331.53076171875,
+        51999.20654296875,
+        51941.97998046875,
+        51910.302734375,
+        51920.849609375,
+        51908.26416015625,
+        52264.84375,
+        52001.23291015625,
+        51989.70947265625,
+        51821.246337890625,
+        51951.06201171875,
+        51853.167724609375,
+        52045.135498046875
+      ],
+      "bytesPerOperation": 25688,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.TerrainBenchmarks.GenerateChunk(Scenario: \"air-s42\")",
+      "scenario": {
+        "id": "TerrainBenchmarks/air-s42",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "air-s42",
+          "legacyFamily": "TerrainBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "7B47D37184657C8D320DD350493270E3B74931C333111B686355CE39807534C7",
+        "timingClass": "normal"
+      },
+      "implementation": "TerrainBenchmarks",
+      "samplesNs": [
+        51282.85827636719,
+        51070.43151855469,
+        51022.76916503906,
+        51125.03967285156,
+        51254.49523925781,
+        51056.74133300781,
+        51734.59777832031,
+        51731.22863769531,
+        51251.42517089844,
+        51059.75036621094,
+        51202.89611816406,
+        51572.67761230469,
+        51657.27233886719,
+        51473.23303222656,
+        51018.97888183594
+      ],
+      "bytesPerOperation": 25688,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.TerrainBenchmarks.GenerateChunk(Scenario: \"outside-s1\")",
+      "scenario": {
+        "id": "TerrainBenchmarks/outside-s1",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "outside-s1",
+          "legacyFamily": "TerrainBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "DCF3DD41F003B305909D12E1BA18E6F88FEC67B5ABCD354EF24A44F9177AD33E",
+        "timingClass": "diagnostic"
+      },
+      "implementation": "TerrainBenchmarks",
+      "samplesNs": [
+        2.6364192366600037,
+        2.7501076459884644,
+        2.574402838945389,
+        2.772342413663864,
+        2.8340838849544525,
+        2.81519815325737,
+        2.6477843523025513,
+        2.8410710394382477,
+        2.7514956891536713,
+        2.917676419019699,
+        3.047890216112137,
+        3.2428592443466187,
+        3.234417736530304,
+        2.963375300168991,
+        2.7613505721092224,
+        2.7352243661880493,
+        2.7230925858020782,
+        2.443952113389969,
+        3.0559875071048737,
+        2.9297031462192535,
+        2.8372906148433685,
+        2.6437200605869293,
+        2.758382260799408,
+        2.739216387271881,
+        2.738427370786667,
+        2.4942271411418915,
+        2.826613187789917,
+        3.0383914709091187,
+        2.841614931821823,
+        2.697420120239258,
+        2.7590639889240265,
+        3.0121132731437683,
+        2.4932943284511566,
+        2.7326658368110657,
+        2.4114809930324554,
+        2.9292352497577667,
+        2.6939183473587036,
+        2.889005094766617,
+        2.593119442462921,
+        2.838873863220215,
+        2.7519792318344116,
+        2.7168244123458862,
+        2.4779096245765686,
+        2.746688574552536,
+        2.710294723510742,
+        2.8142765164375305,
+        2.604452520608902,
+        2.6886045932769775
+      ],
+      "bytesPerOperation": 40,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.TerrainBenchmarks.GenerateChunk(Scenario: \"outside-s42\")",
+      "scenario": {
+        "id": "TerrainBenchmarks/outside-s42",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "outside-s42",
+          "legacyFamily": "TerrainBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "73FFE873C11619B97E638347E08996CEB1420704A7A063FDC318277780F8FC23",
+        "timingClass": "diagnostic"
+      },
+      "implementation": "TerrainBenchmarks",
+      "samplesNs": [
+        2.7226299047470093,
+        2.849224954843521,
+        2.766221761703491,
+        2.6196882128715515,
+        2.7289971709251404,
+        2.813151478767395,
+        2.9001720249652863,
+        2.8488606214523315,
+        2.7588695287704468,
+        2.83900648355484,
+        2.7199208736419678,
+        2.6676513254642487,
+        2.6747532188892365,
+        2.960292249917984,
+        2.8765954077243805,
+        2.7026601135730743,
+        2.781953662633896
+      ],
+      "bytesPerOperation": 40,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.TerrainBenchmarks.GenerateChunk(Scenario: \"solid-s1\")",
+      "scenario": {
+        "id": "TerrainBenchmarks/solid-s1",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "solid-s1",
+          "legacyFamily": "TerrainBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "1BC24141363681AC1D0C3C0A3CE3B4EB98F897371EE40C11A4AF730F334DEBCA",
+        "timingClass": "normal"
+      },
+      "implementation": "TerrainBenchmarks",
+      "samplesNs": [
+        54726.708984375,
+        54505.316162109375,
+        55233.038330078125,
+        54744.329833984375,
+        54687.07275390625,
+        54394.47021484375,
+        54307.855224609375,
+        54927.264404296875,
+        54375.69580078125,
+        54797.894287109375,
+        55537.4755859375,
+        54959.063720703125,
+        54752.06298828125
+      ],
+      "bytesPerOperation": 25688,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.TerrainBenchmarks.GenerateChunk(Scenario: \"solid-s42\")",
+      "scenario": {
+        "id": "TerrainBenchmarks/solid-s42",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "solid-s42",
+          "legacyFamily": "TerrainBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "90FB74E79610A83D5002B2EA0EFBDC6E33F4DAF8D15BAFA58FCBF63BF52553BD",
+        "timingClass": "normal"
+      },
+      "implementation": "TerrainBenchmarks",
+      "samplesNs": [
+        57094.3359375,
+        54777.55126953125,
+        56149.658203125,
+        55291.033935546875,
+        54246.6796875,
+        54769.9951171875,
+        54535.955810546875,
+        55400.030517578125,
+        54736.474609375,
+        54241.070556640625,
+        55279.779052734375,
+        55299.664306640625,
+        55631.976318359375,
+        55928.643798828125,
+        55879.876708984375
+      ],
+      "bytesPerOperation": 25688,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.TerrainBenchmarks.GenerateChunk(Scenario: \"surface-s1\")",
+      "scenario": {
+        "id": "TerrainBenchmarks/surface-s1",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "surface-s1",
+          "legacyFamily": "TerrainBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "E8EDEBC78A799C059A7547125F830FA681B8F8F32CE03CCE3E8C6EE241E5795C",
+        "timingClass": "normal"
+      },
+      "implementation": "TerrainBenchmarks",
+      "samplesNs": [
+        55510.736083984375,
+        55280.3955078125,
+        55124.45068359375,
+        55005.70068359375,
+        54543.658447265625,
+        54483.258056640625,
+        54408.380126953125,
+        55201.910400390625,
+        55632.12890625,
+        54452.349853515625,
+        54402.777099609375,
+        54719.90966796875,
+        54310.8154296875,
+        54757.23876953125,
+        55756.329345703125
+      ],
+      "bytesPerOperation": 25688,
+      "diagnostics": [],
+      "success": true
+    },
+    {
+      "caseId": "BlockGame.Benchmarks.TerrainBenchmarks.GenerateChunk(Scenario: \"surface-s42\")",
+      "scenario": {
+        "id": "TerrainBenchmarks/surface-s42",
+        "version": 1,
+        "unit": "single-operation",
+        "inputs": {
+          "legacyScenario": "surface-s42",
+          "legacyFamily": "TerrainBenchmarks",
+          "workloadSource": "602DA1A9878BBA1D1EC41925B624BDA3767F8C3D6D7050831056A6F2FE7C29FE"
+        },
+        "inputFingerprint": "D0AF91044C16E4753A0346EA608C93BD91AD74D2633AD09552881F8C0B96B05D",
+        "timingClass": "normal"
+      },
+      "implementation": "TerrainBenchmarks",
+      "samplesNs": [
+        55333.69140625,
+        55261.273193359375,
+        55116.36962890625,
+        55140.80810546875,
+        55783.4716796875,
+        55694.122314453125,
+        55781.854248046875,
+        55882.38525390625,
+        55495.294189453125,
+        55853.143310546875,
+        55990.838623046875,
+        55608.60595703125,
+        55876.55029296875,
+        55619.6533203125,
+        55521.76513671875
+      ],
+      "bytesPerOperation": 25688,
+      "diagnostics": [],
+      "success": true
+    }
+  ],
+  "provenance": "Imported historical trial evidence; models/dirty source; comparator tests ONLY. Original manifest SHA256 33EB5261E1EE8E19D262C948507B84421430DBD1E8B38F6BAAD54F2F89C183BB",
+  "evidencePaths": [
+    "benchmark-run.json",
+    "BlockGame.Benchmarks.MeshingBenchmarks-report-full.json",
+    "BlockGame.Benchmarks.NoiseBenchmarks-report-full.json",
+    "BlockGame.Benchmarks.SelectionBenchmarks-report-full.json",
+    "BlockGame.Benchmarks.TerrainBenchmarks-report-full.json",
+    "original-manifest.json"
+  ]
+}

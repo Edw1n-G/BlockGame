@@ -1,14 +1,15 @@
-# First testing milestone — review draft
+# First testing milestone — implementation record
 
-Status: **approved for implementation**. The objective is a reproducible Windows x64 baseline and safe, observable shutdown of all background work. BenchmarkDotNet and broader context, fixture and coverage changes remain follow-on work.
+Status: **in progress**; headless build and test work is implemented, but the manual UI smoke check and Silk runtime decision remain open. The objective is a reproducible Windows x64 baseline and safe, observable shutdown of all background work. BenchmarkDotNet and broader context, fixture and coverage changes remain follow-on work.
 
 ## Implementation status
 
 - SDK 10.0.103 is pinned with `latestPatch`; the unused ImageSharp export and dependency are removed. Debug and Release builds succeeded. On this machine `verify-tests.ps1` completed 20 serial and 20 collection-parallel passes with four threads, all 296 tests passing each time. MTP also passed all 296 tests.
+- The subsequent lifecycle test changes pass in a 297-test collection-parallel run; the 20-pass result above predates that extra test.
 - Scheduler shutdown, requestor termination and player static-event cleanup are implemented. Timeout defaults to ten seconds and leaves session resources alive. Controlled tests cover timeout, discard, failure reporting and request marker ownership.
 - Shared-node FastNoise test passes on the bundled DLL. The binary has no version metadata; SHA-256 is `BBB9741E55EF11596FA18E163548D40D853AEDF920338298651D9CA35D5D1050`. The observed active feature-set value was `16382`; it is hardware dependent. Upstream safety claims cannot be tied to this unversioned build.
 - Excluding both local Silk files experimentally produced a successful build against the package. The files remain in use because the UI/runtime behavior has not been compared. Computer-use launch approval timed out, so the manual UI smoke checklist remains outstanding.
-- **Follow-up risk:** generation-number markers prevent an old job from removing a new marker, but do not make upload publication and unload/reload atomic. A mesh already published or published concurrently with unload can still be applied to a later chunk at the same coordinates. This requires versioned upload validation across renderer and provider; it is not covered by the marker fix.
+- **Follow-up risk:** [Stale mesh upload ticket](STALE_UPLOAD_RACE.md) tracks the unload/reload race and its required regression test.
 
 ## Baseline and release blockers
 
@@ -31,16 +32,18 @@ The milestone is complete when the agreed Windows x64 environment builds Debug a
 
 ## 1. Baseline and UI smoke check
 
-- [ ] Pin an agreed installed .NET 10 SDK and roll-forward policy in `global.json`, preserving MTP selection. Prefer a small checked-in verification script documenting restore, build, test and nonzero discovery. Confirm test filters and the chosen configuration with the actual MTP runner.
-- [ ] Remove the unused ImageSharp debug export and dependency, recheck restore/audit, and build Debug and Release.
-- [ ] Run the full suite and confirm discovery; run **20 serial and 20 collection-parallel repetitions** with a documented worker limit. Retain the nonparallel static-façade collection for now.
+- [x] Pin an agreed installed .NET 10 SDK and roll-forward policy in `global.json`, preserving MTP selection. Prefer a small checked-in verification script documenting restore, build, test and nonzero discovery. Confirm test filters and the chosen configuration with the actual MTP runner.
+- [x] Remove the unused ImageSharp debug export and dependency, recheck restore/audit, and build Debug and Release.
+- [x] Run the full suite and confirm discovery; run **20 serial and 20 collection-parallel repetitions** with a documented worker limit. Retain the nonparallel static-façade collection for now.
 - [ ] On a Windows machine with a suitable OpenGL context, manually check: launch and menu rendering; buttons and settings sliders; start game and terrain display; mouse lock/unlock and camera movement; in-game UI interaction with mouse unlocked; resize and fullscreen/borderless controls; exit/close without errors. Record results and environment. This is a smoke check, not exhaustive graphics validation.
 
 **Exit:** documented commands work on the agreed environment, both configurations build, the test count is recorded and the UI checklist passes or has an explicitly tracked failure.
 
 ## 2. Scheduler and mesh markers — P0
 
-### Current risks
+The first scheduler and marker changes are implemented. Remaining work here includes the unload/upload lifetime test, pooled buffer return proof, and any further independent-session coverage; see the separate stale upload ticket.
+
+### Risks identified in the pre-implementation review
 
 `JobScheduler` starts background threads without retaining or joining them. `Stop()` sets a flag and releases a fixed 100 signals. `EngineContext.Dispose()` immediately disposes provider, native noise and registry afterwards, potentially while a worker still uses them. Worker exceptions are only written to stderr. `MeshgenerateJob` can leave `QueuedForMeshing` set when chunk data is missing or generation throws; a stale marker may prevent later requests. `ChunkRequestor` also runs an untracked task that uses the provider, and `PlayerCharacter` subscribes to a static UI event without unsubscribing. Both must be handled at game exit, before context disposal.
 
@@ -56,7 +59,7 @@ The policy favors quick exit over completing queued world generation. It needs a
 
 ### Proposed changes and tests
 
-- [ ] Stop and await `ChunkRequestor` before stopping the scheduler or disposing the provider; unsubscribe player and requestor events on exit. Retain worker handles, make state transitions and enqueue/stop races safe, report exceptions, and make teardown conditional on successful termination. All GPU operations remain on the main thread.
+- [x] Stop and await `ChunkRequestor` before stopping the scheduler or disposing the provider; unsubscribe player and requestor events on exit. Retain worker handles, make state transitions and enqueue/stop races safe, report exceptions, and make teardown conditional on successful termination. All GPU operations remain on the main thread.
 - [ ] Clear meshing markers on success, missing chunks, exceptions and discarded queued work. Use unique generation numbers and conditional key/value removal so an older request cannot clear a newer marker; force the unload/requeue race in a test. Dispose abandoned CPU mesh resources exactly once.
 - [ ] Use controlled `IJob` instances and synchronization primitives in tests to hold and release an in-flight job. Assert rejected enqueues, queued discard, ordering of shutdown versus resource disposal, workers exiting, timeout reporting, failures, idempotence and independent sessions. Always release held jobs in `finally`; use bounded waits to diagnose hangs.
 - [ ] For higher-level tests prefer an injected scheduling interface with a synchronous or controllable test scheduler, if a small seam is justified by actual consumers. At the worker boundary use test-owned job completion signals. Do **not** add a production idle-wait API solely for tests; real production observability should have a production use case. Retain real-thread integration tests.
@@ -68,16 +71,16 @@ The policy favors quick exit over completing queued world generation. It needs a
 
 The session shares one `NoiseCalculator` and native node across generation workers. The current [upstream FAQ](https://github.com/Auburn/FastNoise2/wiki/FAQ) says generation on a shared node tree is thread-safe when node parameters are not modified concurrently. That is useful evidence for current upstream, **not proof for the vendored DLL**: its version/build provenance is not recorded in this repository. Upstream release history also contains an older thread-safety fix. Disposal racing generation remains unsafe regardless of concurrent generation support.
 
-- [ ] Identify the shipped binary's version, source/build and architecture if possible, and compare the relevant upstream guarantee and fixes. If provenance remains unknown, record that limit.
-- [ ] Add one bounded Windows x64 stress test: construct a shared `FastNoise` node from the world type, compute serial reference results for fixed seeds and varied coordinates, synchronize workers to generate concurrently, compare full outputs over repeated rounds, then join before disposal. Report `GetActiveFeatureSet()` and enough diagnostic information to reproduce a mismatch. A passing stress test cannot prove thread safety.
+- [x] Identify the shipped binary's version, source/build and architecture if possible, and compare the relevant upstream guarantee and fixes. If provenance remains unknown, record that limit.
+- [x] Add one bounded Windows x64 stress test: construct a shared `FastNoise` node from the world type, compute serial reference results for fixed seeds and varied coordinates, synchronize workers to generate concurrently, compare full outputs over repeated rounds, then join before disposal. Report `GetActiveFeatureSet()` and enough diagnostic information to reproduce a mismatch. A passing stress test cannot prove thread safety.
 - [ ] If the binary's guarantee cannot be established or the test fails, agree a mitigation (e.g. separate node per worker or synchronization) before claiming safe shared use; measure any performance effect later. Do not run disposal concurrently in this generation stress test; cover lifetime ordering in scheduler tests.
 
 **Exit:** provenance and limits are documented, the targeted test passes on the supported binary, and any remaining uncertainty or mitigation is explicitly resolved or tracked.
 
 ## 4. Documentation and Silk ownership
 
-- [ ] Correct `AGENTS.md` to match actual code: chunks currently use **16³**, the vertex is packed into **16 bytes** (3 floats, `ushort` texture layer, byte AO level, padding), and the scheduler uses threads, queues and a semaphore. Verify API names and threading/GPU rules.
-- [ ] Update `Documentation.md` for the current package versions and actual `GameEguiIntegration`/vendored integration behavior. Document only shutdown and SDK behavior that has actually been implemented and verified.
+- [x] Correct `AGENTS.md` to match actual code: chunks currently use **16³**, the vertex is packed into **16 bytes** (3 floats, `ushort` texture layer, byte AO level, padding), and the scheduler uses threads, queues and monitor signaling. Verify API names and threading/GPU rules.
+- [x] Update `Documentation.md` for the current package versions and actual `GameEguiIntegration`/vendored integration behavior. Document only shutdown and SDK behavior that has actually been implemented and verified.
 - [ ] Timebox the Silk comparison: temporarily exclude local files and build to identify breakage, then compare relevant input and rendering behavior. Restore the files after the experiment. If kept, document the reason and type conflicts; if removed, replace required behavior and re-run the UI smoke checklist.
 
 **Exit:** both documents describe the resulting code, and the Silk choice and its trade-offs are recorded.

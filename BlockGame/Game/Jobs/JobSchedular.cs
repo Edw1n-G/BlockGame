@@ -12,10 +12,21 @@ public class JobScheduler
     private readonly List<Thread> _workers = new();
     private State _state;
     private JobContext? _context;
-    private readonly System.Collections.Concurrent.ConcurrentQueue<Exception> _failures = new();
+    private readonly Queue<Exception> _failures = new();
+    private const int MaxRetainedFailures = 32;
 
     /// <summary>Failures are retained for diagnostics rather than lost on worker threads.</summary>
-    public IReadOnlyCollection<Exception> Failures => _failures.ToArray();
+    public IReadOnlyCollection<Exception> Failures { get { lock (_gate) return _failures.ToArray(); } }
+
+    private void ReportFailure(Exception ex)
+    {
+        lock (_gate)
+        {
+            if (_failures.Count == MaxRetainedFailures) _failures.Dequeue();
+            _failures.Enqueue(ex);
+        }
+        Console.Error.WriteLine($"[JobScheduler] {ex}");
+    }
 
     public void Start(int workerCount, JobContext jobcontext)
     {
@@ -65,8 +76,7 @@ public class JobScheduler
             try { job.Execute(_context!); }
             catch (Exception ex)
             {
-                _failures.Enqueue(ex);
-                Console.Error.WriteLine($"[JobScheduler] {job.GetType().Name} failed: {ex}");
+                ReportFailure(ex);
             }
         }
     }
@@ -86,7 +96,7 @@ public class JobScheduler
                 // Cancellation is bookkeeping only; no GPU operations are allowed here.
                 foreach (IJob job in _high.Concat(_low))
                     try { job.Discard(_context); }
-                    catch (Exception ex) { _failures.Enqueue(ex); Console.Error.WriteLine($"[JobScheduler] Discard failed: {ex}"); }
+                    catch (Exception ex) { ReportFailure(ex); }
                 _high.Clear();
                 _low.Clear();
                 Monitor.PulseAll(_gate);

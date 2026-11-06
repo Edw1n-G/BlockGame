@@ -20,6 +20,8 @@ namespace Basics.Graphics.UI
         /// </summary>
         public static event Action OnRenderDistanceChanged;
 
+        public static void NotifyRenderDistanceChanged() => OnRenderDistanceChanged?.Invoke();
+
         /// <summary>
         /// Initialisiert eine neue Instanz des <see cref="UIManager"/>-Klassens.
         /// </summary>
@@ -59,12 +61,12 @@ namespace Basics.Graphics.UI
                     if (ui.Add(new Egui.Widgets.Slider<int>(ref hdist, 1, 60).Text("Horizontal Render Distance")).Changed)
                     {
                         _settings.SetRenderDistance(hdist);
-                        OnRenderDistanceChanged?.Invoke();
+                        NotifyRenderDistanceChanged();
                     }
                     if (ui.Add(new Egui.Widgets.Slider<int>(ref vdist, 1, 30).Text("Vertical Render Distance")).Changed)
                     {
                         _settings.SetVerticalRenderDistance(vdist);
-                        OnRenderDistanceChanged?.Invoke();
+                        NotifyRenderDistanceChanged();
                     }
                     if (ui.Button("Unload All Chunks").Clicked)
                     {

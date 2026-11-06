@@ -57,8 +57,9 @@ public class ChunkRequestor
 
     private ChunkCoord _lastPlayerChunk;
     private bool _isUpdating = false;
-    private bool _stopping;
+    private volatile bool _stopping;
     private Task? _updateTask;
+    public Exception? LastUpdateFailure { get; private set; }
 
     /// <summary>
     /// Initialisiert einen neuen ChunkRequestor.
@@ -119,7 +120,7 @@ public class ChunkRequestor
 
             for (int x = -renderDistance; x <= renderDistance; x++)
             {
-                lock (_chunkLock) if (_stopping) return;
+                if (_stopping) return;
                 for (int z = -renderDistance; z <= renderDistance; z++)
                 {
                     for (int y = -verticalRenderDistance; y <= verticalRenderDistance; y++)
@@ -147,7 +148,7 @@ public class ChunkRequestor
 
             foreach (var chunk in pendingRequests)
             {
-                lock (_chunkLock) if (_stopping) return;
+                if (_stopping) return;
                 _chunkProvider.RequestChunk(chunk);
             }
 
@@ -185,7 +186,8 @@ public class ChunkRequestor
         }
         catch (AggregateException ex)
         {
-            Console.Error.WriteLine($"[ChunkRequestor] Update failed: {ex.Flatten()}");
+            LastUpdateFailure = ex.Flatten();
+            Console.Error.WriteLine($"[ChunkRequestor] Update failed: {LastUpdateFailure}");
             return true; // The faulted task has exited and no longer uses the provider.
         }
     }

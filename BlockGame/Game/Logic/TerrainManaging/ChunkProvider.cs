@@ -109,7 +109,7 @@ public class ChunkProvider : IDisposable
     /// und generiert ihn ansonsten neu.
     /// </summary>
     /// <param name="coord">Die Koordinaten desChunks.</param>
-    public void RequestChunk(ChunkCoord coord)
+    public virtual void RequestChunk(ChunkCoord coord)
     {
         // Bereits geladen oder Daten bereits generiert? → nichts tun
         if (LoadedChunks.ContainsKey(coord))
@@ -270,6 +270,7 @@ public class ChunkProvider : IDisposable
         }
         
         Chunkdata.TryRemove(coord, out _);
+        // Invalidates the old request; conditional completion cannot erase a later generation.
         QueuedForMeshing.TryRemove(coord , out _);
     }
 

@@ -36,6 +36,8 @@ public class BaseMesher : IDisposable
     /// Position des Chunks in Chunk-Koordinaten (z.B. 0/0, 1/0, -1/0, etc.).
     /// </summary>
     public ChunkCoord ChunkPosition;
+    /// <summary>The exact chunk data instance from which this mesh was built.</summary>
+    public ChunkData? SourceChunkData { get; protected set; }
     
     /// <summary>
     /// Listen für Vertex- und Index-Daten, wachsen mit der Geometriekomplexität.

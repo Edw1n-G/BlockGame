@@ -92,7 +92,7 @@ public class Renderer
 
         while (ChunkProvider.UploadQueue.TryDequeue(out BaseMesher? chunk))
         {
-            if (!ChunkProvider.Chunkdata.ContainsKey(chunk.ChunkPosition))
+            if (!ChunkProvider.IsUploadCurrent(chunk))
             {
                 chunk.Dispose();
                 continue;
@@ -100,15 +100,7 @@ public class Renderer
             
             chunk.UploadToGpu(_gl);
 
-            if (ChunkProvider.LoadedChunks.TryGetValue(chunk.ChunkPosition, out BaseMesher? oldMesh))
-            {
-                ChunkProvider.LoadedChunks[chunk.ChunkPosition] = chunk;
-                ChunkProvider.UnloadQueue.Enqueue(oldMesh);
-            }
-            else
-            {
-                ChunkProvider.LoadedChunks.TryAdd(chunk.ChunkPosition, chunk);
-            }
+            ChunkProvider.AcceptUpload(chunk);
             
             if (Stopwatch.GetTimestamp() - startTimestamp >= maxTicks)
             {

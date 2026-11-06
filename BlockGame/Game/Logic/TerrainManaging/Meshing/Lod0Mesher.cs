@@ -23,6 +23,7 @@ public class Lod0Mesher : BaseMesher
     : base(provider, blockRegistry)
     {
         this.ChunkPosition = position;
+        SourceChunkData = chunkData;
         if (chunkData.Blocks == null) return;
         this._blockData = chunkData.Blocks;
         CreateNeighborCache();

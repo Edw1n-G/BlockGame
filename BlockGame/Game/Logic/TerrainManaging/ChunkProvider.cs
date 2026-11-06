@@ -25,6 +25,7 @@ public class ChunkProvider : IDisposable
     /// </summary>
     public ConcurrentDictionary<ChunkCoord, long> QueuedForMeshing { get; } = new();
     private long _meshGeneration;
+    private readonly object _chunkLifetimeGate = new();
     
     /// <summary>
     /// Pool für Mesh-Puffer (VBO, EBO, VAO) für das Speichermanagement.
@@ -231,6 +232,35 @@ public class ChunkProvider : IDisposable
     internal bool CompleteMeshRequest(MeshRequest request) =>
         QueuedForMeshing.TryRemove(new KeyValuePair<ChunkCoord, long>(request.Coord, request.Generation));
 
+    /// <summary>Cheap early check; acceptance must still be checked after GPU upload.</summary>
+    public bool IsUploadCurrent(BaseMesher mesh)
+    {
+        lock (_chunkLifetimeGate)
+            return mesh.SourceChunkData is not null &&
+                   Chunkdata.TryGetValue(mesh.ChunkPosition, out var current) &&
+                   ReferenceEquals(current, mesh.SourceChunkData);
+    }
+
+    /// <summary>Installs only a mesh built from the current chunk lifetime.</summary>
+    public bool AcceptUpload(BaseMesher mesh)
+    {
+        lock (_chunkLifetimeGate)
+        {
+            if (mesh.SourceChunkData is null ||
+                !Chunkdata.TryGetValue(mesh.ChunkPosition, out var current) ||
+                !ReferenceEquals(current, mesh.SourceChunkData))
+            {
+                mesh.Dispose();
+                return false;
+            }
+
+            if (LoadedChunks.TryGetValue(mesh.ChunkPosition, out var oldMesh))
+                UnloadQueue.Enqueue(oldMesh);
+            LoadedChunks[mesh.ChunkPosition] = mesh;
+            return true;
+        }
+    }
+
     /// <summary>
     /// Gibt die ChunkData an einer Weltposition zurück oder null, wenn nicht geladen.
     /// </summary>
@@ -264,14 +294,15 @@ public class ChunkProvider : IDisposable
     /// <param name="coord">Die Koordinaten des zu entladenden Chunks.</param>
     public void UnloadChunk(ChunkCoord coord)
     {
-        if (LoadedChunks.TryRemove(coord, out BaseMesher? chunk))
+        lock (_chunkLifetimeGate)
         {
-            UnloadQueue.Enqueue(chunk);
+            if (LoadedChunks.TryRemove(coord, out BaseMesher? chunk))
+                UnloadQueue.Enqueue(chunk);
+
+            Chunkdata.TryRemove(coord, out _);
+            // Unload drops whichever request currently owns this coordinate.
+            QueuedForMeshing.TryRemove(coord, out _);
         }
-        
-        Chunkdata.TryRemove(coord, out _);
-        // Invalidates the old request; conditional completion cannot erase a later generation.
-        QueuedForMeshing.TryRemove(coord , out _);
     }
 
     /// <summary>

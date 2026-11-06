@@ -22,8 +22,7 @@ public class SchedulerMeshingTests
     {
         ushort stone = session.BlockRegistry.GetBlockId("core:stone");
         session.ChunkProvider.Chunkdata[coord] = new ChunkData(coord, TestHelpers.FloorBlocks(stone));
-        session.ChunkProvider.QueuedForMeshing[coord] = 1;
-        session.ChunkProvider.PendingMeshRequests.Enqueue(coord);
+        session.ChunkProvider.QueueMesh(coord);
         session.ChunkProvider.RequestMeshes();
     }
 
@@ -56,12 +55,11 @@ public class SchedulerMeshingTests
     public async Task MeshRequests_ForChunksThatWereUnloaded_ProduceNothing()
     {
         using var session = StartSession(1);
-        session.ChunkProvider.PendingMeshRequests.Enqueue(Origin); // no chunk data exists for it
+        session.ChunkProvider.QueueMesh(Origin); // no chunk data exists for it
 
         session.ChunkProvider.RequestMeshes();
 
-        Assert.True(await TestHelpers.WaitUntil(() => session.ChunkProvider.PendingMeshRequests.IsEmpty));
-        await Task.Delay(100, TestContext.Current.CancellationToken); // give a (wrong) mesh time to appear
+        Assert.True(await TestHelpers.WaitUntil(() => !session.ChunkProvider.QueuedForMeshing.ContainsKey(Origin)));
         Assert.Empty(session.ChunkProvider.UploadQueue);
     }
 
@@ -93,11 +91,11 @@ public class SchedulerMeshingTests
 
         Assert.True(await TestHelpers.WaitUntil(() => session.ChunkProvider.Chunkdata.Count == 27),
             "Not all 27 chunks were generated.");
-        Assert.True(await TestHelpers.WaitUntil(() => session.ChunkProvider.PendingMeshRequests.Contains(center)),
+        Assert.True(await TestHelpers.WaitUntil(() => session.ChunkProvider.PendingMeshRequests.Any(r => r.Coord == center)),
             "The centre chunk (all neighbours present) was never queued for meshing.");
 
         // Every other chunk is missing some of its neighbours, so only the centre may be queued.
-        Assert.DoesNotContain(corner, session.ChunkProvider.PendingMeshRequests);
+        Assert.DoesNotContain(session.ChunkProvider.PendingMeshRequests, r => r.Coord == corner);
         Assert.Single(session.ChunkProvider.PendingMeshRequests);
     }
 
@@ -114,7 +112,7 @@ public class SchedulerMeshingTests
             session.ChunkProvider.RequestChunk(new ChunkCoord(x, y, z, 0));
         }
 
-        Assert.True(await TestHelpers.WaitUntil(() => session.ChunkProvider.PendingMeshRequests.Contains(center)));
+        Assert.True(await TestHelpers.WaitUntil(() => session.ChunkProvider.PendingMeshRequests.Any(r => r.Coord == center)));
 
         session.ChunkProvider.RequestMeshes();
 

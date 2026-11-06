@@ -103,7 +103,6 @@ public class Game : IStates
         // Initiales Laden der Chunks um die Startposition
         _player.ForceChunkUpdate();
 
-        //_terrainGenerator.DebugExportNoiseMap();
     }
 
     //Wird jeden Frame aufgerufen, hier wird alles gerendert.
@@ -135,6 +134,8 @@ public class Game : IStates
 
     public void Exit()
     {
+        _player?.Dispose();
+        if (_chunkRequestor != null && !_chunkRequestor.Stop()) return;
         _context?.Dispose();
     }
     

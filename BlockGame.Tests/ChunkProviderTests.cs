@@ -54,7 +54,7 @@ public class ChunkProviderTests : EngineTestBase
 
         Session.World.SetBlock(8, 8, 8, Stone);
 
-        ChunkCoord queued = Assert.Single(Provider.PendingMeshRequests);
+        ChunkCoord queued = Assert.Single(Provider.PendingMeshRequests).Coord;
         Assert.Equal(Origin, queued);
         Assert.True(Provider.QueuedForMeshing.ContainsKey(Origin));
     }
@@ -76,9 +76,9 @@ public class ChunkProviderTests : EngineTestBase
         };
         Assert.Equal(expected.Length, Provider.PendingMeshRequests.Count);
         Assert.All(expected, c => Assert.True(Provider.QueuedForMeshing.ContainsKey(c), $"{c} should be queued"));
-        Assert.DoesNotContain(new ChunkCoord(1, 0, 0, 0), Provider.PendingMeshRequests);
-        Assert.DoesNotContain(new ChunkCoord(0, 1, 0, 0), Provider.PendingMeshRequests);
-        Assert.DoesNotContain(new ChunkCoord(0, 0, 1, 0), Provider.PendingMeshRequests);
+        Assert.DoesNotContain(new ChunkCoord(1, 0, 0, 0), Provider.PendingMeshRequests.Select(r => r.Coord));
+        Assert.DoesNotContain(new ChunkCoord(0, 1, 0, 0), Provider.PendingMeshRequests.Select(r => r.Coord));
+        Assert.DoesNotContain(new ChunkCoord(0, 0, 1, 0), Provider.PendingMeshRequests.Select(r => r.Coord));
     }
 
     [Fact]
@@ -89,9 +89,9 @@ public class ChunkProviderTests : EngineTestBase
         Session.World.SetBlock(15, 15, 15, Stone);
 
         Assert.Equal(4, Provider.PendingMeshRequests.Count);
-        Assert.Contains(new ChunkCoord(1, 0, 0, 0), Provider.PendingMeshRequests);
-        Assert.Contains(new ChunkCoord(0, 1, 0, 0), Provider.PendingMeshRequests);
-        Assert.Contains(new ChunkCoord(0, 0, 1, 0), Provider.PendingMeshRequests);
+        Assert.Contains(new ChunkCoord(1, 0, 0, 0), Provider.PendingMeshRequests.Select(r => r.Coord));
+        Assert.Contains(new ChunkCoord(0, 1, 0, 0), Provider.PendingMeshRequests.Select(r => r.Coord));
+        Assert.Contains(new ChunkCoord(0, 0, 1, 0), Provider.PendingMeshRequests.Select(r => r.Coord));
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public class ChunkProviderTests : EngineTestBase
 
         Assert.True(Session.World.SetBlock(8, 8, 8, Stone)); // the edit still succeeds
 
-        Assert.Empty(Provider.PendingMeshRequests);
+        Assert.Empty(Provider.PendingMeshRequests.Select(r => r.Coord));
         Assert.Empty(Provider.QueuedForMeshing);
     }
 
@@ -110,7 +110,7 @@ public class ChunkProviderTests : EngineTestBase
     {
         Provider.RemeshChunk(new ChunkCoord(9, 9, 9, 0));
 
-        Assert.Empty(Provider.PendingMeshRequests);
+        Assert.Empty(Provider.PendingMeshRequests.Select(r => r.Coord));
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public class ChunkProviderTests : EngineTestBase
 
         for (int i = 0; i < 3; i++)
         {
-            Provider.PendingMeshRequests.Enqueue(new ChunkCoord(i, 5, 0, 0));
+            Provider.QueueMesh(new ChunkCoord(i, 5, 0, 0));
         }
 
         Provider.RequestMeshes();
@@ -152,12 +152,12 @@ public class ChunkProviderTests : EngineTestBase
         Session.Settings.MaxChunkMeshesInRam = 10;
         for (int i = 0; i < 3; i++)
         {
-            Provider.PendingMeshRequests.Enqueue(new ChunkCoord(i, 5, 0, 0));
+            Provider.QueueMesh(new ChunkCoord(i, 5, 0, 0));
         }
 
         Provider.RequestMeshes(); // the scheduler is not started, so the jobs just queue up
 
-        Assert.Empty(Provider.PendingMeshRequests);
+        Assert.Empty(Provider.PendingMeshRequests.Select(r => r.Coord));
     }
 
     // ---------- Unloading ----------

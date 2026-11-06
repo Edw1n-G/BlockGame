@@ -8,9 +8,9 @@ EdwinCraft (solution `Rendering.sln`, project `BlockGame`, root namespace `Basic
 |---|---|
 | Language / runtime | C#, `net10.0`, nullable + implicit usings enabled, unsafe code allowed |
 | Windowing / input / GL | Silk.NET 2.23.0 (`Windowing`, `Input`, `OpenGL`) |
-| UI | `Egui.Silk.NET` + `Egui.Silk.NET.OpenGL` 0.7.0 (with a custom GL integration, see §7) |
+| UI | `Egui.Silk.NET` + `Egui.Silk.NET.OpenGL` 0.10.5 (with a local GL integration, see §7) |
 | Noise | FastNoise2 via native `FastNoise.dll` (P/Invoke wrapper `FastNoise2.cs`) |
-| Images | StbImageSharp (textures), SixLabors.ImageSharp (debug noise export), System.Drawing.Common |
+| Images | StbImageSharp (textures), System.Drawing.Common |
 | Chunk size | 16×16×16 blocks (`ChunkData.ChunkSize`) |
 | World bounds | X/Z limited by `GameSettings.MapSize` (in chunks, default 100); Y unbounded |
 | Chunk model | "Cubic chunks": chunks stack in Y as well as X/Z |
@@ -138,7 +138,7 @@ Per frame: `Update` → `PlayerMovement.MovementUpdate` and `ChunkProvider.Reque
 2. `ChunkRequestor` (on a `Task.Run`, coalescing updates) computes an ellipsoid of LOD-0 chunks around the player: `(x²+z²)/RenderDistance² + y²/VerticalRenderDistance² ≤ 1`. It calls `ChunkProvider.RequestChunk` for new ones, then unloads chunks that left the set. `UnloadAllChunks()` clears everything (UI button).
 3. `RequestChunk` skips chunks already in `LoadedChunks`/`Chunkdata`, otherwise enqueues `ChunkLoadorGenerateJob` on the low-priority queue.
 4. `ChunkLoadorGenerateJob` tries loading from disk (placeholder, always fails), otherwise `TerrainGenerator.GenerateChunk`, stores the result in `Chunkdata`, and calls `OnChunkDataGenerated`. That tries to queue the chunk and its 26 neighbors for meshing.
-5. A chunk is queued only if it exists and all 26 neighbors exist in `Chunkdata` (so AO and face culling across borders are correct). `QueuedForMeshing` de-duplicates and `PendingMeshRequests` holds the coordinates. Chunks beyond `MapSize` are generated as empty chunks so neighbors can still mesh.
+5. A chunk is queued only if it exists and all 26 neighbors exist in `Chunkdata` (so AO and face culling across borders are correct). `QueuedForMeshing` de-duplicates by coordinate and stores a generation number; `PendingMeshRequests` carries the coordinate and generation. Chunks beyond `MapSize` are generated as empty chunks so neighbors can still mesh.
 6. `Game.Update` → `ChunkProvider.RequestMeshes()` moves pending requests to the scheduler as `MeshgenerateJob`s while `UploadQueue.Count < MaxChunkMeshesInRam`.
 7. `MeshgenerateJob` picks `Lod0Mesher` / `Lod1Mesher` / `Lod2Mesher` by `ChunkCoord.LodLevel` (other levels throw), builds the CPU mesh and enqueues it on `UploadQueue`.
 8. `Renderer.Render` (main thread) drains `UploadQueue` with a ~5 ms time budget: it uploads to the GPU, swaps in the new mesh (the old one goes to `UnloadQueue`) and registers it in `LoadedChunks`. Meshes whose chunk data is no longer loaded are disposed. Then it renders all non-empty, frustum-visible meshes and disposes the `UnloadQueue`.
@@ -150,7 +150,7 @@ Note: the requestor currently only requests LOD 0. LOD 1/2 meshers exist and are
 
 - Background (via `JobScheduler`): chunk generation, meshing. Anything touching `ChunkProvider` concurrent collections must stay thread-safe.
 - Main thread only: every OpenGL call (`UploadToGpu`, draw calls, texture creation, Egui rendering), input handling, `Game.Update/Render`.
-- `JobScheduler`: worker threads (background threads) wait on a `SemaphoreSlim`; each enqueue releases one permit. Workers prefer the high-priority queue, then low. Job exceptions are caught and logged to stderr. `Stop()` sets a flag and releases 100 permits.
+- `JobScheduler`: worker threads wait on a monitor and prefer the high-priority queue. Stopping rejects new work, discards queued jobs, and joins in-flight jobs with a ten-second default deadline. Exceptions are recorded and logged. On timeout, context shutdown returns false and leaves worker dependencies alive. `ChunkRequestor` has its own task, which `Game.Exit` stops before context shutdown.
 - Worker count: `CoreAvailability.DefaultConfig` = `max(1, ProcessorCount − 2) / 2 + 4`. `coreconfig.txt` is checked for but loading is a TODO that falls back to the default.
 - `ChunkRequestor` uses a lock plus a single running `Task` loop for chunk-set recomputation.
 
@@ -225,9 +225,9 @@ Block definitions live at `Content/<Namespace>/Blocks/**/*.json` (nesting allowe
 
 ## 7. UI and input
 
-- **Egui.NET**: `SilkIntegration` (abstract) collects Silk.NET keyboard/mouse/focus events into `RawInput` and runs `Context.Run`; it also maps keys, clipboard (Ctrl+C/V/X), modifiers and DPI zoom. `SilkGlIntegration` (derives from it) implements `DrawOutput` with its own GL 3.1-style shader, VAO/VBO/EBO, texture management and scissoring. It replaces the stock `Egui.Silk.NET` renderer (it prints "using custom integration" on creation). Egui pointer-move events are ignored while `InputManager.IsMouseLocked`.
+- **Egui.NET**: `GameEguiIntegration` wraps the locally compiled `SilkGlIntegration` and removes pointer-move events while the mouse is locked. The local integration collects Silk input and renders Egui with OpenGL. These files currently shadow identically named package types (CS0436); temporarily excluding them builds successfully against package 0.10.5, but runtime behavior has not yet been compared. They are retained pending the UI smoke check; their provenance is not recorded.
 - **In game** (`UIManager.Draw`): crosshair, "Engine Settings" window (horizontal/vertical render distance sliders raising `OnRenderDistanceChanged`, "Unload All Chunks"), "PlayerSettings" window (move speed, mouse sensitivity), and a player info box (position, chunk, FPS). Press F to unlock the mouse before using the windows.
-- **InputManager** (static): `Actions` enum → key (`_keyBindings`) or mouse button (`_mouseBindings`), and `Actions` → callback (`SetActionBindings`). Key-down and mouse-click events invoke callbacks; held-key polling uses `IsActionPressed`. Do not map raw Silk.NET inputs directly; add an `Actions` entry, a default binding and a callback. `PlayerMovement.MovementUpdate` polls movement actions each update; `LookUpdate` handles mouse deltas via `Camera.Rotate`.
+- **InputManager** (instance): `Actions` enum → key (`_keyBindings`) or mouse button (`_mouseBindings`), and `Actions` → callback (`SetActionBindings`). Key-down and mouse-click events invoke callbacks; held-key polling uses `IsActionPressed`. Do not map raw Silk.NET inputs directly; add an `Actions` entry, a default binding and a callback. `PlayerMovement.MovementUpdate` polls movement actions each update; `LookUpdate` handles mouse deltas via `Camera.Rotate`.
 - **Movement**: the player is a free-flying camera (no gravity or collision). `PlayerCharacter.Move` moves relative to the horizontal look direction. The debug camera (`F1`) moves independently with no chunk streaming events.
 
 ## 8. Physics and interaction
@@ -264,7 +264,7 @@ Window defaults (`WindowSetup`): 800×600, title "Game", 60 updates/s initially 
 1. If `|X|` or `|Z|` > `MapSize`, return an empty `ChunkData`.
 2. Request a 16×17×16 density grid from `NoiseCalculator.GetNoiseValues` (3D `GenUniformGrid3D`, step size `2^LOD`, seed from settings). The extra Y row is used to detect the top surface. The grid layout is `x + y*16 + z*16*17` (note the `NoiseCalculator` x-fastest ordering versus the chunk array's x-slowest).
 3. For each cell with `density > 0`: top solid block above world y 80 → `snow`; other top solid → `grass`; within 4×step of the surface (`density <= 4 * stepSize`) → `dirt`; else `stone`. `density <= 0` → air.
-4. `DebugExportNoiseMap` is not usable with the 3D noise (see its TODO).
+4. The former unused 2D debug-noise exporter was removed; terrain generation uses 3D noise.
 
 `FastNoise2.cs` is the stock FastNoise2 C# wrapper (metadata lookup, `Set`, `GenUniformGrid2D/3D/4D`, position arrays, single samples) loading `FastNoise.dll` via `DllImport`. Node handles are freed in `Dispose`/finalizer.
 
@@ -296,6 +296,6 @@ Window defaults (`WindowSetup`): 800×600, title "Game", 60 updates/s initially 
 - Block IDs depend on file-name sort order and differ between real and fallback (headless) registries.
 - `StateManager.CloseEngine` only disposes the GL object.
 - The menu text says "F1 - Debug Cam (No worki)".
-- `AGENTS.md` is partly outdated (it mentions 32×32×32 chunks and a 5-float vertex layout). This document reflects the current 16³ chunks and the 16-byte vertex layout. `Renderer.Render` uses a ~5 ms upload budget (AGENTS.md says ~2 ms).
+- Chunk size, packed vertex layout and the approximate upload budget are documented in `AGENTS.md` and should be updated alongside their implementation.
 - `Renderer` and `Game` keep much of their state in statics, so run a single game instance per process (headless sessions are fine).
 - `Renderer.Dispose` is never called from `Game.Exit`.

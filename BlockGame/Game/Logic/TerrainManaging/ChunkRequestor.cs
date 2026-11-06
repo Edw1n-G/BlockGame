@@ -57,6 +57,8 @@ public class ChunkRequestor
 
     private ChunkCoord _lastPlayerChunk;
     private bool _isUpdating = false;
+    private bool _stopping;
+    private Task? _updateTask;
 
     /// <summary>
     /// Initialisiert einen neuen ChunkRequestor.
@@ -87,15 +89,12 @@ public class ChunkRequestor
     {
         lock (_chunkLock)
         {
+            if (_stopping) return;
             _lastPlayerChunk = playerChunk;
             if (_isUpdating) return;
             _isUpdating = true;
+            _updateTask = Task.Run(ProcessChunkUpdates);
         }
-
-        Task.Run(() =>
-        {
-            ProcessChunkUpdates();
-        });
     }
 
     private void ProcessChunkUpdates()
@@ -105,6 +104,7 @@ public class ChunkRequestor
             ChunkCoord targetChunk;
             lock (_chunkLock)
             {
+                if (_stopping) return;
                 targetChunk = _lastPlayerChunk;
             }
             
@@ -119,6 +119,7 @@ public class ChunkRequestor
 
             for (int x = -renderDistance; x <= renderDistance; x++)
             {
+                lock (_chunkLock) if (_stopping) return;
                 for (int z = -renderDistance; z <= renderDistance; z++)
                 {
                     for (int y = -verticalRenderDistance; y <= verticalRenderDistance; y++)
@@ -146,11 +147,13 @@ public class ChunkRequestor
 
             foreach (var chunk in pendingRequests)
             {
+                lock (_chunkLock) if (_stopping) return;
                 _chunkProvider.RequestChunk(chunk);
             }
 
             lock (_chunkLock)
             {
+                if (_stopping) return;
                 if (_lastPlayerChunk != targetChunk)
                 {
                     continue;
@@ -161,6 +164,29 @@ public class ChunkRequestor
                 _isUpdating = false;
                 break;
             }
+        }
+    }
+
+    /// <summary>Stops accepting updates and waits for the current provider user to exit.</summary>
+    public bool Stop(TimeSpan? timeout = null)
+    {
+        Task? task;
+        lock (_chunkLock)
+        {
+            _stopping = true;
+            _player.OnChunkChanged -= OnPlayerChunkChanged;
+            task = _updateTask;
+        }
+        try
+        {
+            if (task is null || task.Wait(timeout ?? TimeSpan.FromSeconds(10))) return true;
+            Console.Error.WriteLine("[ChunkRequestor] Timed out; provider resources remain alive.");
+            return false;
+        }
+        catch (AggregateException ex)
+        {
+            Console.Error.WriteLine($"[ChunkRequestor] Update failed: {ex.Flatten()}");
+            return true; // The faulted task has exited and no longer uses the provider.
         }
     }
 

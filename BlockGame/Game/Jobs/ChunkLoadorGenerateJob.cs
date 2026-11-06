@@ -109,10 +109,7 @@ public class ChunkLoadorGenerateJob : IJob
         // Sind direkte Nachbarn im Dictionary?
         if (!HasAllNeighbors(provider, coord)) return;
         
-        if (provider.QueuedForMeshing.TryAdd(coord, 1))
-        {
-            provider.PendingMeshRequests.Enqueue(coord);
-        }
+        provider.QueueMesh(coord);
     }
     
     /// <summary>

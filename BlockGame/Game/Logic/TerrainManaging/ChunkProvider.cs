@@ -7,6 +7,8 @@ using Basics.Game.Utilities;
 
 namespace Basics.Game.Logic.TerrainManaging;
 
+public readonly record struct MeshRequest(ChunkCoord Coord, long Generation);
+
 /// <summary>
 /// Verwaltet den Chunk-Lebenszyklus: Laden von Disk (Placeholder), Generieren, Speichern.
 /// Zentraler Speicher für alle geladenen Chunks einer Engine-Instanz.
@@ -21,7 +23,8 @@ public class ChunkProvider : IDisposable
     /// <summary>
     /// Chunks, die für das Meshing in die Warteschlange gestellt wurden.
     /// </summary>
-    public ConcurrentDictionary<ChunkCoord, byte> QueuedForMeshing { get; } = new();
+    public ConcurrentDictionary<ChunkCoord, long> QueuedForMeshing { get; } = new();
+    private long _meshGeneration;
     
     /// <summary>
     /// Pool für Mesh-Puffer (VBO, EBO, VAO) für das Speichermanagement.
@@ -41,7 +44,7 @@ public class ChunkProvider : IDisposable
     /// <summary>
     /// Anfragen für Meshing, die noch bearbeitet werden müssen.
     /// </summary>
-    public ConcurrentQueue<ChunkCoord> PendingMeshRequests { get; } = new();
+    public ConcurrentQueue<MeshRequest> PendingMeshRequests { get; } = new();
 
     /// <summary>
     /// Meshes, die für den Upload zur GPU bereit sind.
@@ -127,9 +130,11 @@ public class ChunkProvider : IDisposable
         int maxMeshesInRam = _settings.MaxChunkMeshesInRam;
 
         while (UploadQueue.Count < maxMeshesInRam && 
-               PendingMeshRequests.TryDequeue(out ChunkCoord coord))
+               PendingMeshRequests.TryDequeue(out MeshRequest request))
         {
-            _jobScheduler?.EnqueueLow(new MeshgenerateJob(coord));
+            if (!QueuedForMeshing.TryGetValue(request.Coord, out long current) || current != request.Generation) continue;
+            var job = new MeshgenerateJob(request, this);
+            if (_jobScheduler is null || !_jobScheduler.EnqueueLow(job)) job.Discard(null);
         }
     }
 
@@ -214,11 +219,17 @@ public class ChunkProvider : IDisposable
         if (!Chunkdata.ContainsKey(coord)) return;
         if (!HasAllNeighbors(coord)) return;
 
-        if (QueuedForMeshing.TryAdd(coord, 1))
-        {
-            PendingMeshRequests.Enqueue(coord);
-        }
+        QueueMesh(coord);
     }
+
+    internal void QueueMesh(ChunkCoord coord)
+    {
+        long generation = Interlocked.Increment(ref _meshGeneration);
+        if (QueuedForMeshing.TryAdd(coord, generation)) PendingMeshRequests.Enqueue(new(coord, generation));
+    }
+
+    internal bool CompleteMeshRequest(MeshRequest request) =>
+        QueuedForMeshing.TryRemove(new KeyValuePair<ChunkCoord, long>(request.Coord, request.Generation));
 
     /// <summary>
     /// Gibt die ChunkData an einer Weltposition zurück oder null, wenn nicht geladen.

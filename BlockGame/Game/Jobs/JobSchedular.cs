@@ -1,128 +1,108 @@
-using Basics.Game.Logic.TerrainManaging;
-using Basics.Game.Logic.TerrainManaging.Generation;
+using System.Diagnostics;
 
 namespace Basics.Game.Utilities;
-using System.Collections.Concurrent;
-using System.Threading;
 
-/// <summary>
-/// Verwaltet die Ausführung von Jobs über einen Thread-Pool mit Prioritäten.
-/// Nutzt ein SemaphoreSlim für effizientes Thread-Waiting ohne CPU-Last.
-/// </summary>
+/// <summary>Runs CPU jobs on session-owned workers. A scheduler is single-use.</summary>
 public class JobScheduler
 {
-    /// <summary>Queue für hochpriorisierte Jobs.</summary>
-    private ConcurrentQueue<IJob> _highPriority = new ConcurrentQueue<IJob>();
-    /// <summary>Queue für niedrigpriorisierte Jobs.</summary>
-    private ConcurrentQueue<IJob> _lowPriority = new ConcurrentQueue<IJob>();
-    
-    /// <summary>Semaphore für die Steuerung der Worker-Thread-Aktivität.</summary>
-    /// <remarks>Startwert ist 0 (keine Jobs da). Releasen weckt einen Schlafenden Thread auf.</remarks>
-    private SemaphoreSlim _jobAvailableSignal = new SemaphoreSlim(0);
-    
-    /// <summary>Der für die Job-Ausführung verwendete Kontext.</summary>
-    private JobContext _jobContext;
-    
-    /// <summary>Gibt an, ob der Scheduler aktiv ist.</summary>
-    private bool _isRunning = true;
+    private enum State { Created, Running, Stopping, Stopped }
+    private readonly object _gate = new();
+    private readonly Queue<IJob> _high = new();
+    private readonly Queue<IJob> _low = new();
+    private readonly List<Thread> _workers = new();
+    private State _state;
+    private JobContext? _context;
+    private readonly System.Collections.Concurrent.ConcurrentQueue<Exception> _failures = new();
 
-    /// <summary>
-    /// Startet den JobScheduler mit der angegebenen Anzahl von Worker-Threads.
-    /// </summary>
-    /// <param name="workerCount">Die Anzahl der Worker-Threads (Standard: Anzahl der CPU-Kerne).</param>
-    /// <param name="jobcontext">Der für die Job-Ausführung zu verwendende <see cref="JobContext"/>.</param>
+    /// <summary>Failures are retained for diagnostics rather than lost on worker threads.</summary>
+    public IReadOnlyCollection<Exception> Failures => _failures.ToArray();
+
     public void Start(int workerCount, JobContext jobcontext)
     {
-        _jobContext = jobcontext;
-        for (int i = 0; i < workerCount; i++)
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(workerCount);
+        ArgumentNullException.ThrowIfNull(jobcontext);
+        lock (_gate)
         {
-            Thread worker = new Thread(WorkerLoop);
-            worker.IsBackground = true; 
-            worker.Start();
+            if (_state != State.Created) throw new InvalidOperationException("Scheduler has already started or stopped.");
+            _context = jobcontext;
+            _state = State.Running;
+            for (int i = 0; i < workerCount; i++)
+            {
+                var worker = new Thread(WorkerLoop) { IsBackground = true, Name = $"Chunk worker {i}" };
+                _workers.Add(worker);
+                worker.Start();
+            }
+            Monitor.PulseAll(_gate);
         }
     }
 
-    /// <summary>
-    /// Fügt einen hochpriorisierten Job der Warteschlange hinzu.
-    /// </summary>
-    /// <param name="job">Der hinzuzufügende <see cref="IJob"/>.</param>
-    public void EnqueueHigh(IJob job)
+    public bool EnqueueHigh(IJob job) => Enqueue(job, _high);
+    public bool EnqueueLow(IJob job) => Enqueue(job, _low);
+
+    private bool Enqueue(IJob job, Queue<IJob> queue)
     {
-        _highPriority.Enqueue(job);
-        
-        // Wir signalisieren dem OS, dass EIN neuer Job da ist.
-        // Das weckt sofort exakt EINEN schlafenden Worker-Thread auf!
-        _jobAvailableSignal.Release(); 
-    }
-    
-    /// <summary>
-    /// Fügt einen niedrigpriorisierten Job der Warteschlange hinzu.
-    /// </summary>
-    /// <param name="job">Der hinzuzufügende <see cref="IJob"/>.</param>
-    public void EnqueueLow(IJob job)
-    {
-        _lowPriority.Enqueue(job);
-        _jobAvailableSignal.Release(); // Auch hier einen Worker wecken
+        ArgumentNullException.ThrowIfNull(job);
+        lock (_gate)
+        {
+            if (_state is State.Stopping or State.Stopped) return false;
+            queue.Enqueue(job);
+            Monitor.Pulse(_gate);
+            return true;
+        }
     }
 
-    /// <summary>
-    /// Hauptschleife des Worker-Threads. Wartet auf Jobs und führt diese aus.
-    /// </summary>
-    /// <remarks>
-    /// Der Thread verbraucht 0.0% CPU-Leistung, solange keine Jobs vorhanden sind.
-    /// Beendet sich, wenn <see cref="_isRunning"/> auf <c>false</c> gesetzt wird.
-    /// </remarks>
     private void WorkerLoop()
     {
-        while (_isRunning)
+        while (true)
         {
-            // 1. Der Thread versucht, ein Signal zu bekommen.
-            // Wenn der Zähler 0 ist, wird der Thread hier vom OS blockiert (eingefroren).
-            // Er verbraucht exakt 0.0% CPU-Leistung, bis Release() gerufen wird!
-            _jobAvailableSignal.Wait(); 
-
-            // 2. Sobald er hier ankommt, WISSEN wir sicher, dass ein Job in einer der Queues liegt.
-            if (_highPriority.TryDequeue(out IJob highJob))
+            IJob job;
+            lock (_gate)
             {
-                try
-                {
-                    highJob.Execute(_jobContext);
-                }
-                catch (Exception e)
-                {
-                    //TODO: logging + diagnostics module compatability
-                    Console.Error.WriteLine($"[JobScheduler] Job {highJob.GetType().Name} failed: {e.Message}");
-                }
-                
+                while (_state == State.Running && _high.Count == 0 && _low.Count == 0) Monitor.Wait(_gate);
+                if (_state != State.Running) return;
+                job = _high.Count > 0 ? _high.Dequeue() : _low.Dequeue();
             }
-            else if (_lowPriority.TryDequeue(out IJob lowJob))
+            try { job.Execute(_context!); }
+            catch (Exception ex)
             {
-                try
-                {
-                    lowJob.Execute(_jobContext);
-                }
-                catch (Exception e)
-                {
-                    //TODO: logging + diagnostics module compatability
-                    Console.Error.WriteLine($"[JobScheduler] Job {lowJob.GetType().Name} failed: {e.Message}");
-                }
+                _failures.Enqueue(ex);
+                Console.Error.WriteLine($"[JobScheduler] {job.GetType().Name} failed: {ex}");
             }
         }
     }
 
-    /// <summary>
-    /// Stoppt den JobScheduler und weckt alle schlafenden Threads.
-    /// </summary>
-    /// <remarks>
-    /// Setzt <see cref="_isRunning"/> auf <c>false</c> und gibt ein Signal an alle Worker-Threads,
-    /// damit sie merken, dass sie sich beenden können.
-    /// </remarks>
-    public void Stop()
+    /// <summary>Discards waiting work, then waits up to one deadline for in-flight jobs.</summary>
+    public bool Stop(TimeSpan? timeout = null)
     {
-        _isRunning = false;
-        
-        // Wenn wir die Engine beenden, müssen wir alle schlafenden Threads
-        // einmal "wecken", damit sie merken, dass _isRunning false ist und sie sich beenden können.
-        _jobAvailableSignal.Release(100); 
+        TimeSpan limit = timeout ?? TimeSpan.FromSeconds(10);
+        if (limit < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timeout));
+        var clock = Stopwatch.StartNew();
+        lock (_gate)
+        {
+            if (_state == State.Stopped) return true;
+            if (_state != State.Stopping)
+            {
+                _state = State.Stopping;
+                // Cancellation is bookkeeping only; no GPU operations are allowed here.
+                foreach (IJob job in _high.Concat(_low))
+                    try { job.Discard(_context); }
+                    catch (Exception ex) { _failures.Enqueue(ex); Console.Error.WriteLine($"[JobScheduler] Discard failed: {ex}"); }
+                _high.Clear();
+                _low.Clear();
+                Monitor.PulseAll(_gate);
+            }
+        }
+        foreach (Thread worker in _workers)
+        {
+            TimeSpan remaining = limit - clock.Elapsed;
+            if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
+            if (worker == Thread.CurrentThread || !worker.Join(remaining))
+            {
+                Console.Error.WriteLine("[JobScheduler] Timed out waiting for workers; resources remain alive.");
+                return false;
+            }
+        }
+        lock (_gate) _state = State.Stopped;
+        return true;
     }
 }

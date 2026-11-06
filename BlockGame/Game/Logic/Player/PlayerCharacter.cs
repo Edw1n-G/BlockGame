@@ -12,7 +12,7 @@ namespace Basics.Game.Logic.Player;
 /// <summary>
 /// Repräsentiert den Spielercharakter mit Kamera, Bewegung und Interaktionsmöglichkeiten.
 /// </summary>
-public class PlayerCharacter
+public class PlayerCharacter : IDisposable
 {
     /// <summary>Die Standard-Block-ID zum Platzieren (Erde).</summary>
     private static ushort DefaultPlaceBlockId => BlockLoader.GetBlockId("core:dirt");
@@ -53,6 +53,8 @@ public class PlayerCharacter
         _currentChunkCoord = Camera.GetChunkCoord(Camera.Position);
         OnChunkChanged?.Invoke(_currentChunkCoord);
     }
+
+    public void Dispose() => UIManager.OnRenderDistanceChanged -= ForceChunkUpdate;
 
     /// <summary>
     /// Bewegt den Spieler in die angegebene Richtung.

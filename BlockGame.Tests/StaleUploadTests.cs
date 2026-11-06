@@ -17,6 +17,7 @@ public class StaleUploadTests
         var oldData = new ChunkData(Coord);
         provider.Chunkdata[Coord] = oldData;
         var oldMesh = TestHelpers.CreateMesher(session, 0, Coord, oldData);
+        Assert.True(provider.IsUploadCurrent(oldMesh)); // Renderer has passed its early check.
 
         provider.UnloadChunk(Coord);
         var newData = new ChunkData(Coord);
@@ -33,6 +34,45 @@ public class StaleUploadTests
         var newMesh = TestHelpers.CreateMesher(session, 0, Coord, newData);
         Assert.True(provider.AcceptUpload(newMesh));
         Assert.Same(newMesh, provider.LoadedChunks[Coord]);
+    }
+
+    [Fact]
+    public void UploadAcceptedBeforeUnload_IsRemovedBeforeReload()
+    {
+        using var session = new EngineSession(new GameSettings());
+        var provider = session.ChunkProvider;
+        var oldData = new ChunkData(Coord);
+        provider.Chunkdata[Coord] = oldData;
+        var oldMesh = TestHelpers.CreateMesher(session, 0, Coord, oldData);
+        Assert.True(provider.AcceptUpload(oldMesh));
+
+        provider.UnloadChunk(Coord);
+        provider.Chunkdata[Coord] = new ChunkData(Coord);
+        Assert.False(provider.LoadedChunks.ContainsKey(Coord));
+        Assert.Same(oldMesh, Assert.Single(provider.UnloadQueue));
+        Assert.True(provider.UnloadQueue.TryDequeue(out var retired));
+        retired.Dispose();
+        retired.Dispose();
+        Assert.Single(provider.VertexListPool);
+        Assert.Single(provider.IndexListPool);
+    }
+
+    [Fact]
+    public void OldGenerationCannotPublishAfterUnloadAndNewRequest()
+    {
+        using var session = new EngineSession(new GameSettings());
+        var provider = session.ChunkProvider;
+        long first = Assert.IsType<long>(provider.BeginChunkRequest(Coord));
+        provider.UnloadChunk(Coord);
+        long second = Assert.IsType<long>(provider.BeginChunkRequest(Coord));
+        Assert.NotEqual(first, second);
+
+        Assert.False(provider.TryPublishChunkData(Coord, first, new ChunkData(Coord)));
+        provider.CompleteChunkRequest(Coord, first);
+        Assert.False(provider.Chunkdata.ContainsKey(Coord));
+        var currentData = new ChunkData(Coord);
+        Assert.True(provider.TryPublishChunkData(Coord, second, currentData));
+        Assert.Same(currentData, provider.Chunkdata[Coord]);
     }
 
     [Fact]

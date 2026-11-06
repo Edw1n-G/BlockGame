@@ -6,6 +6,8 @@
 
 **Implemented change:** Each mesher retains the exact `ChunkData` instance used to build it. The renderer checks the lifetime before GPU upload, then `ChunkProvider.AcceptUpload` checks again and installs the mesh under the same lock used by `UnloadChunk`. Rejected meshes are disposed on the upload thread. If unload happens during GPU upload, that upload is wasted, but the stale mesh cannot become the installed mesh. A mesh request generation alone is insufficient because it can be cleared before upload.
 
-**Regression test:** `StaleUploadTests` exercises publication after reload and publication racing with unload through the same headless acceptance path used by the renderer. It asserts that the old mesh is absent from the new lifetime and that pooled CPU buffers are returned once.
+**Regression test:** `StaleUploadTests` fixes both orderings explicitly: unload between the renderer's early check and final acceptance, and acceptance before unload. It also races the two operations as an extra invariant check. The tests assert that the old mesh is absent from the new lifetime and that pooled CPU buffers are returned once.
 
-**Verification:** Debug test build and a 299-test collection-parallel run passed. A manual OpenGL smoke check of this change remains useful because the headless tests do not execute `UploadToGpu`.
+**Related lifetime fix:** Generation requests now carry their own generation number. Unload invalidates it, preventing an old worker from publishing orphan chunk data. The future disk-load path also publishes through this gate and enqueues meshes for the renderer rather than inserting directly into `LoadedChunks`.
+
+**Verification:** Debug test build and a 301-test collection-parallel run passed. The user will perform the manual OpenGL smoke check later; headless tests do not execute `UploadToGpu`.

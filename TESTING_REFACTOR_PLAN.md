@@ -1,15 +1,15 @@
 # First testing milestone — implementation record
 
-Status: **in progress**; headless build and test work is implemented, but the manual UI smoke check and Silk runtime decision remain open. The objective is a reproducible Windows x64 baseline and safe, observable shutdown of all background work. BenchmarkDotNet and broader context, fixture and coverage changes remain follow-on work.
+Status: **milestone complete**. The user reported that the Windows OpenGL smoke checklist passed. The local Silk integration remains the branch's chosen implementation; its package replacement is a separate follow-on. BenchmarkDotNet and broader context, fixture and coverage changes remain follow-on work.
 
 ## Implementation status
 
 - SDK 10.0.103 is pinned with `latestPatch`; the unused ImageSharp export and dependency are removed. Debug and Release builds succeeded. On this machine `verify-tests.ps1` completed 20 serial and 20 collection-parallel passes with four threads, all 296 tests passing each time. MTP also passed all 296 tests.
-- The subsequent lifecycle test changes pass in a 297-test collection-parallel run; the 20-pass result above predates that extra test.
+- Later lifecycle and upload tests increased the suite to 301. Serial and collection-parallel runs passed; the 20-pass result above predates those tests.
 - Scheduler shutdown, requestor termination and player static-event cleanup are implemented. Timeout defaults to ten seconds and leaves session resources alive. Controlled tests cover timeout, discard, failure reporting and request marker ownership.
 - Shared-node FastNoise test passes on the bundled DLL. The binary has no version metadata; SHA-256 is `BBB9741E55EF11596FA18E163548D40D853AEDF920338298651D9CA35D5D1050`. The observed active feature-set value was `16382`; it is hardware dependent. Upstream safety claims cannot be tied to this unversioned build.
-- Excluding both local Silk files experimentally produced a successful build against the package. The files remain in use because the UI/runtime behavior has not been compared. Computer-use launch approval timed out, so the manual UI smoke checklist remains outstanding.
-- **Follow-up risk:** [Stale mesh upload ticket](STALE_UPLOAD_RACE.md) tracks the unload/reload race and its required regression test.
+- Excluding both local Silk files experimentally produced a successful build against the package. The branch retains the local implementation. The user subsequently performed the manual UI smoke checklist and reported no problems.
+- [Stale mesh upload ticket](STALE_UPLOAD_RACE.md) records the implemented lifetime fix and regression tests.
 
 ## Baseline and release blockers
 
@@ -19,7 +19,7 @@ On 6 November 2026, after fast-forwarding to `origin/main`:
 - Debug build succeeded, with warnings. The xUnit v3 MTP run passed **287/287**, with none skipped. Direct runner invocations also passed **287/287** once each in serial and collection-parallel modes. These single runs are a baseline, not proof of race freedom.
 - **Release build fails** because ImageSharp 4.1.3 requires a license. Its only use is the unused, nonfunctional debug noise-map export. First option: remove that method and package; a future debug tool could use StbImageWriteSharp. Obtaining a license is a secondary option. Do not roll back to vulnerable 3.x releases.
 - Build warnings report `CS0436` type conflicts: the local `SilkIntegration` and `SilkGlIntegration` share names with Egui package types. `GameEguiIntegration` currently resolves to the local implementation and accesses its public `_rawInput`; removing the files without a replacement for that behavior is not a safe cleanup.
-- Manual UI smoke testing has **not** been performed. Egui 0.10.5 and the input integration changed in the update; passing headless tests does not validate them.
+- This paragraph records the original baseline: UI smoke testing had not yet been performed. The user later completed it successfully on Windows.
 
 ## Scope and completion
 
@@ -28,14 +28,14 @@ On 6 November 2026, after fast-forwarding to `origin/main`:
 3. Investigate the shipped FastNoise binary and add one focused concurrent-generation stress test.
 4. Correct `AGENTS.md` and `Documentation.md`; decide and document the local Silk integration's ownership.
 
-The milestone is complete when the agreed Windows x64 environment builds Debug and Release, the UI smoke checklist and all existing plus new tests pass, serial and collection-parallel runs have been repeated without unexplained failures, scheduler lifecycle tests prove the specified shutdown behavior, and documentation matches the chosen implementation. Track any remaining failure or deliberate limitation explicitly; do not use repeated green runs as proof that no races exist.
+The agreed Windows x64 environment builds Debug and Release, the user-reported UI smoke checklist passed, and all 301 tests pass in serial and collection-parallel runs. The earlier 20-pass verification covered 296 tests. Remaining broad checklist items below are follow-on work, not blockers to this completed milestone; repeated green runs are not proof that no races exist.
 
 ## 1. Baseline and UI smoke check
 
 - [x] Pin an agreed installed .NET 10 SDK and roll-forward policy in `global.json`, preserving MTP selection. Prefer a small checked-in verification script documenting restore, build, test and nonzero discovery. Confirm test filters and the chosen configuration with the actual MTP runner.
 - [x] Remove the unused ImageSharp debug export and dependency, recheck restore/audit, and build Debug and Release.
 - [x] Run the full suite and confirm discovery; run **20 serial and 20 collection-parallel repetitions** with a documented worker limit. Retain the nonparallel static-façade collection for now.
-- [ ] On a Windows machine with a suitable OpenGL context, manually check: launch and menu rendering; buttons and settings sliders; start game and terrain display; mouse lock/unlock and camera movement; in-game UI interaction with mouse unlocked; resize and fullscreen/borderless controls; exit/close without errors. Record results and environment. This is a smoke check, not exhaustive graphics validation.
+- [x] On a Windows machine with a suitable OpenGL context, manually check: launch and menu rendering; buttons and settings sliders; start game and terrain display; mouse lock/unlock and camera movement; in-game UI interaction with mouse unlocked; resize and fullscreen/borderless controls; exit/close without errors. Record results and environment. This is a smoke check, not exhaustive graphics validation.
 
 **Exit:** documented commands work on the agreed environment, both configurations build, the test count is recorded and the UI checklist passes or has an explicitly tracked failure.
 

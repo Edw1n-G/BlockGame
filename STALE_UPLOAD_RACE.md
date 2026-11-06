@@ -10,4 +10,4 @@
 
 **Related lifetime fix:** Generation requests now carry their own generation number. Unload invalidates it, preventing an old worker from publishing orphan chunk data. The future disk-load path also publishes through this gate and enqueues meshes for the renderer rather than inserting directly into `LoadedChunks`.
 
-**Verification:** Debug test build and a 301-test collection-parallel run passed. The user will perform the manual OpenGL smoke check later; headless tests do not execute `UploadToGpu`.
+**Verification:** Debug and Release builds and all 301 tests in serial and collection-parallel runs passed. The user subsequently reported that the manual OpenGL smoke checklist passed without problems. The headless tests themselves do not execute `UploadToGpu`.

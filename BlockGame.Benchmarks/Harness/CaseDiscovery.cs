@@ -17,7 +17,7 @@ public static class CaseDiscovery
     public static ScenarioFamilyAttribute Family(Type type) => type.GetCustomAttribute<ScenarioFamilyAttribute>()
         ?? throw new InvalidOperationException("Benchmark type needs a scenario family: "+type.Name);
     public static string Scenario(BenchmarkCase c) => (string)c.Parameters.Items.Single(p=>p.Name=="Scenario").Value;
-    public static string Id(BenchmarkCase c) => Program.Id(c.Descriptor.Type,Scenario(c))+"/"+c.Descriptor.WorkloadMethod.Name+"/"+
+    public static string Id(BenchmarkCase c) => HarnessRunner.Id(c.Descriptor.Type,Scenario(c))+"/"+c.Descriptor.WorkloadMethod.Name+"/"+
         EvidenceJson.Fingerprint(c.Parameters.Items.ToDictionary(p=>p.Name,p=>p.Value))[..12];
     public static ScenarioContract Contract(BenchmarkCase c, object? dependencies) => ScenarioContracts.Create(Family(c.Descriptor.Type).Family,Scenario(c),dependencies,
         c.Parameters.Items.Where(p=>p.Name!="Scenario").OrderBy(p=>p.Name,StringComparer.Ordinal).ToDictionary(p=>p.Name,p=>p.Value));

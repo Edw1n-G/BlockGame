@@ -88,7 +88,7 @@ internal static class RunEvidence
         settings = Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>()
             .Where(e => ((string)e.Key).StartsWith("DOTNET_", StringComparison.Ordinal) || ((string)e.Key).StartsWith("COMPlus_", StringComparison.Ordinal))
             .ToDictionary(e => (string)e.Key, e => (string?)e.Value),
-        assemblies = new[] { typeof(Basics.Terrain.Chunks.ChunkProvider).Assembly, typeof(WorkloadCatalog).Assembly, typeof(ScenarioContract).Assembly, typeof(Program).Assembly }
+        assemblies = new[] { typeof(Basics.Terrain.Chunks.ChunkProvider).Assembly, typeof(WorkloadCatalog).Assembly, typeof(ScenarioContract).Assembly, typeof(HarnessRunner).Assembly }
             .Distinct().Select(a => new { name = a.GetName().Name, sha256 = WorkloadEnvironment.Hash(File.ReadAllBytes(a.Location)) }).ToArray()
     };
 
@@ -102,7 +102,7 @@ internal static class RunEvidence
         Directory.CreateDirectory(directory);
         WriteJson(Path.Combine(directory, $"{type.Name}-{scenario}-{Environment.ProcessId}.json"), new
         {
-            schemaVersion = 2, caseId = Program.Id(type, scenario), benchmarkName, utc = DateTime.UtcNow,
+            schemaVersion = 2, caseId = HarnessRunner.Id(type, scenario), benchmarkName, utc = DateTime.UtcNow,
             runtime = RuntimeIdentity(), dependencies = environment?.Identity(), input,outputFingerprint
         });
     }

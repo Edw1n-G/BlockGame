@@ -3,9 +3,9 @@ using System.Text.Json;
 
 namespace BlockGame.Benchmarks.Comparison;
 
-public static class Program
+public static class ComparisonCli
 {
-    public static int Main(string[] args)
+    public static int Run(string[] args)
     {
         try
         {

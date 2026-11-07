@@ -7,7 +7,6 @@
     <PlatformTarget>x64</PlatformTarget>
     <RootNamespace>BlockGame.Benchmarks</RootNamespace>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <StartupObject>BlockGame.Benchmarks.Program</StartupObject>
     <EngineProjectPath Condition="'$(EngineProjectPath)' == ''">$(MSBuildThisFileDirectory)../BlockGame.Core/BlockGame.Core.csproj</EngineProjectPath>
     <EngineContentRoot>$([System.IO.Path]::GetDirectoryName('$(EngineProjectPath)'))/../BlockGame/Content</EngineContentRoot>
   </PropertyGroup>

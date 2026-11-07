@@ -42,13 +42,13 @@ public class EngineSession : IDisposable
 
      public EngineSession(EngineContext? context = null, bool isHeadless = true)
     {
-        Context = context ?? new EngineContext();
+        Context = context ?? new EngineContext(NullChunkGpuMeshFactory.Instance);
         IsHeadless = isHeadless;
     }
 
     public EngineSession(GameSettings settings, bool startScheduler = false, bool isHeadless = true)
     {
-        Context = new EngineContext(settings: settings, startJobScheduler: startScheduler);
+        Context = new EngineContext(NullChunkGpuMeshFactory.Instance, settings: settings, startJobScheduler: startScheduler);
         IsHeadless = isHeadless;
     }
 

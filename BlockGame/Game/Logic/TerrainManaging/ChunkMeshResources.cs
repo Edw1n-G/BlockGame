@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using Basics.Game.Logic.TerrainManaging.Meshing;
 using Basics.Game.Utilities;
-using Silk.NET.OpenGL;
 
 namespace Basics.Game.Logic.TerrainManaging;
 
@@ -14,9 +13,6 @@ internal sealed class ChunkMeshResources : IDisposable
     public ConcurrentQueue<BaseMesher> UploadQueue { get; } = new();
     public ConcurrentQueue<BaseMesher> UnloadQueue { get; } = new();
     public ConcurrentDictionary<ChunkCoord, BaseMesher> LoadedChunks { get; } = new();
-    private GL? _gl;
-
-    public void AttachGraphicsContext(GL gl) => _gl = gl;
 
     public void Dispose()
     {
@@ -24,13 +20,7 @@ internal sealed class ChunkMeshResources : IDisposable
         LoadedChunks.Clear();
         while (UploadQueue.TryDequeue(out var mesh)) mesh.Dispose();
         while (UnloadQueue.TryDequeue(out var mesh)) mesh.Dispose();
-        while (VramPool.TryDequeue(out var buffer))
-        {
-            if (_gl is null) continue;
-            _gl.DeleteVertexArray(buffer.Vao);
-            _gl.DeleteBuffer(buffer.Vbo);
-            _gl.DeleteBuffer(buffer.Ebo);
-        }
+        while (VramPool.TryDequeue(out var buffer)) buffer.Mesh.Dispose();
         while (VertexListPool.TryDequeue(out _)) { }
         while (IndexListPool.TryDequeue(out _)) { }
     }

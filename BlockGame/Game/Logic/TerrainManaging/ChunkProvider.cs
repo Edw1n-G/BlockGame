@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using Silk.NET.OpenGL;
 using Basics.Game;
 using Basics.Game.Logic;
 using Basics.Game.Logic.TerrainManaging.Meshing;
@@ -84,26 +83,20 @@ public class ChunkProvider : IDisposable
     public JobScheduler? JobScheduler => _jobScheduler;
 
     private readonly ChunkMeshResources _resources = new();
+    internal IChunkGpuMeshFactory GpuMeshFactory { get; }
     
     /// <summary>
     /// Initialisiert einen neuen ChunkProvider.
     /// </summary>
+    /// <param name="gpuMeshFactory">Factory for chunk mesh uploads on the main thread.</param>
     /// <param name="jobScheduler">Optionaler Job-Scheduler für Hintergrundarbeiten.</param>
     /// <param name="settings">Optionale Spiel-Einstellungen. Falls nicht angegeben, werden Standardwerte verwendet.</param>
-    public ChunkProvider(JobScheduler? jobScheduler = null, GameSettings? settings = null)
+    public ChunkProvider(IChunkGpuMeshFactory gpuMeshFactory, JobScheduler? jobScheduler = null, GameSettings? settings = null)
     {
+        GpuMeshFactory = gpuMeshFactory;
         _blockAccess = new ChunkBlockAccess(Chunkdata, RemeshChunk);
         _jobScheduler = jobScheduler;
         _settings = settings ?? EngineContext.Current?.Settings ?? GameSettings.Current;
-    }
-
-    /// <summary>
-    /// Bindet den OpenGL-Kontext an den Provider für GPU-Operationen.
-    /// </summary>
-    /// <param name="gl">Der OpenGL-Kontext.</param>
-    public void AttachGraphicsContext(GL gl)
-    {
-        _resources.AttachGraphicsContext(gl);
     }
 
     /// <summary>
@@ -278,7 +271,7 @@ public class ChunkProvider : IDisposable
     /// </summary>
     public static ChunkProvider Current
     {
-        get => EngineContext.Current?.ChunkProvider ?? (_fallbackInstance ??= new ChunkProvider());
+        get => EngineContext.Current?.ChunkProvider ?? (_fallbackInstance ??= new ChunkProvider(NullChunkGpuMeshFactory.Instance));
         set => _fallbackInstance = value;
     }
 }

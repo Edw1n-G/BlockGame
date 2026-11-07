@@ -16,7 +16,7 @@ public class SchedulerMeshingTests
     private static readonly ChunkCoord Origin = new(0, 0, 0, 0);
 
     private static EngineSession StartSession(int seed)
-        => new(new EngineContext(new GameSettings { Seed = seed }, startJobScheduler: true, workerCores: 2));
+        => new(new EngineContext(NullChunkGpuMeshFactory.Instance, new GameSettings { Seed = seed }, startJobScheduler: true, workerCores: 2));
 
     private static void QueueMeshing(EngineSession session, ChunkCoord coord)
     {

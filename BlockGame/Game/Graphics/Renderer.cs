@@ -51,7 +51,6 @@ public class Renderer
         }
 
         _gl = gl;
-        ChunkProvider.AttachGraphicsContext(gl);
         _gl.ClearColor(Color.CornflowerBlue);
         
         _camera = camera;
@@ -98,7 +97,7 @@ public class Renderer
                 continue;
             }
             
-            chunk.UploadToGpu(_gl);
+            chunk.UploadToGpu();
 
             ChunkProvider.AcceptUpload(chunk);
             
@@ -114,7 +113,8 @@ public class Renderer
             
             if (chunk.IsEmpty) continue;
             if (!frustum.IsInFrustum(chunk.ChunkPosition)) continue;
-            chunk.Render(_terrainshader);
+            if (chunk.GpuMesh is GlChunkMesh mesh)
+                mesh.Render(_terrainshader, chunk.Model, chunk.IndexCount);
         }
         
         while (ChunkProvider.UnloadQueue.TryDequeue(out BaseMesher? chunk))

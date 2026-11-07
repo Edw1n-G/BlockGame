@@ -12,7 +12,7 @@ namespace BlockGame.Tests;
 [Collection("StaticFacades")]
 public class ChunkRequestorMovementTests
 {
-    private sealed class BlockingProvider(GameSettings settings) : ChunkProvider(settings: settings)
+    private sealed class BlockingProvider(GameSettings settings) : ChunkProvider(NullChunkGpuMeshFactory.Instance, settings: settings)
     {
         public readonly ManualResetEventSlim Entered = new();
         public readonly ManualResetEventSlim Release = new();
@@ -30,7 +30,7 @@ public class ChunkRequestorMovementTests
         }
     }
 
-    private sealed class FailAfterPublishProvider(GameSettings settings) : ChunkProvider(settings: settings)
+    private sealed class FailAfterPublishProvider(GameSettings settings) : ChunkProvider(NullChunkGpuMeshFactory.Instance, settings: settings)
     {
         private int _requests;
         public override void RequestChunk(ChunkCoord coord)

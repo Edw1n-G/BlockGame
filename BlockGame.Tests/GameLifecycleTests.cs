@@ -12,7 +12,7 @@ namespace BlockGame.Tests;
 [Collection("StaticFacades")]
 public class GameLifecycleTests
 {
-    private sealed class BlockingProvider(GameSettings settings) : ChunkProvider(settings: settings)
+    private sealed class BlockingProvider(GameSettings settings) : ChunkProvider(NullChunkGpuMeshFactory.Instance, settings: settings)
     {
         public readonly ManualResetEventSlim Entered = new();
         public readonly ManualResetEventSlim Release = new();

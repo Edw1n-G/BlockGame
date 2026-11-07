@@ -64,7 +64,7 @@ public class Game : IStates
         _inputManager.LockMouse();
         _inputManager.SetActionBindings(Actions.ToggleDebugCamera, ToggleDebugCamera);
 
-        _context = new EngineContext(settings: GameSettings.Current);
+        _context = new EngineContext(new GlChunkMeshFactory(gl), settings: GameSettings.Current);
         EngineContext.SetGlobal(_context);
         
         //Kerne aufteilen und reservieren

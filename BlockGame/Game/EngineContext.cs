@@ -86,6 +86,7 @@ public class EngineContext : IDisposable
     public World World { get; }
 
     public EngineContext(
+        IChunkGpuMeshFactory gpuMeshFactory,
         GameSettings? settings = null,
         CoreAvailability? coreAvailability = null,
         BlockRegistry? blockRegistry = null,
@@ -111,7 +112,7 @@ public class EngineContext : IDisposable
         NoiseCalculator = noiseCalculator ?? new NoiseCalculator(Settings);
         TerrainGenerator = terrainGenerator ?? new TerrainGenerator(NoiseCalculator, Settings, BlockRegistry);
         JobScheduler = jobScheduler ?? new JobScheduler();
-        ChunkProvider = chunkProvider ?? new ChunkProvider(JobScheduler, Settings);
+        ChunkProvider = chunkProvider ?? new ChunkProvider(gpuMeshFactory, JobScheduler, Settings);
         Raycaster = raycaster ?? new Raycaster(ChunkProvider);
         Physics = physics ?? new Physics(Raycaster);
         World = world ?? new World(ChunkProvider);

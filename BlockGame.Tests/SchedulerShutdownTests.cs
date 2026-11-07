@@ -16,7 +16,7 @@ public class SchedulerShutdownTests
     [Fact]
     public async Task Stop_DiscardsQueuedJobs_AndWaitsForInFlightWork()
     {
-        using var session = new EngineSession(new EngineContext(new GameSettings(), startJobScheduler: true, workerCores: 1));
+        using var session = new EngineSession(new EngineContext(NullChunkGpuMeshFactory.Instance, new GameSettings(), startJobScheduler: true, workerCores: 1));
         using var entered = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
         int ran = 0, discarded = 0;
@@ -80,7 +80,7 @@ public class SchedulerShutdownTests
     [Fact]
     public void ShutdownTimeout_DoesNotDisposeProviderWhileJobRuns()
     {
-        using var session = new EngineSession(new EngineContext(new GameSettings(), startJobScheduler: true, workerCores: 1));
+        using var session = new EngineSession(new EngineContext(NullChunkGpuMeshFactory.Instance, new GameSettings(), startJobScheduler: true, workerCores: 1));
         using var entered = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
         var coord = new ChunkCoord(0, 0, 0, 0);
@@ -100,7 +100,7 @@ public class SchedulerShutdownTests
     [Fact]
     public async Task WorkerFailure_IsRecordedAndWorkerContinues()
     {
-        using var session = new EngineSession(new EngineContext(new GameSettings(), startJobScheduler: true, workerCores: 1));
+        using var session = new EngineSession(new EngineContext(NullChunkGpuMeshFactory.Instance, new GameSettings(), startJobScheduler: true, workerCores: 1));
         using var finished = new ManualResetEventSlim();
         session.JobScheduler.EnqueueLow(new TestJob(_ => throw new InvalidOperationException("test failure")));
         session.JobScheduler.EnqueueLow(new TestJob(_ => finished.Set()));

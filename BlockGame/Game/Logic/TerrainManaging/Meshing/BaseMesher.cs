@@ -1,10 +1,10 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
-using Basics.Game.Graphics;
+
 using Basics.Configurations;
 using Basics.Game.Configurations;
 using Basics.Game.Utilities;
-using Basics.Graphics;
+
 using Silk.NET.OpenGL;
 
 namespace Basics.Game.Logic.TerrainManaging.Meshing;
@@ -59,32 +59,10 @@ public class BaseMesher : IDisposable
     /// </summary>
     protected Matrix4x4 model;
     
-    /// <summary>
-    /// Die OpenGL-Instanz für diesen spezifischen Chunk.
-    /// </summary>
-    private GL? _gl;
-    
-    /// <summary>
-    /// Vertex Buffer Object Handle für diesen Chunk.
-    /// </summary>
-    private uint _vbo;
-    /// <summary>
-    /// Element Buffer Object Handle für diesen Chunk.
-    /// </summary>
-    private uint _ebo;
-    /// <summary>
-    /// Vertex Array Object Handle für diesen Chunk.
-    /// </summary>
-    private uint _vao;
-    /// <summary>
-    /// Aktuelle Kapazität des VBO in Bytes.
-    /// </summary>
-    private nuint _vboCapacity;
-    /// <summary>
-    /// Aktuelle Kapazität des EBO in Bytes.
-    /// </summary>
-    private nuint _eboCapacity;
-    
+    internal IChunkGpuMesh? GpuMesh { get; private set; }
+    internal Matrix4x4 Model => model;
+    internal uint IndexCount => _indicesCount;
+
     /// <summary>
     /// Gibt an, ob die Mesh-Daten bereits auf die GPU hochgeladen wurden.
     /// </summary>
@@ -248,14 +226,10 @@ public class BaseMesher : IDisposable
     /// Lädt die berechneten Mesh-Daten auf die GPU hoch.
     /// MUSS auf dem Main-Thread (OpenGL-Kontext) aufgerufen werden.
     /// </summary>
-    /// <param name="gl">Die OpenGL-Instanz für den GPU-Upload.</param>
-    public unsafe void UploadToGpu(GL gl)
+    public void UploadToGpu()
     {
         if (_uploaded) return;
-        _gl = gl;
-        
-        
-        
+
         if (IsEmpty)
         {
             _indicesCount = 0;
@@ -275,111 +249,19 @@ public class BaseMesher : IDisposable
         
         _indicesCount = (uint)_indices.Count;
         
-        // Anstatt mit ToArray() die ganze liste in ein array zu kopieren
-        // nimmt man das array der Liste. listen sind ja eh arrays 
-        // idk wer den typen der ToArray() schrieb verarscht hat
-        Span<byte> vertexSpan = CollectionsMarshal.AsSpan(_vertices);
-        Span<uint> indexSpan = CollectionsMarshal.AsSpan(_indices);
-        nuint neededVboSize = (nuint)vertexSpan.Length;
-        nuint neededEboSize = (nuint)(indexSpan.Length * sizeof(uint));
-        
-        // Buffer für die grafikkarten arrays leihen
-        if (_provider.VramPool.TryDequeue(out PooledMeshBuffer pool))
+        var vertices = CollectionsMarshal.AsSpan(_vertices);
+        var indices = CollectionsMarshal.AsSpan(_indices);
+        var factory = _provider.GpuMeshFactory;
+        if (_provider.VramPool.TryDequeue(out var pooled))
         {
-            _vao = pool.Vao;
-            _vbo = pool.Vbo;
-            _ebo = pool.Ebo;
-            _vboCapacity = pool.VboCapacity;
-            _eboCapacity = pool.EboCapacity;
-
-            _gl.BindVertexArray(_vao);
-
-            // VBO
-            _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
-            fixed (byte* vPtr = vertexSpan)
-            {
-                if (neededVboSize <= _vboCapacity)
-                {
-                    //Wenn der buffer viel zu groß ist einmal verkleinern um nicht zu viel speicher zu belegen
-                    if (_vboCapacity > neededVboSize * 2 && _vboCapacity > 100_000)
-                    {
-                        _gl.BufferData(BufferTargetARB.ArrayBuffer, neededVboSize, vPtr, BufferUsageARB.DynamicDraw);
-                        _vboCapacity = neededVboSize; // Kapazität nach unten korrigieren
-                    }
-                    else
-                    {
-                        // Buffer passt
-                        _gl.BufferSubData(BufferTargetARB.ArrayBuffer, 0, neededVboSize, vPtr);
-                    }
-                }
-                else
-                {
-                    // Chunk ist größer als recycelter Puffer, vergrößern
-                    _gl.BufferData(BufferTargetARB.ArrayBuffer, neededVboSize, vPtr, BufferUsageARB.DynamicDraw);
-                    _vboCapacity = neededVboSize;
-                }
-            }
-
-            // EBO
-            _gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
-            fixed (uint* iPtr = indexSpan)
-            {
-                if (neededEboSize <= _eboCapacity)
-                {
-                    // Gleiche Logik für die Indizes
-                    if (_eboCapacity > neededEboSize * 2 && _eboCapacity > 20_000)
-                    {
-                        _gl.BufferData(BufferTargetARB.ElementArrayBuffer, neededEboSize, iPtr,
-                            BufferUsageARB.DynamicDraw);
-                        _eboCapacity = neededEboSize;
-                    }
-                    else
-                    {
-                        _gl.BufferSubData(BufferTargetARB.ElementArrayBuffer, 0, neededEboSize, iPtr);
-                    }
-                }
-                else
-                {
-                    _gl.BufferData(BufferTargetARB.ElementArrayBuffer, neededEboSize, iPtr, BufferUsageARB.DynamicDraw);
-                    _eboCapacity = neededEboSize;
-                }
-            }
+            GpuMesh = pooled.Mesh;
+            factory.Update(GpuMesh, vertices, indices);
         }
         else
         {
-            // Keine Buffer vorhanden
-            _vao = _gl.GenVertexArray();
-            _gl.BindVertexArray(_vao);
-            
-            // VBO
-            _vbo = _gl.GenBuffer();
-            _vboCapacity = neededVboSize;
-            _gl.BindBuffer(BufferTargetARB.ArrayBuffer, _vbo);
-            
-            fixed (byte* vPtr = vertexSpan) {
-                _gl.BufferData(BufferTargetARB.ArrayBuffer, _vboCapacity, vPtr, BufferUsageARB.DynamicDraw);
-            }
-            
-            // EBO
-            _ebo = _gl.GenBuffer();
-            _eboCapacity = neededEboSize;
-            _gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, _ebo);
-            
-            fixed (uint* iPtr = indexSpan) {
-                _gl.BufferData(BufferTargetARB.ElementArrayBuffer, _eboCapacity, iPtr, BufferUsageARB.DynamicDraw);
-            }
-            
-            // Vertex Attribute initialisieren
-            _gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, VertexStride, (void*)0);
-            _gl.EnableVertexAttribArray(0);
-            
-            _gl.VertexAttribIPointer(1, 1, VertexAttribIType.UnsignedShort, VertexStride, (void*)12);
-            _gl.EnableVertexAttribArray(1);
-            
-            _gl.VertexAttribIPointer(2, 1, VertexAttribIType.UnsignedByte, VertexStride, (void*)14);
-            _gl.EnableVertexAttribArray(2);
+            GpuMesh = factory.Create(vertices, indices);
         }
-        
+
         // Alles auf der GPU. geometrie daten löschen und buffer zum pool geben
         this._vertices.Clear();
         this._indices.Clear();
@@ -392,21 +274,18 @@ public class BaseMesher : IDisposable
         _uploaded = true;
     }
 
-    /// <summary>
-    /// Rendert den Mesh mit dem angegebenen Shader-Manager.
-    /// </summary>
-    /// <param name="shaderManager">Der ShaderManager für das Rendern.</param>
-    public unsafe void Render(ShaderManager shaderManager)
+    internal static unsafe void ConfigureVertexLayout(GL gl)
     {
-        if (!_uploaded || _disposed || _vao == 0) return;
+        gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, VertexStride, (void*)0);
+        gl.EnableVertexAttribArray(0);
         
-        //Dem Shader die Weltpositon übergeben
-        shaderManager.SetModelMatrix(model);
+        gl.VertexAttribIPointer(1, 1, VertexAttribIType.UnsignedShort, VertexStride, (void*)12);
+        gl.EnableVertexAttribArray(1);
         
-        _gl.BindVertexArray(_vao);
-        _gl.DrawElements(PrimitiveType.Triangles, _indicesCount, DrawElementsType.UnsignedInt, (void*)0);
+        gl.VertexAttribIPointer(2, 1, VertexAttribIType.UnsignedByte, VertexStride, (void*)14);
+        gl.EnableVertexAttribArray(2);
     }
-    
+
     /// <summary>
     /// Gibt alle Ressourcen frei.
     /// Entweder gibt sie die Listen zum Pool zurück (wenn nicht hochgeladen)
@@ -434,18 +313,10 @@ public class BaseMesher : IDisposable
         }
         
         // Buffer in den pool nach dem GPU-Upload
-        if (_vao != 0 && _vbo != 0 && _ebo != 0)
-        {
-            _provider.VramPool.Enqueue(new PooledMeshBuffer 
-            {
-                Vao = _vao,
-                Vbo = _vbo,
-                Ebo = _ebo,
-                VboCapacity = _vboCapacity,
-                EboCapacity = _eboCapacity
-            });
-        }
-        
+        if (GpuMesh is { CanReuse: true } mesh)
+            _provider.VramPool.Enqueue(new PooledMeshBuffer(mesh));
+        GpuMesh = null;
+
         _disposed = true;
     }
 }

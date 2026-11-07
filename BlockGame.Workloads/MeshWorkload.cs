@@ -14,7 +14,7 @@ public sealed record FrozenNeighborhood(int Version, int Seed, string NodeTree, 
 public sealed class MeshWorkload : IDisposable
 {
     public string Scenario { get; }
-    public ChunkProvider Provider { get; } = new(settings: WorkloadCatalog.Settings());
+    public ChunkProvider Provider { get; } = new(NullChunkGpuMeshFactory.Instance, settings: WorkloadCatalog.Settings());
     public ChunkData Data { get; }
     private readonly BlockRegistry _registry;
     public MeshWorkload(string scenario, BlockRegistry registry)

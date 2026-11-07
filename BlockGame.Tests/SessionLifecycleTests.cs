@@ -88,7 +88,7 @@ public class SessionLifecycleTests
     [Fact]
     public void Dispose_WithARunningScheduler_StopsWithoutThrowing()
     {
-        var session = new EngineSession(new EngineContext(new GameSettings(), startJobScheduler: true, workerCores: 2));
+        var session = new EngineSession(new EngineContext(NullChunkGpuMeshFactory.Instance, new GameSettings(), startJobScheduler: true, workerCores: 2));
 
         var exception = Record.Exception(session.Dispose);
 
@@ -110,7 +110,7 @@ public class SessionLifecycleTests
     [Fact]
     public void Constructor_WithAnExistingContext_UsesIt()
     {
-        using var context = new EngineContext(new GameSettings { Seed = 77 });
+        using var context = new EngineContext(NullChunkGpuMeshFactory.Instance, new GameSettings { Seed = 77 });
         var session = new EngineSession(context);
 
         Assert.Same(context, session.Context);

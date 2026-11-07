@@ -55,7 +55,7 @@ Placing always places `core:dirt`. There is no block selection or inventory.
 Rendering.sln
 README.md, Documentation.md, AGENTS.md
 BlockGame/                         main project (Exe)
-├─ Programm.cs                     entry point (class "Programm") → StateManager.Run()
+├─ Program.cs                     entry point (class "Programm") → StateManager.Run()
 ├─ NodeEditorIpc.dll               native library (copied to output)
 ├─ States/                        StateManager, IStates, Menu, Game
 ├─ Window/WindowSetup.cs           window creation, fullscreen/borderless, fps/vsync hooks
@@ -74,7 +74,7 @@ BlockGame.Core/                    graphics-free library
 ├─ Engine/                         EngineContext, EngineSession, GameLogic (empty placeholder)
 ├─ Blocks/                         BlockRegistry, BlockDefinitionLoader
 ├─ Common/                         ChunkCoord, CoreAvailability, MathHelper
-├─ Jobs/                           JobScheduler, IJob, JobContext, ChunkLoadorGenerateJob, MeshgenerateJob
+├─ Jobs/                           JobScheduler, IJob, JobContext, ChunkLoadOrGenerateJob, MeshGenerateJob
 ├─ Settings/                       GameSettings
 ├─ PhysicsSystem/                  Physics, Raycaster, raycast results, AABB
 ├─ Terrain/                        ChunkData, World
@@ -140,11 +140,11 @@ Per frame: `Update` → `PlayerMovement.MovementUpdate` and `ChunkProvider.Reque
 
 1. `PlayerCharacter.Move` raises `OnChunkChanged` when the player enters a new chunk (also on `ForceChunkUpdate`, which is bound to `UIManager.OnRenderDistanceChanged`).
 2. `ChunkRequestor` runs one coalescing task. A reusable `ChunkSelectionPlan` compares Y intervals in cached ellipsoid X/Z columns to find entering/leaving LOD-0 chunks, without rebuilding and comparing full sets on every movement. `Calculate` remains the complete-set API and uses scanlines plus result preallocation (a bounded direct scan for tiny radii). The ellipsoid predicate is preserved. Update/reset versions cancel obsolete planning and further requests; provisional additions are rolled back before retry. Completed transitions commit the active region and unload departed chunks. `UnloadAllChunks()` invalidates that region and leaves it empty until another notification.
-3. `RequestChunk` skips chunks already in `LoadedChunks`/`Chunkdata`, otherwise enqueues `ChunkLoadorGenerateJob` on the low-priority queue.
-4. `ChunkLoadorGenerateJob` tries loading from disk (placeholder, always fails), otherwise generates data and publishes through `ChunkLifetimeStore` only if its generation still owns the request. It then asks the provider to remesh the chunk and its 26 neighbors.
+3. `RequestChunk` skips chunks already in `LoadedChunks`/`Chunkdata`, otherwise enqueues `ChunkLoadOrGenerateJob` on the low-priority queue.
+4. `ChunkLoadOrGenerateJob` tries loading from disk (placeholder, always fails), otherwise generates data and publishes through `ChunkLifetimeStore` only if its generation still owns the request. It then asks the provider to remesh the chunk and its 26 neighbors.
 5. A chunk is queued only if it exists and all 26 neighbors exist in `Chunkdata` (so AO and face culling across borders are correct). `QueuedForMeshing` de-duplicates by coordinate and stores a generation number; `PendingMeshRequests` carries the coordinate and generation. Chunks beyond `MapSize` are generated as empty chunks so neighbors can still mesh.
-6. `Game.Update` → `ChunkProvider.RequestMeshes()` moves pending requests to the scheduler as `MeshgenerateJob`s while `UploadQueue.Count < MaxChunkMeshesInRam`.
-7. `MeshgenerateJob` picks `Lod0Mesher` / `Lod1Mesher` / `Lod2Mesher` by `ChunkCoord.LodLevel` (other levels throw), builds the CPU mesh and enqueues it on `UploadQueue`.
+6. `Game.Update` → `ChunkProvider.RequestMeshes()` moves pending requests to the scheduler as `MeshGenerateJob`s while `UploadQueue.Count < MaxChunkMeshesInRam`.
+7. `MeshGenerateJob` picks `Lod0Mesher` / `Lod1Mesher` / `Lod2Mesher` by `ChunkCoord.LodLevel` (other levels throw), builds the CPU mesh and enqueues it on `UploadQueue`.
 8. `Renderer.Render` (main thread) drains `UploadQueue` with a ~5 ms time budget: it uploads to the GPU, swaps in the new mesh (the old one goes to `UnloadQueue`) and registers it in `LoadedChunks`. Meshes whose chunk data is no longer loaded are disposed. Then it renders all non-empty, frustum-visible meshes and disposes the `UnloadQueue`.
 9. `ChunkProvider.ModifyBlock` edits `ChunkData`, remeshes that chunk and, if the block is on a border, the adjacent chunk(s) via `RemeshChunk` (requires all neighbors loaded). The old mesh stays visible until the new one is uploaded.
 

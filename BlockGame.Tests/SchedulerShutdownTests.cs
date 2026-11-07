@@ -49,7 +49,7 @@ public class SchedulerShutdownTests
         provider.QueueMesh(coord);
         Assert.True(provider.PendingMeshRequests.TryDequeue(out var current));
         Assert.NotEqual(old.Generation, current.Generation);
-        new MeshgenerateJob(old, provider).Discard(null);
+        new MeshGenerateJob(old, provider).Discard(null);
         Assert.Equal(current.Generation, provider.QueuedForMeshing[coord]);
         Assert.True(provider.CompleteMeshRequest(current));
     }
@@ -62,7 +62,7 @@ public class SchedulerShutdownTests
         session.ChunkProvider.QueueMesh(coord);
         Assert.True(session.ChunkProvider.PendingMeshRequests.TryDequeue(out var request));
         var context = new JobContext(session.TerrainGenerator, session.ChunkProvider, session.BlockRegistry);
-        new MeshgenerateJob(request, session.ChunkProvider).Execute(context);
+        new MeshGenerateJob(request, session.ChunkProvider).Execute(context);
         Assert.False(session.ChunkProvider.QueuedForMeshing.ContainsKey(coord));
     }
 
@@ -75,7 +75,7 @@ public class SchedulerShutdownTests
         session.ChunkProvider.QueueMesh(coord);
         Assert.True(session.ChunkProvider.PendingMeshRequests.TryDequeue(out var request));
         var context = new JobContext(session.TerrainGenerator, session.ChunkProvider, session.BlockRegistry);
-        Assert.Throws<InvalidOperationException>(() => new MeshgenerateJob(request, session.ChunkProvider).Execute(context));
+        Assert.Throws<InvalidOperationException>(() => new MeshGenerateJob(request, session.ChunkProvider).Execute(context));
         Assert.False(session.ChunkProvider.QueuedForMeshing.ContainsKey(coord));
     }
 

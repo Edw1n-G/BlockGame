@@ -111,7 +111,7 @@ public class ChunkProvider : IDisposable
         if (_jobScheduler is null) return;
         long? generation = BeginChunkRequest(coord);
         if (generation is null) return;
-        var job = new ChunkLoadorGenerateJob(coord, generation.Value);
+        var job = new ChunkLoadOrGenerateJob(coord, generation.Value);
         if (!_jobScheduler.EnqueueLow(job)) CompleteChunkRequest(coord, generation.Value);
     }
 

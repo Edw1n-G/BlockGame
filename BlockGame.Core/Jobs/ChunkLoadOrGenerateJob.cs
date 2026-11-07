@@ -10,17 +10,17 @@ namespace Basics.Jobs;
 /// Prüft zuerst, ob der Chunk von der Festplatte geladen werden kann,
 /// andernfalls wird er mit dem <see cref="TerrainGenerator"/> generiert.
 /// </summary>
-public class ChunkLoadorGenerateJob : IJob
+public class ChunkLoadOrGenerateJob : IJob
 {
     /// <summary>Die Koordinaten des zu ladenden/generierenden Chunks.</summary>
     private ChunkCoord ChunkCoord;
     private readonly long _generation;
     
     /// <summary>
-    /// Initialisiert eine neue Instanz von <see cref="ChunkLoadorGenerateJob"/>.
+    /// Initialisiert eine neue Instanz von <see cref="ChunkLoadOrGenerateJob"/>.
     /// </summary>
     /// <param name="chunkCoord">Die Koordinaten des zu ladenden/generierenden Chunks.</param>
-    public ChunkLoadorGenerateJob(ChunkCoord chunkCoord, long generation)
+    public ChunkLoadOrGenerateJob(ChunkCoord chunkCoord, long generation)
     {
         this.ChunkCoord = chunkCoord;
         _generation = generation;

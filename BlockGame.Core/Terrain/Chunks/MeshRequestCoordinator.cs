@@ -26,7 +26,7 @@ internal sealed class MeshRequestCoordinator
         while (uploads.Count < limit && Pending.TryDequeue(out MeshRequest request))
         {
             if (!Queued.TryGetValue(request.Coord, out long current) || current != request.Generation) continue;
-            var job = new MeshgenerateJob(request, provider);
+            var job = new MeshGenerateJob(request, provider);
             if (scheduler is null || !scheduler.EnqueueLow(job)) job.Discard(null);
         }
     }

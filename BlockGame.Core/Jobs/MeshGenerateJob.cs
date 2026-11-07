@@ -4,12 +4,12 @@ using Basics.Terrain.Chunks;
 namespace Basics.Jobs;
 
 /// <summary>Builds a CPU mesh for one uniquely identified request.</summary>
-public class MeshgenerateJob : IJob
+public class MeshGenerateJob : IJob
 {
     private readonly MeshRequest _request;
     private readonly ChunkProvider _provider;
 
-    public MeshgenerateJob(MeshRequest request, ChunkProvider provider)
+    public MeshGenerateJob(MeshRequest request, ChunkProvider provider)
     {
         _request = request;
         _provider = provider;

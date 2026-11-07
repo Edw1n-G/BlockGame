@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory)][string]$Baseline,
     [Parameter(Mandatory)][string]$Candidate,
-    [string[]]$Case = @('selection/typical/*'),
+    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string[]]$Case,
+    [string]$HarnessRevision = 'HEAD',
     [ValidateSet('Smoke','Measure')][string]$Mode = 'Measure',
     [string]$Dotnet = 'dotnet',
     [string]$OutputDirectory = '',
@@ -19,6 +20,9 @@ $experimentState = $null
 try {
     try { $experimentLocked=$experimentLock.WaitOne(0) } catch [Threading.AbandonedMutexException] { $experimentLocked=$true }
     if (-not $experimentLocked) { throw 'Another experiment owns the measurement lock' }
+    $harnessStatus = @(& git status --porcelain -- BlockGame.Benchmarks scripts)
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot check the benchmark harness working tree' }
+    if ($harnessStatus.Count) { throw 'Harness has uncommitted changes; commit them first. The harness must be a revision.' }
     function Resolve-Revision([string]$Revision) {
         $resolved = (& git rev-parse --verify --end-of-options "$Revision^{commit}" 2>&1 | Out-String).Trim()
         if ($LASTEXITCODE -ne 0 -or $resolved -notmatch '^[0-9a-f]{40}$') { throw "Unknown Git revision: $Revision" }
@@ -26,10 +30,10 @@ try {
     }
     $baselineRevision = Resolve-Revision $Baseline
     $candidateRevision = Resolve-Revision $Candidate
+    $harnessCommit = Resolve-Revision $HarnessRevision
     if (-not $OutputDirectory) { $OutputDirectory = "artifacts/comparisons/$([Guid]::NewGuid().ToString('N'))" }
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
     if (Test-Path -LiteralPath $OutputDirectory) { throw 'Comparison output must be new' }
-    New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
     if (-not $CheckoutDirectory) { $CheckoutDirectory = "artifacts/checkouts/$([Guid]::NewGuid().ToString('N'))" }
     $CheckoutDirectory = [IO.Path]::GetFullPath($CheckoutDirectory)
     $separator = [IO.Path]::DirectorySeparatorChar
@@ -40,39 +44,44 @@ try {
     }
     if (Test-Path -LiteralPath $CheckoutDirectory) { throw 'Checkout directory must be new' }
     New-Item -ItemType Directory -Path $CheckoutDirectory | Out-Null
-    foreach ($name in @('harness','baseline','candidate')) {
+    $revisions = [ordered]@{ harness = $harnessCommit; baseline = $baselineRevision; candidate = $candidateRevision }
+    foreach ($name in $revisions.Keys) {
         $target = Join-Path $CheckoutDirectory $name
-        Invoke-Logged git @('clone','--quiet','--no-hardlinks','--no-checkout',$repoRoot,$target) "$OutputDirectory/clone-$name.log" 120 | Out-Null
-        $revision = switch ($name) { 'baseline' {$baselineRevision} 'candidate' {$candidateRevision} default {Resolve-Revision 'HEAD'} }
-        if ($name -ne 'harness') {
-            Invoke-Logged git @('-C',$target,'checkout','--quiet','--detach',$revision) "$OutputDirectory/checkout-$name.log" 120 | Out-Null
+        Invoke-Logged git @('clone','--quiet','--no-hardlinks','--no-checkout',$repoRoot,$target) "$CheckoutDirectory/clone-$name.log" 120 | Out-Null
+        Invoke-Logged git @('-C',$target,'checkout','--quiet','--detach',$revisions[$name]) "$CheckoutDirectory/checkout-$name.log" 120 | Out-Null
+    }
+    $harnessRoot = Join-Path $CheckoutDirectory 'harness'
+    $harnessProject = Join-Path $harnessRoot 'BlockGame.Benchmarks/BlockGame.Benchmarks.csproj'
+    foreach ($name in @('baseline','candidate')) {
+        $engineProject = Join-Path $CheckoutDirectory "$name/BlockGame.Core/BlockGame.Core.csproj"
+        $buildLog = Join-Path $CheckoutDirectory "build-$name.log"
+        try {
+            if (-not (Test-Path -LiteralPath $engineProject)) {
+                "Engine project missing: $engineProject" | Set-Content -LiteralPath $buildLog
+                throw 'Missing engine project'
+            }
+            Push-Location $harnessRoot
+            try {
+                Invoke-Logged $Dotnet @('build',$harnessProject,'-c','Release',"-p:EngineProjectPath=$engineProject") $buildLog | Out-Null
+            }
+            finally { Pop-Location }
+        }
+        catch {
+            $tail = @(foreach ($path in @($buildLog, "$buildLog.stderr")) {
+                if (Test-Path -LiteralPath $path) { Get-Content -LiteralPath $path -Tail 20 }
+            }) | Select-Object -Last 20
+            throw "Revision $($revisions[$name]) does not build with the benchmark harness; see docs/benchmarking.md (seam policy).`n$($tail -join "`n")"
         }
     }
-    # One immutable common harness snapshot, separate from both untouched engine revision checkouts.
-    foreach ($directory in @('BlockGame.Benchmarks','scripts')) {
-        $target = Join-Path "$CheckoutDirectory/harness" $directory
-        New-Item -ItemType Directory -Path $target -Force | Out-Null
-        foreach ($file in Get-ChildItem -LiteralPath (Join-Path $repoRoot $directory) -Recurse -File) {
-            $relative = [IO.Path]::GetRelativePath((Join-Path $repoRoot $directory),$file.FullName)
-            if ($relative -split '[\\/]' | Where-Object { $_ -in @('bin','obj') }) { continue }
-            $destination = Join-Path $target $relative
-            [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination)) | Out-Null
-            Copy-Item -LiteralPath $file.FullName -Destination $destination
-        }
-    }
-    foreach ($file in @('global.json','.gitignore','AGENTS.md','Documentation.md','Directory.Build.props','Directory.Build.targets','Directory.Packages.props','NuGet.Config')) {
-        if (Test-Path -LiteralPath "$repoRoot/$file") { Copy-Item -LiteralPath "$repoRoot/$file" -Destination "$CheckoutDirectory/harness/$file" }
-    }
-    if(Test-Path -LiteralPath "$repoRoot/docs"){Copy-Item -LiteralPath "$repoRoot/docs" -Destination "$CheckoutDirectory/harness/docs" -Recurse}
-    $experimentState=@{status='running';baselineRevision=$baselineRevision;candidateRevision=$candidateRevision;harnessSource='captured current harness; same fingerprint required';checkouts=$CheckoutDirectory}
+    New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
+    $experimentState=@{status='running';baselineRevision=$baselineRevision;candidateRevision=$candidateRevision;harnessRevision=$harnessCommit;checkouts=$CheckoutDirectory}
     $experimentState | ConvertTo-Json | Set-Content "$OutputDirectory/experiment.json"
     foreach ($name in @('baseline','candidate')) {
         if ((& git -C "$CheckoutDirectory/$name" status --porcelain | Out-String).Trim()) { throw 'Engine checkout is dirty before measurement' }
-        if (-not (Test-Path -LiteralPath "$CheckoutDirectory/$name/BlockGame/Game/Logic/TerrainManaging/ChunkSelectionPlan.cs")) { throw "Revision lacks the common harness selection interface. Add a reviewed adapter/contract before measuring this revision; never substitute copied reference code." }
-        & "$CheckoutDirectory/harness/scripts/run-benchmarks.ps1" -Dotnet $Dotnet -Mode $Mode -Case $Case -EngineRoot "$CheckoutDirectory/$name" -OutputDirectory "$OutputDirectory/$name" -TestRepeats $TestRepeats
+        & "$harnessRoot/scripts/run-benchmarks.ps1" -Dotnet $Dotnet -Mode $Mode -Case $Case -EngineRoot "$CheckoutDirectory/$name" -OutputDirectory "$OutputDirectory/$name" -TestRepeats $TestRepeats
         if ((& git -C "$CheckoutDirectory/$name" status --porcelain | Out-String).Trim()) { throw 'Engine checkout changed during measurement' }
     }
-    $tool = "$CheckoutDirectory/harness/BlockGame.Benchmarks/bin/Release/net10.0/BlockGame.Benchmarks.dll"
+    $tool = "$harnessRoot/BlockGame.Benchmarks/bin/Release/net10.0/BlockGame.Benchmarks.dll"
     Invoke-Logged $Dotnet @($tool,'compare',"$OutputDirectory/baseline.zip","$OutputDirectory/candidate.zip","$OutputDirectory/comparison.json") "$OutputDirectory/compare.log" 120 | Out-Null
     Write-Host "Comparison report: $OutputDirectory/comparison.md"
     Write-Host "Clean sibling checkouts retained: $CheckoutDirectory"

@@ -8,14 +8,46 @@ param(
     [ValidateRange(1,512)][int]$ParallelThreads = 4,
     [ValidateRange(1,86400)][int]$PreflightTimeoutSeconds = 300,
     [ValidateRange(1,86400)][int]$BenchmarkTimeoutSeconds = 7200,
+    [ValidateRange(1,86400)][int]$TimeoutSec = 300,
     [string]$LoadNote = 'Uncontrolled desktop session; competing load not excluded',
-    [string]$EngineRoot = $PSScriptRoot,
+    [string]$EngineRoot = '',
     [ValidateSet('Full','Family')][string]$Preflight = 'Full',
     [switch]$IncludeControls
 )
+function Invoke-Logged {
+    param([string]$FilePath, [string[]]$ArgumentList, [string]$LogPath, [int]$TimeoutSec = 300)
+    $start = [Diagnostics.ProcessStartInfo]@{ FileName = $FilePath; WorkingDirectory = $PWD.Path; UseShellExecute = $false; CreateNoWindow = $true; RedirectStandardOutput = $true; RedirectStandardError = $true }
+    foreach ($argument in $ArgumentList) { $start.ArgumentList.Add($argument) }
+    $p = [Diagnostics.Process]::Start($start)
+    $stdout = [IO.File]::Create($LogPath)
+    $stderr = [IO.File]::Create("$LogPath.stderr")
+    try {
+        $outCopy = $p.StandardOutput.BaseStream.CopyToAsync($stdout)
+        $errCopy = $p.StandardError.BaseStream.CopyToAsync($stderr)
+        if (-not $p.WaitForExit($TimeoutSec * 1000)) {
+            if ($IsWindows) { & taskkill /PID $p.Id /T /F | Out-Null }
+            else { Stop-Process -Id $p.Id -Force }
+            throw "timed out after $TimeoutSec s"
+        }
+        [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($outCopy, $errCopy))
+        $exitCode = $p.ExitCode
+    } finally {
+        $stdout.Dispose()
+        $stderr.Dispose()
+        $p.Dispose()
+    }
+    if ($exitCode -ne 0) { throw "Process failed with exit ${exitCode}: $LogPath" }
+    Get-Content -LiteralPath $LogPath -Raw
+}
+if ($MyInvocation.InvocationName -eq '.') { return }
 $ErrorActionPreference = 'Stop'
-. "$PSScriptRoot/scripts/ProcessTools.ps1"
-Push-Location $PSScriptRoot
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+if (-not $EngineRoot) { $EngineRoot = $repoRoot }
+if ($PSBoundParameters.ContainsKey('TimeoutSec')) {
+    $PreflightTimeoutSeconds = $TimeoutSec
+    $BenchmarkTimeoutSeconds = $TimeoutSec
+}
+Push-Location $repoRoot
 $mutex = [Threading.Mutex]::new($false, 'Local\EdwinCraft.CpuBenchmarks.v1')
 $locked = $false
 $bundleCreated = $false
@@ -40,18 +72,18 @@ try {
     $env:EDWINCRAFT_ENGINE_ROOT = $EngineRoot
     $env:EngineProjectPath = Join-Path $EngineRoot 'BlockGame/BlockGame.csproj'
     if (-not (Test-Path -LiteralPath $env:EngineProjectPath)) { throw 'Engine project missing' }
-    $benchProject = Join-Path $PSScriptRoot 'BlockGame.Benchmarks/BlockGame.Benchmarks.csproj'
+    $benchProject = Join-Path $repoRoot 'BlockGame.Benchmarks/BlockGame.Benchmarks.csproj'
     Write-Host 'Restoring engine/tests and common harness'
-    Invoke-LoggedProcess $Dotnet @('restore',(Join-Path $EngineRoot 'BlockGame.Tests/BlockGame.Tests.csproj'),'--disable-parallel') "$OutputDirectory/restore-tests.log" $PreflightTimeoutSeconds | Out-Null
-    Invoke-LoggedProcess $Dotnet @('restore',$benchProject,'--disable-parallel') "$OutputDirectory/restore.log" $PreflightTimeoutSeconds | Out-Null
-    Invoke-LoggedProcess $Dotnet @('build',$benchProject,'--no-restore','-c','Release','-m:1','-p:UseSharedCompilation=false') "$OutputDirectory/build-benchmarks.log" $PreflightTimeoutSeconds | Out-Null
-    $benchmarkDll = Join-Path $PSScriptRoot 'BlockGame.Benchmarks/bin/Release/net10.0/BlockGame.Benchmarks.dll'
+    Invoke-Logged $Dotnet @('restore',(Join-Path $EngineRoot 'BlockGame.Tests/BlockGame.Tests.csproj'),'--disable-parallel') "$OutputDirectory/restore-tests.log" $PreflightTimeoutSeconds | Out-Null
+    Invoke-Logged $Dotnet @('restore',$benchProject,'--disable-parallel') "$OutputDirectory/restore.log" $PreflightTimeoutSeconds | Out-Null
+    Invoke-Logged $Dotnet @('build',$benchProject,'--no-restore','-c','Release','-m:1','-p:UseSharedCompilation=false') "$OutputDirectory/build-benchmarks.log" $PreflightTimeoutSeconds | Out-Null
+    $benchmarkDll = Join-Path $repoRoot 'BlockGame.Benchmarks/bin/Release/net10.0/BlockGame.Benchmarks.dll'
     $selectionArgs = @()
     foreach ($pattern in $Case) { $selectionArgs += @('--case',$pattern) }
     if ($IncludeControls) { $selectionArgs += '--include-controls' }
-    $catalog = Invoke-LoggedProcess $Dotnet (@($benchmarkDll,'--list-json') + $selectionArgs) "$OutputDirectory/selection.json" $PreflightTimeoutSeconds | ConvertFrom-Json
+    $catalog = Invoke-Logged $Dotnet (@($benchmarkDll,'--list-json') + $selectionArgs) "$OutputDirectory/selection.json" $PreflightTimeoutSeconds | ConvertFrom-Json
     $families = @($catalog.family | Sort-Object -Unique)
-    Invoke-LoggedProcess $Dotnet (@($benchmarkDll,'--preflight-only') + $selectionArgs) "$OutputDirectory/dependency-preflight.log" $PreflightTimeoutSeconds | Out-Null
+    Invoke-Logged $Dotnet (@($benchmarkDll,'--preflight-only') + $selectionArgs) "$OutputDirectory/dependency-preflight.log" $PreflightTimeoutSeconds | Out-Null
     & "$PSScriptRoot/verify-tests.ps1" -Dotnet $Dotnet -Repeats $TestRepeats -ParallelThreads $ParallelThreads -TimeoutSeconds $PreflightTimeoutSeconds -OutputDirectory "$OutputDirectory/verification" -SkipRestore -EngineRoot $EngineRoot -Preflight $Preflight -Families $families
     $preflightResult = Get-Content -LiteralPath "$OutputDirectory/verification/result.json" -Raw | ConvertFrom-Json
     if ($preflightResult.status -ne 'passed' -or $preflightResult.runs.Count -lt 3) { throw 'Correctness preflight did not pass' }
@@ -61,9 +93,10 @@ try {
     try { $env:EDWINCRAFT_BENCHMARK_POWER_PLAN = (& powercfg /getactivescheme 2>&1 | Out-String).Trim() } catch { $env:EDWINCRAFT_BENCHMARK_POWER_PLAN = 'unavailable' }
     Write-Host "Running $Mode cases '$Case'; artifacts: $OutputDirectory"
     $benchmarkArgs = @($benchmarkDll,'--mode',$Mode,'--output',"$OutputDirectory/benchmarks") + $selectionArgs
-    Invoke-LoggedProcess $Dotnet $benchmarkArgs "$OutputDirectory/benchmark-launcher.log" $BenchmarkTimeoutSeconds -StreamOutput | Out-Null
+    Invoke-Logged $Dotnet $benchmarkArgs "$OutputDirectory/benchmark-launcher.log" $BenchmarkTimeoutSeconds | Out-Null
     $manifest = Get-Content -LiteralPath "$OutputDirectory/benchmarks/manifest.json" -Raw | ConvertFrom-Json
     if ($manifest.status -ne 'completed' -or $manifest.selectedCases.Count -eq 0 -or $manifest.completedCases.Count -ne $manifest.selectedCases.Count) { throw 'Benchmark selection did not complete' }
+    Move-Item -LiteralPath "$OutputDirectory/benchmarks/benchmark-run.json" -Destination "$OutputDirectory/benchmark-run.json"
     $result.status = 'completed'
     $result.correctness = 'verification/result.json'
     $result.cases = $manifest.completedCases
@@ -87,7 +120,7 @@ finally {
     Pop-Location
 }
 if ($result.status -eq 'completed') {
-    $tool = Join-Path $PSScriptRoot 'BlockGame.Benchmarking/bin/Release/net10.0/BlockGame.Benchmarking.dll'
-    Invoke-LoggedProcess $Dotnet @($tool,'pack',$OutputDirectory,"$OutputDirectory.zip") "$OutputDirectory-pack.log" $PreflightTimeoutSeconds | Out-Null
+    $tool = Join-Path $repoRoot 'BlockGame.Benchmarking/bin/Release/net10.0/BlockGame.Benchmarking.dll'
+    Invoke-Logged $Dotnet @($tool,'pack',$OutputDirectory,"$OutputDirectory.zip") "$OutputDirectory-pack.log" $PreflightTimeoutSeconds | Out-Null
     Write-Host "Verified portable evidence: $OutputDirectory.zip (checksum alongside)"
 }

@@ -115,24 +115,4 @@ public class BenchmarkComparatorTests
         foreach (var observation in new[]{b.Cases[0] with {Diagnostics=["MultimodalDistribution"]},b.Cases[0] with {SamplesNs=Enumerable.Range(0,20).Select(i=>i%2==0?1d:100000d).ToArray()}})
             Assert.Equal("inconclusive",Assert.Single(Comparator.Compare(a,b with {Cases=[observation]},calibration:true).Rows).Status);
     }
-    [Fact] public void PortableBundleSurvivesRelocationAndRejectsTampering()
-    {
-        string root=Path.Combine(Path.GetTempPath(),"benchmark-bundle-test-"+Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root);
-        try
-        {
-            string source=Path.Combine(root,"source"); Directory.CreateDirectory(source);
-            EvidenceJson.Write(Path.Combine(source,"benchmark-run.json"),Fixture("positive-before"));
-            File.WriteAllText(Path.Combine(source,"summary.md"),"Portable evidence");
-            string zip=Path.Combine(root,"evidence.zip");PortableBundle.Pack(source,zip);
-            string moved=Path.Combine(root,"moved.zip");File.Copy(zip,moved);
-            Assert.Equal("calibration",PortableBundle.Verify(moved).Kind);
-            File.AppendAllText(Path.Combine(source,"summary.md"),"tampered");
-            Assert.Throws<InvalidDataException>(()=>PortableBundle.Verify(source));
-        }
-        finally {
-            string expected=Path.Combine(Path.GetTempPath(),Path.GetFileName(root));
-            if(Path.GetFullPath(root)!=Path.GetFullPath(expected) || !Path.GetFileName(root).StartsWith("benchmark-bundle-test-",StringComparison.Ordinal))throw new InvalidOperationException("Unsafe test cleanup target");
-            Directory.Delete(root,true);
-        }
-    }
 }

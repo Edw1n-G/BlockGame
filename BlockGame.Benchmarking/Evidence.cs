@@ -24,7 +24,6 @@ public static class EvidenceJson
     };
     public static string Fingerprint(object value) => Hash(Encoding.UTF8.GetBytes(Canonical(JsonSerializer.SerializeToElement(value,Options))));
     public static void Write(string path, object value) => File.WriteAllText(path,JsonSerializer.Serialize(value,Options));
-    public static T Read<T>(string path) => JsonSerializer.Deserialize<T>(File.ReadAllText(path),Options) ?? throw new InvalidDataException(path);
 }
 
 public sealed record ScenarioContract(string Id, int Version, string Unit, string InputFingerprint, JsonElement Inputs, string TimingClass = "normal")

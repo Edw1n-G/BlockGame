@@ -40,7 +40,7 @@ internal static class RunEvidence
         string engineFingerprint=EvidenceJson.Fingerprint(engineFiles);
         string assetsPath=Path.Combine(engineRoot,"BlockGame/obj/project.assets.json");
         string[] managedDependencies=File.Exists(assetsPath) ? JsonDocument.Parse(File.ReadAllText(assetsPath)).RootElement.GetProperty("libraries").EnumerateObject().Select(p=>p.Name).Order(StringComparer.Ordinal).ToArray() : [];
-        var runnerFiles=new[]{"global.json","run-benchmarks.ps1","verify-tests.ps1","scripts/ProcessTools.ps1","Directory.Build.props","Directory.Build.targets","Directory.Packages.props","NuGet.Config"};
+        var runnerFiles=new[]{"global.json","scripts/run-benchmarks.ps1","scripts/verify-tests.ps1","Directory.Build.props","Directory.Build.targets","Directory.Packages.props","NuGet.Config"};
         var harnessFiles=files.Where(f=>runnerFiles.Contains(f.path) ||
             new[]{"BlockGame.Benchmarks/","BlockGame.Workloads/","BlockGame.Benchmarking/"}.Any(prefix=>f.path.StartsWith(prefix,StringComparison.Ordinal)) &&
             new[]{".cs",".csproj",".json"}.Contains(Path.GetExtension(f.path))).ToArray();

@@ -38,7 +38,7 @@ internal static class RunEvidence
         var engineFiles=Git(engineRoot,"ls-files","-z").Split('\0',StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal)
             .Select(path=>new {path,sha256=File.Exists(Path.Combine(engineRoot,path)) ? WorkloadEnvironment.Hash(File.ReadAllBytes(Path.Combine(engineRoot,path))) : "DELETED"}).ToArray();
         string engineFingerprint=EvidenceJson.Fingerprint(engineFiles);
-        string assetsPath=Path.Combine(engineRoot,"BlockGame/obj/project.assets.json");
+        string assetsPath=Path.Combine(engineRoot,"BlockGame.Core/obj/project.assets.json");
         string[] managedDependencies=File.Exists(assetsPath) ? JsonDocument.Parse(File.ReadAllText(assetsPath)).RootElement.GetProperty("libraries").EnumerateObject().Select(p=>p.Name).Order(StringComparer.Ordinal).ToArray() : [];
         var runnerFiles=new[]{"global.json","scripts/run-benchmarks.ps1","scripts/verify-tests.ps1","Directory.Build.props","Directory.Build.targets","Directory.Packages.props","NuGet.Config"};
         var harnessFiles=files.Where(f=>runnerFiles.Contains(f.path) ||
@@ -46,7 +46,7 @@ internal static class RunEvidence
             new[]{".cs",".csproj",".json"}.Contains(Path.GetExtension(f.path))).ToArray();
         return new { root, commit = Git(root,"rev-parse", "HEAD"), branch = Git(root,"branch", "--show-current"), dirty = status.Length > 0, status,
             engineRoot,engineRevision,engineClean,engineFingerprint,engineFiles,managedDependencies,harnessFingerprint=EvidenceJson.Fingerprint(harnessFiles),
-            treeSha256 = Fingerprint(""), engineSourceSha256 = Fingerprint("BlockGame/"), harnessSourceSha256 = Fingerprint("BlockGame.Benchmarks/"),
+            treeSha256 = Fingerprint(""), engineSourceSha256 = Fingerprint("BlockGame.Core/"), harnessSourceSha256 = Fingerprint("BlockGame.Benchmarks/"),
             workloadSourceSha256 = Fingerprint("BlockGame.Workloads/"), files };
     }
 

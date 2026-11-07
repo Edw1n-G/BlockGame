@@ -70,8 +70,8 @@ try {
     $result | ConvertTo-Json | Set-Content -LiteralPath "$OutputDirectory/result.json"
     $EngineRoot = (Resolve-Path -LiteralPath $EngineRoot).Path
     $env:EDWINCRAFT_ENGINE_ROOT = $EngineRoot
-    $env:EngineProjectPath = Join-Path $EngineRoot 'BlockGame/BlockGame.csproj'
-    if (-not (Test-Path -LiteralPath $env:EngineProjectPath)) { throw 'Engine project missing' }
+    $env:EngineProjectPath = Join-Path $EngineRoot 'BlockGame.Core/BlockGame.Core.csproj'
+    if (-not (Test-Path -LiteralPath $env:EngineProjectPath)) { throw 'Engine revision has no BlockGame.Core project; see docs/benchmarking.md (seam policy)' }
     $benchProject = Join-Path $repoRoot 'BlockGame.Benchmarks/BlockGame.Benchmarks.csproj'
     Write-Host 'Restoring engine/tests and common harness'
     Invoke-Logged $Dotnet @('restore',(Join-Path $EngineRoot 'BlockGame.Tests/BlockGame.Tests.csproj'),'--disable-parallel') "$OutputDirectory/restore-tests.log" $PreflightTimeoutSeconds | Out-Null

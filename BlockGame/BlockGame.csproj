@@ -11,6 +11,8 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="../BlockGame.Core/BlockGame.Core.csproj" />
+      <InternalsVisibleTo Include="BlockGame.Tests" />
       <PackageReference Include="Egui.Silk.NET" Version="0.10.5" />
       <PackageReference Include="Egui.Silk.NET.OpenGL" Version="0.10.5" />
       <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
@@ -25,9 +27,6 @@
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
       <None Update="Game\Graphics\Shader\shader.vert">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-      <None Update="FastNoise.dll">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
       <None Update="NodeEditorIpc.dll">
@@ -60,12 +59,4 @@
         </EmbeddedResource>
     </ItemGroup>
 
-    <ItemGroup>
-        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-            <_Parameter1>BlockGame.Tests</_Parameter1>
-        </AssemblyAttribute>
-        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-            <_Parameter1>BlockGame.Workloads</_Parameter1>
-        </AssemblyAttribute>
-    </ItemGroup>
 </Project>

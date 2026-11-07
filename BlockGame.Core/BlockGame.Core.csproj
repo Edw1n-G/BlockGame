@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Basics</RootNamespace>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Silk.NET.Maths" Version="2.23.0" />
+        <InternalsVisibleTo Include="BlockGame" />
+        <InternalsVisibleTo Include="BlockGame.Tests" />
+        <InternalsVisibleTo Include="BlockGame.Benchmarks" />
+        <InternalsVisibleTo Include="BlockGame.Workloads" />
+        <InternalsVisibleTo Include="BlockGame.Benchmarking" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="FastNoise.dll" CopyToOutputDirectory="PreserveNewest" />
+        <Content Include="Content/**/Blocks/**/*.json" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+</Project>

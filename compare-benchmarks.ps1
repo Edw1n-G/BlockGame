@@ -25,13 +25,18 @@ try {
     }
     $baselineRevision = Resolve-Revision $Baseline
     $candidateRevision = Resolve-Revision $Candidate
-    if (-not $OutputDirectory) { $OutputDirectory = "out/comparisons/$([Guid]::NewGuid().ToString('N'))" }
+    if (-not $OutputDirectory) { $OutputDirectory = "artifacts/comparisons/$([Guid]::NewGuid().ToString('N'))" }
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
     if (Test-Path -LiteralPath $OutputDirectory) { throw 'Comparison output must be new' }
     New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
-    if (-not $CheckoutDirectory) { $CheckoutDirectory = Join-Path (Split-Path $PSScriptRoot -Parent) "benchmark-checkouts-$([Guid]::NewGuid().ToString('N'))" }
+    if (-not $CheckoutDirectory) { $CheckoutDirectory = "artifacts/checkouts/$([Guid]::NewGuid().ToString('N'))" }
     $CheckoutDirectory = [IO.Path]::GetFullPath($CheckoutDirectory)
-    if ($CheckoutDirectory.StartsWith($PSScriptRoot+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase) -or $CheckoutDirectory -eq $PSScriptRoot) { throw 'Checkouts must be siblings/outside the working repository' }
+    $separator = [IO.Path]::DirectorySeparatorChar
+    $insideRepository = $CheckoutDirectory.StartsWith($PSScriptRoot+$separator,[StringComparison]::OrdinalIgnoreCase)
+    $artifactPrefix = (Join-Path $PSScriptRoot 'artifacts')+$separator
+    if ($CheckoutDirectory -eq $PSScriptRoot -or ($insideRepository -and -not $CheckoutDirectory.StartsWith($artifactPrefix,[StringComparison]::OrdinalIgnoreCase))) {
+        throw 'Checkouts must be under artifacts/ or outside the working repository'
+    }
     if (Test-Path -LiteralPath $CheckoutDirectory) { throw 'Checkout directory must be new' }
     New-Item -ItemType Directory -Path $CheckoutDirectory | Out-Null
     foreach ($name in @('harness','baseline','candidate')) {

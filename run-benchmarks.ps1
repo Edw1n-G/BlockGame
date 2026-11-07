@@ -29,7 +29,7 @@ $result = [ordered]@{ schemaVersion = 1; status = 'running'; mode = $Mode; suita
 try {
     try { $locked = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $locked = $true }
     if (-not $locked) { throw 'Another verification/benchmark command owns the measurement lock' }
-    if (-not $OutputDirectory) { $OutputDirectory = "out/benchmarks/$([DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss'))-$([Guid]::NewGuid().ToString('N').Substring(0,8))" }
+    if (-not $OutputDirectory) { $OutputDirectory = "artifacts/runs/$([DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss'))-$([Guid]::NewGuid().ToString('N').Substring(0,8))" }
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
     if (Test-Path -LiteralPath $OutputDirectory) { throw 'Benchmark bundle directory must be new; existing runs are never overwritten' }
     New-Item -ItemType Directory -Path $OutputDirectory | Out-Null

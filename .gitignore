@@ -106,6 +106,8 @@ nupkg/
 *.sln.docstates
 
 # Build results
+/artifacts/
+**/BenchmarkDotNet.Artifacts/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/

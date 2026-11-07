@@ -120,7 +120,6 @@ finally {
     Pop-Location
 }
 if ($result.status -eq 'completed') {
-    $tool = Join-Path $repoRoot 'BlockGame.Benchmarking/bin/Release/net10.0/BlockGame.Benchmarking.dll'
-    Invoke-Logged $Dotnet @($tool,'pack',$OutputDirectory,"$OutputDirectory.zip") "$OutputDirectory-pack.log" $PreflightTimeoutSeconds | Out-Null
+    Invoke-Logged $Dotnet @($benchmarkDll,'pack',$OutputDirectory,"$OutputDirectory.zip") "$OutputDirectory-pack.log" $PreflightTimeoutSeconds | Out-Null
     Write-Host "Verified portable evidence: $OutputDirectory.zip (checksum alongside)"
 }

@@ -1,4 +1,4 @@
-namespace BlockGame.Benchmarking;
+namespace BlockGame.Benchmarks.Comparison;
 
 public static class ControlFixtures
 {

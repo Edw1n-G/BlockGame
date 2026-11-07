@@ -2,7 +2,7 @@ using Basics.Common;
 using Basics.Settings;
 using Basics.Terrain.Selection;
 
-namespace BlockGame.Workloads;
+namespace BlockGame.Benchmarks.Workloads;
 
 public static class WorkloadCatalog
 {

@@ -1,6 +1,6 @@
-using BlockGame.Benchmarking;
-using BlockGame.Benchmarks;
-using BlockGame.Workloads;
+using BlockGame.Benchmarks.Harness;
+using BlockGame.Benchmarks.Comparison;
+using BlockGame.Benchmarks.Workloads;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 

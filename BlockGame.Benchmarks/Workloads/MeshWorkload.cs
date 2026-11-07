@@ -7,7 +7,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 
-namespace BlockGame.Workloads;
+namespace BlockGame.Benchmarks.Workloads;
 
 public sealed record FrozenChunk(int X, int Y, int Z, int[] Runs);
 public sealed record FrozenNeighborhood(int Version, int Seed, string NodeTree, string NativeSha256, uint FeatureSet, string[] Names, FrozenChunk[] Chunks);
@@ -26,7 +26,7 @@ public sealed class MeshWorkload : IDisposable
         ushort stone = registry.GetBlockId("core:stone");
         if (scenario == "frozen-terrain")
         {
-            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("BlockGame.Workloads.FrozenTerrain.json")
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("FrozenTerrain.json")
                 ?? throw new FileNotFoundException("Frozen terrain fixture missing");
             var frozen = JsonSerializer.Deserialize<FrozenNeighborhood>(stream)!;
             if (frozen.Version != WorkloadCatalog.Version || frozen.Chunks.Length != 27)

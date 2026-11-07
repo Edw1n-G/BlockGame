@@ -85,8 +85,10 @@ BlockGame.Core/                    graphics-free library
 ├─ Content/Core/Blocks/stupid/     dirt, grass, snow, stone JSON
 └─ FastNoise.dll                    native library (copied to output)
 BlockGame.Tests/                   xUnit v3 / Microsoft.Testing.Platform executable
-BlockGame.Workloads/               versioned shared CPU fixtures and frozen terrain
 BlockGame.Benchmarks/              BenchmarkDotNet executable (Release, Windows x64)
+├─ Harness/                        discovery, execution and evidence
+├─ Workloads/                      versioned CPU fixtures and frozen terrain
+└─ Comparison/                     comparison and bundle commands
 scripts/                           bounded verification and benchmark entry points
 ```
 

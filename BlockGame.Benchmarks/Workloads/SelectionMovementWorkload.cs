@@ -1,6 +1,6 @@
 using Basics.Common;
 
-namespace BlockGame.Workloads;
+namespace BlockGame.Benchmarks.Workloads;
 
 /// <summary>Historical double-precision model, not the actual c2a6ab2 float implementation. Test/control oracle only.</summary>
 public static class SelectionReference

@@ -1,10 +1,10 @@
-using BlockGame.Benchmarking;
+using BlockGame.Benchmarks.Comparison;
 using Basics.Common;
 using Basics.Terrain.Meshing;
 using Basics.Terrain;
 using System.Runtime.InteropServices;
 
-namespace BlockGame.Workloads;
+namespace BlockGame.Benchmarks.Workloads;
 
 public static class OutputChecks
 {

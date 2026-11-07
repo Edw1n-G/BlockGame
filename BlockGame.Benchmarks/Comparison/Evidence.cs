@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace BlockGame.Benchmarking;
+namespace BlockGame.Benchmarks.Comparison;
 
 [AttributeUsage(AttributeTargets.Class)]
 public sealed class ScenarioFamilyAttribute(string family, string kind = "engine") : Attribute

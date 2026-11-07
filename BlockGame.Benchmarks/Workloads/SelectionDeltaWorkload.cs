@@ -1,7 +1,7 @@
 using Basics.Common;
 using Basics.Terrain.Selection;
 
-namespace BlockGame.Workloads;
+namespace BlockGame.Benchmarks.Workloads;
 
 /// <summary>The same closed paths as the original, with retained shapes, lists and active-set capacity.</summary>
 public sealed class SelectionDeltaWorkload

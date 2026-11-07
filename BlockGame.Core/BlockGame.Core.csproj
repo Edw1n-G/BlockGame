@@ -13,8 +13,6 @@
         <InternalsVisibleTo Include="BlockGame" />
         <InternalsVisibleTo Include="BlockGame.Tests" />
         <InternalsVisibleTo Include="BlockGame.Benchmarks" />
-        <InternalsVisibleTo Include="BlockGame.Workloads" />
-        <InternalsVisibleTo Include="BlockGame.Benchmarking" />
     </ItemGroup>
 
     <ItemGroup>

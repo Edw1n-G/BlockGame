@@ -1,5 +1,6 @@
-using BlockGame.Benchmarking;
-using BlockGame.Workloads;
+using BlockGame.Benchmarks.Harness;
+using BlockGame.Benchmarks.Comparison;
+using BlockGame.Benchmarks.Workloads;
 using System.Diagnostics;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnosers;
@@ -18,6 +19,9 @@ public static class Program
 {
     public static int Main(string[] args)
     {
+        if (args.ElementAtOrDefault(0) is "compare" or "pack" or "verify" or "validate-controls")
+            return Comparison.Program.Main(args);
+
         string? manifestPath=null; Dictionary<string,object?>? manifest=null;
         try
         {

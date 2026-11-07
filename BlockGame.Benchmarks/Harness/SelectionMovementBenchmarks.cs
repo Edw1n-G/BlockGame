@@ -1,8 +1,8 @@
-using BlockGame.Workloads;
-using BlockGame.Benchmarking;
+using BlockGame.Benchmarks.Workloads;
+using BlockGame.Benchmarks.Comparison;
 using BenchmarkDotNet.Attributes;
 
-namespace BlockGame.Benchmarks;
+namespace BlockGame.Benchmarks.Harness;
 
 [ScenarioFamily("selection-movement","legacy-model")]
 public class SelectionRebuildBenchmarks

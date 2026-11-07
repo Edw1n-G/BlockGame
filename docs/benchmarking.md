@@ -59,7 +59,7 @@ The thresholds are provisional and advisory. Managed allocation changes are repo
 Four checks use deterministic in-code fixtures. The null pair stays inconclusive across stable and diagnostic cases. The positive pair detects a large improvement. The early-return pair suppresses ratios and percentages. The reversed positive pair detects a regression.
 
 ```powershell
-dotnet run --project BlockGame.Benchmarking -c Release -- validate-controls
+dotnet run --project BlockGame.Benchmarks -c Release -- validate-controls
 ```
 
 ## Seam policy

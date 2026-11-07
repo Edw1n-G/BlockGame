@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Text.Json;
 
-namespace BlockGame.Benchmarking;
+namespace BlockGame.Benchmarks.Comparison;
 
 public static class Program
 {

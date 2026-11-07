@@ -1,6 +1,6 @@
-using BlockGame.Benchmarking;
+using BlockGame.Benchmarks.Comparison;
 
-namespace BlockGame.Workloads;
+namespace BlockGame.Benchmarks.Workloads;
 
 public static class ScenarioContracts
 {
@@ -23,7 +23,7 @@ public static class ScenarioContracts
                 string? frozen=null;
                 if(scenario=="frozen-terrain")
                 {
-                    using var stream=typeof(MeshWorkload).Assembly.GetManifestResourceStream("BlockGame.Workloads.FrozenTerrain.json")!;
+                    using var stream=typeof(MeshWorkload).Assembly.GetManifestResourceStream("FrozenTerrain.json")!;
                     frozen=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream));
                 }
                 inputs=new {scenario,lod=0,center=new {x=0,y=0,z=0},neighbors=26,frozen,

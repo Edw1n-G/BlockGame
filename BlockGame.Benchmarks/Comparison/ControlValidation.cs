@@ -1,4 +1,4 @@
-namespace BlockGame.Benchmarking;
+namespace BlockGame.Benchmarks.Comparison;
 
 public sealed record ControlValidationResult(bool Passed, int Checks);
 

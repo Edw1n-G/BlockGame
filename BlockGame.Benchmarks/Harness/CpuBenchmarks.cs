@@ -1,10 +1,10 @@
-using BlockGame.Workloads;
-using BlockGame.Benchmarking;
+using BlockGame.Benchmarks.Workloads;
+using BlockGame.Benchmarks.Comparison;
 using Basics.Common;
 using Basics.Terrain;
 using BenchmarkDotNet.Attributes;
 
-namespace BlockGame.Benchmarks;
+namespace BlockGame.Benchmarks.Harness;
 
 [ScenarioFamily("mesh")]
 public class MeshingBenchmarks

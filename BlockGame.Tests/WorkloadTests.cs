@@ -1,4 +1,4 @@
-using BlockGame.Workloads;
+using BlockGame.Benchmarks.Workloads;
 using Basics.Common;
 using System.Buffers.Binary;
 using System.Numerics;

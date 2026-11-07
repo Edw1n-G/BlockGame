@@ -1,4 +1,4 @@
-using BlockGame.Workloads;
+using BlockGame.Benchmarks.Workloads;
 
 namespace BlockGame.Tests;
 

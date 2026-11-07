@@ -49,7 +49,7 @@ try {
         }
     }
     # One immutable common harness snapshot, separate from both untouched engine revision checkouts.
-    foreach ($directory in @('BlockGame.Benchmarks','BlockGame.Workloads','BlockGame.Benchmarking','scripts')) {
+    foreach ($directory in @('BlockGame.Benchmarks','scripts')) {
         $target = Join-Path "$CheckoutDirectory/harness" $directory
         New-Item -ItemType Directory -Path $target -Force | Out-Null
         foreach ($file in Get-ChildItem -LiteralPath (Join-Path $repoRoot $directory) -Recurse -File) {
@@ -72,7 +72,7 @@ try {
         & "$CheckoutDirectory/harness/scripts/run-benchmarks.ps1" -Dotnet $Dotnet -Mode $Mode -Case $Case -EngineRoot "$CheckoutDirectory/$name" -OutputDirectory "$OutputDirectory/$name" -TestRepeats $TestRepeats
         if ((& git -C "$CheckoutDirectory/$name" status --porcelain | Out-String).Trim()) { throw 'Engine checkout changed during measurement' }
     }
-    $tool = "$CheckoutDirectory/harness/BlockGame.Benchmarking/bin/Release/net10.0/BlockGame.Benchmarking.dll"
+    $tool = "$CheckoutDirectory/harness/BlockGame.Benchmarks/bin/Release/net10.0/BlockGame.Benchmarks.dll"
     Invoke-Logged $Dotnet @($tool,'compare',"$OutputDirectory/baseline.zip","$OutputDirectory/candidate.zip","$OutputDirectory/comparison.json") "$OutputDirectory/compare.log" 120 | Out-Null
     Write-Host "Comparison report: $OutputDirectory/comparison.md"
     Write-Host "Clean sibling checkouts retained: $CheckoutDirectory"

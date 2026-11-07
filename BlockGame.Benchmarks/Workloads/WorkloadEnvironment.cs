@@ -4,7 +4,7 @@ using Basics.Terrain.Generation.Noise;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace BlockGame.Workloads;
+namespace BlockGame.Benchmarks.Workloads;
 
 /// <summary>Fixture-owned dependencies, never shared across contexts or benchmark cases.</summary>
 public sealed class WorkloadEnvironment : IDisposable

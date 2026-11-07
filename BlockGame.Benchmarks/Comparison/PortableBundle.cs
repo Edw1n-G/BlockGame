@@ -1,7 +1,7 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 
-namespace BlockGame.Benchmarking;
+namespace BlockGame.Benchmarks.Comparison;
 
 public static class PortableBundle
 {

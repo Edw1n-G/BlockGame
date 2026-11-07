@@ -1,8 +1,8 @@
-using BlockGame.Benchmarking;
+using BlockGame.Benchmarks.Comparison;
 using System.Text.Json;
 using BenchmarkDotNet.Running;
 
-namespace BlockGame.Benchmarks;
+namespace BlockGame.Benchmarks.Harness;
 
 internal static class ResultNormalizer
 {

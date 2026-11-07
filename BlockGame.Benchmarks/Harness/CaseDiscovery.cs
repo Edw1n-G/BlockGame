@@ -1,12 +1,12 @@
-using BlockGame.Benchmarking;
-using BlockGame.Workloads;
+using BlockGame.Benchmarks.Comparison;
+using BlockGame.Benchmarks.Workloads;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
 
-namespace BlockGame.Benchmarks;
+namespace BlockGame.Benchmarks.Harness;
 
 public static class CaseDiscovery
 {

@@ -1,12 +1,12 @@
-using BlockGame.Workloads;
-using BlockGame.Benchmarking;
+using BlockGame.Benchmarks.Workloads;
+using BlockGame.Benchmarks.Comparison;
 using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.IO.Compression;
 
-namespace BlockGame.Benchmarks;
+namespace BlockGame.Benchmarks.Harness;
 
 internal static class RunEvidence
 {
@@ -42,12 +42,12 @@ internal static class RunEvidence
         string[] managedDependencies=File.Exists(assetsPath) ? JsonDocument.Parse(File.ReadAllText(assetsPath)).RootElement.GetProperty("libraries").EnumerateObject().Select(p=>p.Name).Order(StringComparer.Ordinal).ToArray() : [];
         var runnerFiles=new[]{"global.json","scripts/run-benchmarks.ps1","scripts/verify-tests.ps1","Directory.Build.props","Directory.Build.targets","Directory.Packages.props","NuGet.Config"};
         var harnessFiles=files.Where(f=>runnerFiles.Contains(f.path) ||
-            new[]{"BlockGame.Benchmarks/","BlockGame.Workloads/","BlockGame.Benchmarking/"}.Any(prefix=>f.path.StartsWith(prefix,StringComparison.Ordinal)) &&
+            f.path.StartsWith("BlockGame.Benchmarks/",StringComparison.Ordinal) &&
             new[]{".cs",".csproj",".json"}.Contains(Path.GetExtension(f.path))).ToArray();
         return new { root, commit = Git(root,"rev-parse", "HEAD"), branch = Git(root,"branch", "--show-current"), dirty = status.Length > 0, status,
             engineRoot,engineRevision,engineClean,engineFingerprint,engineFiles,managedDependencies,harnessFingerprint=EvidenceJson.Fingerprint(harnessFiles),
             treeSha256 = Fingerprint(""), engineSourceSha256 = Fingerprint("BlockGame.Core/"), harnessSourceSha256 = Fingerprint("BlockGame.Benchmarks/"),
-            workloadSourceSha256 = Fingerprint("BlockGame.Workloads/"), files };
+            workloadSourceSha256 = Fingerprint("BlockGame.Benchmarks/Workloads/"), files };
     }
 
     public static void Snapshot(string output, object identity)
@@ -89,7 +89,7 @@ internal static class RunEvidence
             .Where(e => ((string)e.Key).StartsWith("DOTNET_", StringComparison.Ordinal) || ((string)e.Key).StartsWith("COMPlus_", StringComparison.Ordinal))
             .ToDictionary(e => (string)e.Key, e => (string?)e.Value),
         assemblies = new[] { typeof(Basics.Terrain.Chunks.ChunkProvider).Assembly, typeof(WorkloadCatalog).Assembly, typeof(ScenarioContract).Assembly, typeof(Program).Assembly }
-            .Select(a => new { name = a.GetName().Name, sha256 = WorkloadEnvironment.Hash(File.ReadAllBytes(a.Location)) }).ToArray()
+            .Distinct().Select(a => new { name = a.GetName().Name, sha256 = WorkloadEnvironment.Hash(File.ReadAllBytes(a.Location)) }).ToArray()
     };
 
     public static void Child(Type type, string scenario, WorkloadEnvironment? environment = null, object? input = null, string? outputFingerprint = null)

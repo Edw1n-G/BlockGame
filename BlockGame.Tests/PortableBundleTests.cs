@@ -1,4 +1,4 @@
-using BlockGame.Benchmarking;
+using BlockGame.Benchmarks.Comparison;
 
 namespace BlockGame.Tests;
 

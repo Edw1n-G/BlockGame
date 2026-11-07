@@ -14,7 +14,16 @@ Run from the repository root with PowerShell 7, Windows x64, and the SDK pinned 
 
 Use `-Case 'pattern1','pattern2'` to select a union. Every pattern must match. Custom output and checkout directories must be new. Logs and results default to `artifacts/`. Each comparison retains its clean sibling checkouts under `BlockGame.bench/` beside the repository. Keep source snapshots zipped and retain the ZIPs, their SHA-256 sidecars, and the comparison report.
 
-For the selection comparison, run `./scripts/compare-benchmarks.ps1 -Baseline bench/selection-baseline -Candidate 'codex/test&refactor' -Case 'selection/*','selectiondelta/*'`.
+For the selection comparison, list the two approved failures by exact test name. Both revisions run the full suite. Only the baseline may report these failures, and the bundle's `verification/result.json` records the allowance and the failures from each run.
+
+```powershell
+$legacyFailures = @(
+    'BlockGame.Tests.IncrementalSelectionTests.DeltaMatchesReferenceForRandomMovesResizesTeleportsAndWraparound'
+    'BlockGame.Tests.ChunkRequestorMovementTests.ResizingAtSamePositionReconcilesPreviouslyCommittedChunks'
+)
+./scripts/compare-benchmarks.ps1 -Baseline bench/selection-baseline -Candidate 'codex/test&refactor' `
+    -Case 'selection/*','selectiondelta/*' -BaselineAllowedFailures $legacyFailures
+```
 
 ## Modes
 

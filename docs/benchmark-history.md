@@ -73,3 +73,4 @@ Lessons
 - Baseline: 907f124c13f46a50d0db4028066b9faf76938cd6; candidate: 907f124c13f46a50d0db4028066b9faf76938cd6.
 - Policy: provisional 5% practical budget, 100 ns timing floor; no automatic performance gate.
 - Inconclusive: -0.49%; equal output and allocation fingerprints
+- At horizontal radius 2 and vertical radius 0, the original `c2a6ab2` float scan selected 25 chunks because `0f / 0f` is `NaN` and `NaN > 1f` is false. The new planner fixed this and selects 13. The legacy baseline keeps the original scan and explicitly waives the resize regression test and the incremental planner reference test.

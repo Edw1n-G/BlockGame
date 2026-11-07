@@ -12,10 +12,11 @@ param(
     [string]$LoadNote = 'Uncontrolled desktop session; competing load not excluded',
     [string]$EngineRoot = '',
     [ValidateSet('Full','Family')][string]$Preflight = 'Full',
+    [string[]]$AllowedTestFailures = @(),
     [switch]$IncludeControls
 )
 function Invoke-Logged {
-    param([string]$FilePath, [string[]]$ArgumentList, [string]$LogPath, [int]$TimeoutSec = 300)
+    param([string]$FilePath, [string[]]$ArgumentList, [string]$LogPath, [int]$TimeoutSec = 300, [ref]$ResultExitCode)
     $start = [Diagnostics.ProcessStartInfo]@{ FileName = $FilePath; WorkingDirectory = $PWD.Path; UseShellExecute = $false; CreateNoWindow = $true; RedirectStandardOutput = $true; RedirectStandardError = $true }
     foreach ($argument in $ArgumentList) { $start.ArgumentList.Add($argument) }
     $p = [Diagnostics.Process]::Start($start)
@@ -36,7 +37,7 @@ function Invoke-Logged {
         $stderr.Dispose()
         $p.Dispose()
     }
-    if ($exitCode -ne 0) { throw "Process failed with exit ${exitCode}: $LogPath" }
+    if ($null -ne $ResultExitCode) { $ResultExitCode.Value = $exitCode } elseif ($exitCode -ne 0) { throw "Process failed with exit ${exitCode}: $LogPath" }
     Get-Content -LiteralPath $LogPath -Raw
 }
 if ($MyInvocation.InvocationName -eq '.') { return }
@@ -84,7 +85,7 @@ try {
     $catalog = Invoke-Logged $Dotnet (@($benchmarkDll,'--list-json') + $selectionArgs) "$OutputDirectory/selection.json" $PreflightTimeoutSeconds | ConvertFrom-Json
     $families = @($catalog.family | Sort-Object -Unique)
     Invoke-Logged $Dotnet (@($benchmarkDll,'--preflight-only') + $selectionArgs) "$OutputDirectory/dependency-preflight.log" $PreflightTimeoutSeconds | Out-Null
-    & "$PSScriptRoot/verify-tests.ps1" -Dotnet $Dotnet -Repeats $TestRepeats -ParallelThreads $ParallelThreads -TimeoutSeconds $PreflightTimeoutSeconds -OutputDirectory "$OutputDirectory/verification" -SkipRestore -EngineRoot $EngineRoot -Preflight $Preflight -Families $families
+    & "$PSScriptRoot/verify-tests.ps1" -Dotnet $Dotnet -Repeats $TestRepeats -ParallelThreads $ParallelThreads -TimeoutSeconds $PreflightTimeoutSeconds -OutputDirectory "$OutputDirectory/verification" -SkipRestore -EngineRoot $EngineRoot -Preflight $Preflight -Families $families -AllowedFailures $AllowedTestFailures
     $preflightResult = Get-Content -LiteralPath "$OutputDirectory/verification/result.json" -Raw | ConvertFrom-Json
     if ($preflightResult.status -ne 'passed' -or $preflightResult.runs.Count -lt 3) { throw 'Correctness preflight did not pass' }
     $env:EDWINCRAFT_PREFLIGHT_RESULT = "$OutputDirectory/verification/result.json"

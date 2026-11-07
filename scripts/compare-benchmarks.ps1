@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory)][string]$Candidate,
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string[]]$Case,
     [string]$HarnessRevision = 'HEAD',
+    [string[]]$BaselineAllowedFailures = @(),
     [ValidateSet('Smoke','Measure')][string]$Mode = 'Measure',
     [string]$Dotnet = 'dotnet',
     [string]$OutputDirectory = '',
@@ -82,7 +83,11 @@ try {
     $experimentState | ConvertTo-Json | Set-Content "$OutputDirectory/experiment.json"
     foreach ($name in @('baseline','candidate')) {
         if ((& git -C "$CheckoutDirectory/$name" status --porcelain | Out-String).Trim()) { throw 'Engine checkout is dirty before measurement' }
-        & "$harnessRoot/scripts/run-benchmarks.ps1" -Dotnet $Dotnet -Mode $Mode -Case $Case -EngineRoot "$CheckoutDirectory/$name" -OutputDirectory "$OutputDirectory/$name" -TestRepeats $TestRepeats
+        $runOptions = @{}
+        if ($name -eq 'baseline' -and $BaselineAllowedFailures.Count) {
+            $runOptions.AllowedTestFailures = $BaselineAllowedFailures
+        }
+        & "$harnessRoot/scripts/run-benchmarks.ps1" -Dotnet $Dotnet -Mode $Mode -Case $Case -EngineRoot "$CheckoutDirectory/$name" -OutputDirectory "$OutputDirectory/$name" -TestRepeats $TestRepeats @runOptions
         if ((& git -C "$CheckoutDirectory/$name" status --porcelain | Out-String).Trim()) { throw 'Engine checkout changed during measurement' }
     }
     $tool = "$harnessRoot/BlockGame.Benchmarks/bin/Release/net10.0/BlockGame.Benchmarks.dll"

@@ -8,7 +8,8 @@ param(
     [switch]$SkipRestore,
     [string]$EngineRoot = '',
     [ValidateSet('Full','Family')][string]$Preflight = 'Full',
-    [string[]]$Families = @()
+    [string[]]$Families = @(),
+    [string[]]$AllowedFailures = @()
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -32,7 +33,22 @@ if ($Preflight -eq 'Family') {
 $filterArgs = @($filters | Sort-Object -Unique | ForEach-Object { '-class'; $_ })
 Push-Location $repoRoot
 $created = $false
-$result = [ordered]@{ schemaVersion = 1; status = 'running'; startedUtc = [DateTime]::UtcNow; runs = @() }
+$result = [ordered]@{ schemaVersion = 1; status = 'running'; startedUtc = [DateTime]::UtcNow; runs = @(); allowedFailures = $AllowedFailures }
+$observedWaivers = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+function Invoke-TestVerification([string]$Configuration, [string]$Mode, [int]$Repetition, [string]$Log) {
+    $testExit = 0
+    $testDll = Join-Path $EngineRoot "BlockGame.Tests/bin/$Configuration/net10.0/BlockGame.Tests.dll"
+    $output = Invoke-Logged $Dotnet (@($testDll,'-parallelMode',$Mode,'-maxThreads',"$ParallelThreads") + $filterArgs) $Log $TimeoutSeconds -ResultExitCode ([ref]$testExit)
+    $summary = [regex]::Match($output, 'Total:\s*(?<total>[1-9][0-9]*),\s*Errors:\s*0,\s*Failed:\s*(?<failed>[0-9]+),\s*Skipped:\s*0,\s*Not Run:\s*0,')
+    $failures = @([regex]::Matches($output, '(?m)^[ \t]+(?<name>[^\r\n]+?) \[FAIL\]\r?$') | ForEach-Object { $_.Groups['name'].Value })
+    $unexpected = @($failures | Where-Object { $_ -cnotin $AllowedFailures })
+    $expectedExit = if ($failures.Count) { 1 } else { 0 }
+    if (-not $summary.Success -or $testExit -ne $expectedExit -or [int]$summary.Groups['failed'].Value -ne $failures.Count -or $unexpected.Count) {
+        throw "Failed, skipped or incomplete tests: $Log"
+    }
+    foreach ($failure in $failures) { $null = $observedWaivers.Add($failure) }
+    return @{ configuration = $Configuration; mode = $Mode; repetition = $Repetition; total = [int]$summary.Groups['total'].Value; status = 'passed'; log = $Log; waivedFailures = $failures }
+}
 try {
     if (-not $OutputDirectory) { $OutputDirectory = "out/test-verification/$([DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss'))-$([Guid]::NewGuid().ToString('N').Substring(0,8))" }
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
@@ -49,17 +65,15 @@ try {
     foreach ($mode in @('none','collections')) {
         for ($i = 1; $i -le $Repeats; $i++) {
             $log = "$OutputDirectory/Debug-$mode-$i.log"
-            $output = Invoke-Logged $Dotnet (@((Join-Path $EngineRoot 'BlockGame.Tests/bin/Debug/net10.0/BlockGame.Tests.dll'),'-parallelMode',$mode,'-maxThreads',"$ParallelThreads") + $filterArgs) $log $TimeoutSeconds
-            if ($output -notmatch 'Total:\s*(?<total>[1-9][0-9]*),\s*Errors:\s*0,\s*Failed:\s*0,\s*Skipped:\s*0,\s*Not Run:\s*0,') { throw "Failed, skipped or zero-discovery tests: $log" }
-            $result.runs += @{ configuration = 'Debug'; mode = $mode; repetition = $i; total = [int]$Matches.total; status = 'passed'; log = $log }
-            Write-Host "Passed Debug $mode $i/$Repeats ($($Matches.total) tests)"
+            $run = Invoke-TestVerification 'Debug' $mode $i $log
+            $result.runs += $run
+            Write-Host "Verified Debug $mode $i/$Repeats ($($run.total) tests, $($run.waivedFailures.Count) waived failures)"
         }
     }
-    $log = "$OutputDirectory/Release-collections.log"
-    $output = Invoke-Logged $Dotnet (@((Join-Path $EngineRoot 'BlockGame.Tests/bin/Release/net10.0/BlockGame.Tests.dll'),'-parallelMode','collections','-maxThreads',"$ParallelThreads") + $filterArgs) $log $TimeoutSeconds
-    if ($output -notmatch 'Total:\s*(?<total>[1-9][0-9]*),\s*Errors:\s*0,\s*Failed:\s*0,\s*Skipped:\s*0,\s*Not Run:\s*0,') { throw "Release tests failed, skipped or discovered zero: $log" }
-    $result.runs += @{ configuration = 'Release'; mode = 'collections'; total = [int]$Matches.total; status = 'passed'; log = $log }
+    $result.runs += Invoke-TestVerification 'Release' 'collections' 1 "$OutputDirectory/Release-collections.log"
     if (($result.runs.total | Sort-Object -Unique).Count -ne 1) { throw 'Test discovery counts differ across runs/configurations' }
+    $unused = @($AllowedFailures | Where-Object { -not $observedWaivers.Contains($_) })
+    if ($unused.Count) { throw "Unused test failure waivers: $($unused -join ', ')" }
     $result.status = 'passed'
     $result.scope = $Preflight.ToLowerInvariant()
 }

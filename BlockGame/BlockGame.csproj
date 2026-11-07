@@ -23,10 +23,10 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="Game\Graphics\Shader\shader.frag">
+      <None Update="Graphics\Shader\shader.frag">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="Game\Graphics\Shader\shader.vert">
+      <None Update="Graphics\Shader\shader.vert">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
       <None Update="NodeEditorIpc.dll">
@@ -50,7 +50,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="Game\texture\example.png" />
+      <None Remove="Textures\example.png" />
     </ItemGroup>
 
     <ItemGroup>

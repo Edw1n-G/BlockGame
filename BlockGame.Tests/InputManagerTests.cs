@@ -1,5 +1,5 @@
+using Basics.Input;
 using System.Numerics;
-using Basics.Game.Input;
 using Silk.NET.Input;
 
 namespace BlockGame.Tests;

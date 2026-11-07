@@ -1,3 +1,5 @@
+using BlockGame.Benchmarking;
+using BlockGame.Workloads;
 using System.Diagnostics;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnosers;
@@ -9,8 +11,6 @@ using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
 using BenchmarkDotNet.Toolchains.CsProj;
 using BenchmarkDotNet.Toolchains.DotNetCli;
-using BlockGame.Benchmarking;
-using BlockGame.Workloads;
 
 namespace BlockGame.Benchmarks;
 

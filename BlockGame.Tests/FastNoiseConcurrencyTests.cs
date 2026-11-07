@@ -1,4 +1,4 @@
-using Basics.Game.Logic;
+using Basics.Settings;
 
 namespace BlockGame.Tests;
 

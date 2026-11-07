@@ -25,7 +25,7 @@ dotnet restore BlockGame/BlockGame.csproj
 dotnet run --project BlockGame/BlockGame.csproj
 ```
 
-The working directory must allow `Content/` to be found. `BlockRegistry.ResolveContentRoot` tries `./Content`, `<AppBase>/Content`, `<cwd>/BlockGame/Content`, `<cwd>/../BlockGame/Content`. The csproj also copies `Content/**/*.json` and `*.png` and the shaders to the output directory. Shaders are loaded from `Game/Graphics/Shader/` relative to the working directory.
+The working directory must allow `Content/` to be found. `BlockRegistry.ResolveContentRoot` tries `./Content`, `<AppBase>/Content`, `<cwd>/BlockGame/Content`, `<cwd>/../BlockGame/Content`. The projects copy the block JSON, PNG textures and shaders to the output directory. Shaders are loaded from `Graphics/Shader/` relative to the working directory.
 
 Headless correctness tests (Windows x64, pinned SDK from `global.json`; no GL context required):
 
@@ -56,41 +56,41 @@ Rendering.sln
 README.md, Documentation.md, AGENTS.md
 BlockGame/                         main project (Exe)
 ├─ Programm.cs                     entry point (class "Programm") → StateManager.Run()
-├─ FastNoise.dll, NodeEditorIpc.dll  native libs (copied to output)
-├─ EngineStates/                   StateManager, IStates, Menu, Game
+├─ NodeEditorIpc.dll               native library (copied to output)
+├─ States/                        StateManager, IStates, Menu, Game
 ├─ Window/WindowSetup.cs           window creation, fullscreen/borderless, fps/vsync hooks
-├─ Game/
-│  ├─ EngineContext.cs, EngineSession.cs   subsystem container + isolated session
-│  ├─ Configurations/              BlockRegistry (data-driven blocks), BlockLoader (static facade)
-│  ├─ Graphics/                    Renderer, ShaderManager, Shader, Frustum, Transform,
-│  │                               BufferObject, VertexArrayObject, UI/UIManager, Shader/*.vert|frag
-│  ├─ Input/InputManager.cs        action bindings
-│  ├─ Jobs/                        JobScheduler, IJob, JobContext, ChunkLoadorGenerateJob, MeshgenerateJob
-│  ├─ Logic/
-│  │  ├─ GameSettings.cs, GameLogic.cs (empty placeholder)
-│  │  ├─ Player/                   PlayerCharacter, Camera, PlayerMovement
-│  │  └─ TerrainManaging/          ChunkProvider facade, ChunkRequestor, ChunkData, World
-│  │     ├─ ChunkLifetimeStore, MeshRequestCoordinator, ChunkMeshResources
-│  │     ├─ ChunkBlockAccess, ChunkNeighbors, ChunkSelection
-│  │     ├─ Generation/            TerrainGenerator
-│  │     │  └─ Noise/              NoiseCalculator, WorldtypeNoiseCalculator, FastNoise2.cs (wrapper)
-│  │     └─ Meshing/               BaseMesher, Lod0Mesher, LOD1Mesher, LOD2Mesher, LOD3Mesher (stub)
-│  ├─ PhysicsSystem/               Physics, Raycaster, Structs/ (BlockResult, EntityResult, AABB)
-│  ├─ Utilities/                   ChunkCoord, CoreAvailability, MathHelper
-│  └─ texture/                     Texture, TextureArray
+├─ Graphics/                       Renderer, ShaderManager, Shader, Frustum, Transform,
+│                                  BufferObject, VertexArrayObject, Chunks/, UI/, Shader/
+├─ Input/InputManager.cs           action bindings
+├─ Player/                         PlayerCharacter, Camera, PlayerMovement
+├─ Terrain/Selection/              ChunkRequestor
+├─ Textures/                       BlockTextureLoader, Texture, TextureArray
 └─ Content/
    └─ Core/                        namespace "core"
-      ├─ Blocks/stupid/*.json      dirt, grass, snow, stone
       ├─ Textures/*.png            one PNG per texture (all must share one size)
       ├─ WorldTypes/               1.txt (encoded noise tree), overworld/world_def.json (empty)
       └─ images/me.png             menu portrait (embedded resource)
+BlockGame.Core/                    graphics-free library
+├─ Engine/                         EngineContext, EngineSession, GameLogic (empty placeholder)
+├─ Blocks/                         BlockRegistry, BlockDefinitionLoader
+├─ Common/                         ChunkCoord, CoreAvailability, MathHelper
+├─ Jobs/                           JobScheduler, IJob, JobContext, ChunkLoadorGenerateJob, MeshgenerateJob
+├─ Settings/                       GameSettings
+├─ PhysicsSystem/                  Physics, Raycaster, raycast results, AABB
+├─ Terrain/                        ChunkData, World
+│  ├─ Chunks/                      ChunkProvider and chunk resources
+│  ├─ Selection/                   ChunkSelection, ChunkSelectionPlan
+│  ├─ Generation/                  TerrainGenerator, Noise/
+│  └─ Meshing/                     BaseMesher, Lod0Mesher, LOD1Mesher, LOD2Mesher, LOD3Mesher (stub)
+├─ Content/Core/Blocks/stupid/     dirt, grass, snow, stone JSON
+└─ FastNoise.dll                    native library (copied to output)
 BlockGame.Tests/                   xUnit v3 / Microsoft.Testing.Platform executable
 BlockGame.Workloads/               versioned shared CPU fixtures and frozen terrain
 BlockGame.Benchmarks/              BenchmarkDotNet executable (Release, Windows x64)
 scripts/                           bounded verification and benchmark entry points
 ```
 
-Namespaces do not always mirror folders. Examples: jobs live in `Basics.Game.Utilities`, `PlayerMovement` in `Basics.Game.Player`, `PlayerCharacter` in `Basics.Game.Logic.Player`, the physics structs in `Basics.PhysicsSystem.Structs`, input in `Basics.Input`, `Renderer`/`Frustum` in `Basics.Game.Graphics`, `Shader` in `Basics.Graphics`. Source comments and XML docs are mostly in German.
+Game and Core namespaces follow their folder paths under `Basics`. Source comments and XML docs are mostly in German.
 
 ## 4. Runtime architecture
 

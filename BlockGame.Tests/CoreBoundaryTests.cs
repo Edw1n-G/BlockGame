@@ -1,4 +1,4 @@
-using Basics.Game.Utilities;
+using Basics.Common;
 
 namespace BlockGame.Tests;
 

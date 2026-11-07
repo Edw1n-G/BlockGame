@@ -1,6 +1,6 @@
-using Basics.Game.Logic.TerrainManaging;
-using Basics.Game.Utilities;
 using BlockGame.Workloads;
+using Basics.Common;
+using Basics.Terrain.Selection;
 
 namespace BlockGame.Tests;
 

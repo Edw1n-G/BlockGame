@@ -1,8 +1,8 @@
-using System.Runtime.InteropServices;
-using Basics.Game.Logic.TerrainManaging;
-using Basics.Game.Logic.TerrainManaging.Meshing;
-using Basics.Game.Utilities;
 using BlockGame.Benchmarking;
+using Basics.Common;
+using Basics.Terrain.Meshing;
+using Basics.Terrain;
+using System.Runtime.InteropServices;
 
 namespace BlockGame.Workloads;
 

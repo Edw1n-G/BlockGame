@@ -1,11 +1,13 @@
-using System.Numerics;
-using Basics.Game;
-using Basics.Game.Input;
-using Basics.Game.Logic;
-using Basics.Game.Logic.Player;
-using Basics.Game.Logic.TerrainManaging;
-using Basics.Game.Utilities;
 using BlockGame.Workloads;
+using Basics.Common;
+using Basics.Engine;
+using Basics.Input;
+using Basics.Player;
+using Basics.Settings;
+using Basics.Terrain;
+using Basics.Terrain.Chunks;
+using Basics.Terrain.Selection;
+using System.Numerics;
 
 namespace BlockGame.Tests;
 

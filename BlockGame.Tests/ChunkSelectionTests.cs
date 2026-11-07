@@ -1,5 +1,6 @@
-using Basics.Game.Logic.TerrainManaging;
-using Basics.Game.Utilities;
+using Basics.Common;
+using Basics.Terrain.Chunks;
+using Basics.Terrain.Selection;
 
 namespace BlockGame.Tests;
 

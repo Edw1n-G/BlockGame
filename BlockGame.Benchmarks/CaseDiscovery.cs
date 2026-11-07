@@ -1,10 +1,10 @@
+using BlockGame.Benchmarking;
+using BlockGame.Workloads;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
-using BlockGame.Benchmarking;
-using BlockGame.Workloads;
 
 namespace BlockGame.Benchmarks;
 

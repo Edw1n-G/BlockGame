@@ -1,5 +1,5 @@
-using Basics.Game.Input;
-using Basics.Game.Logic;
+using Basics.Input;
+using Basics.Settings;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 

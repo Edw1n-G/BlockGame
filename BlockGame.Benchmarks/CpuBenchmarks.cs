@@ -1,8 +1,8 @@
-using BenchmarkDotNet.Attributes;
 using BlockGame.Workloads;
-using Basics.Game.Logic.TerrainManaging;
-using Basics.Game.Utilities;
 using BlockGame.Benchmarking;
+using Basics.Common;
+using Basics.Terrain;
+using BenchmarkDotNet.Attributes;
 
 namespace BlockGame.Benchmarks;
 

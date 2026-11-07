@@ -1,5 +1,5 @@
-using Basics.Game.Utilities;
-using Basics.PhysicsSystem.Structs;
+using Basics.Common;
+using Basics.PhysicsSystem;
 using Silk.NET.Maths;
 
 namespace BlockGame.Tests;

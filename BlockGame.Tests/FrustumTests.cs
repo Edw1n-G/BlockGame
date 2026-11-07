@@ -1,8 +1,8 @@
+using Basics.Common;
+using Basics.Graphics;
+using Basics.Player;
 using System.Numerics;
-using Basics.Game;
-using Basics.Game.Graphics;
-using Basics.Game.Utilities;
-using Plane = Basics.Game.Graphics.Plane;
+using Plane = Basics.Graphics.Plane;
 
 namespace BlockGame.Tests;
 

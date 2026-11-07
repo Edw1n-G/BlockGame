@@ -1,8 +1,9 @@
+using Basics.Common;
+using Basics.Engine;
+using Basics.Terrain.Meshing;
+using Basics.Terrain;
+using Basics.Terrain.Chunks;
 using System.Diagnostics;
-using Basics.Game;
-using Basics.Game.Logic.TerrainManaging;
-using Basics.Game.Logic.TerrainManaging.Meshing;
-using Basics.Game.Utilities;
 
 namespace BlockGame.Tests;
 

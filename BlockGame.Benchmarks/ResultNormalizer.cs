@@ -1,6 +1,6 @@
+using BlockGame.Benchmarking;
 using System.Text.Json;
 using BenchmarkDotNet.Running;
-using BlockGame.Benchmarking;
 
 namespace BlockGame.Benchmarks;
 

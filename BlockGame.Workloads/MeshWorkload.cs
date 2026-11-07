@@ -1,10 +1,11 @@
+using Basics.Blocks;
+using Basics.Common;
+using Basics.Terrain.Meshing;
+using Basics.Terrain;
+using Basics.Terrain.Chunks;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using Basics.Game.Configurations;
-using Basics.Game.Logic.TerrainManaging;
-using Basics.Game.Logic.TerrainManaging.Meshing;
-using Basics.Game.Utilities;
 
 namespace BlockGame.Workloads;
 

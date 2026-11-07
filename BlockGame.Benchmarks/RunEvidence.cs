@@ -1,9 +1,9 @@
+using BlockGame.Workloads;
+using BlockGame.Benchmarking;
 using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using BlockGame.Workloads;
-using BlockGame.Benchmarking;
 using System.IO.Compression;
 
 namespace BlockGame.Benchmarks;
@@ -88,7 +88,7 @@ internal static class RunEvidence
         settings = Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>()
             .Where(e => ((string)e.Key).StartsWith("DOTNET_", StringComparison.Ordinal) || ((string)e.Key).StartsWith("COMPlus_", StringComparison.Ordinal))
             .ToDictionary(e => (string)e.Key, e => (string?)e.Value),
-        assemblies = new[] { typeof(Basics.Game.Logic.TerrainManaging.ChunkProvider).Assembly, typeof(WorkloadCatalog).Assembly, typeof(ScenarioContract).Assembly, typeof(Program).Assembly }
+        assemblies = new[] { typeof(Basics.Terrain.Chunks.ChunkProvider).Assembly, typeof(WorkloadCatalog).Assembly, typeof(ScenarioContract).Assembly, typeof(Program).Assembly }
             .Select(a => new { name = a.GetName().Name, sha256 = WorkloadEnvironment.Hash(File.ReadAllBytes(a.Location)) }).ToArray()
     };
 

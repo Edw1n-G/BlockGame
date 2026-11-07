@@ -1,8 +1,8 @@
-using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Configs;
 using BlockGame.Benchmarking;
 using BlockGame.Benchmarks;
 using BlockGame.Workloads;
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Configs;
 
 namespace BlockGame.Tests;
 

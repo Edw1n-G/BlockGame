@@ -1,8 +1,8 @@
+using Basics.Blocks;
+using Basics.Terrain.Generation;
+using Basics.Terrain.Generation.Noise;
 using System.Security.Cryptography;
 using System.Text;
-using Basics.Game.Configurations;
-using Basics.Game.Logic.TerrainManaging.Generation;
-using Basics.Game.Logic.TerrainManaging.Generation.Noise;
 
 namespace BlockGame.Workloads;
 

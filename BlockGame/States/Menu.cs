@@ -1,0 +1,225 @@
+using Basics.Input;
+using Basics.Settings;
+using Basics.Window;
+using Silk.NET.Input;
+using Silk.NET.Maths;
+using Silk.NET.OpenGL;
+using Egui;
+using Egui.Containers;
+using Egui.Silk.NET;
+using StbImageSharp;
+
+namespace Basics.States;
+
+/// <summary>
+/// Der Hauptmenü-Zustand des Spiels.
+/// Zeigt Main-Menu, Einstellungen und Steuerungshinweise.
+/// </summary>
+public class Menu : IStates
+{
+    /// <summary>
+    /// Der OpenGL-Kontext für Render-Operationen.
+    /// </summary>
+    private GL _gl;
+    
+    /// <summary>
+    /// Der Eingabe-Kontext für Input-Verarbeitung.
+    /// </summary>
+    private IInputContext _inputContext;
+    
+    /// <summary>
+    /// Der InputManager, der Tasten auf Aktionen abbildet.
+    /// </summary>
+    private InputManager _inputManager;
+    
+    /// <summary>
+    /// Der StateManager für Zustandswechsel.
+    /// </summary>
+    private StateManager _manager;
+    
+    /// <summary>
+    /// Der Egui-Kontext für UI-Rendering.
+    /// </summary>
+    private Context _uiContext = null!;
+    
+    /// <summary>
+    /// Die Egui-Integration für Silk.NET.
+    /// </summary>
+    private GameEguiIntegration _uiIntegration = null!;
+    
+    /// <summary>
+    /// Gibt an, ob die Einstellungen angezeigt werden sollen.
+    /// </summary>
+    private bool _showSettings = false;
+    
+    /// <summary>
+    /// Wird aufgerufen, wenn der Menü-Zustand aktiviert wird.
+    /// Initialisiert UI-Kontext und setzt Mauszeiger auf Normal.
+    /// </summary>
+    /// <param name="gl">Der OpenGL-Kontext.</param>
+    /// <param name="inputContext">Der Eingabe-Kontext.</param>
+    /// <param name="inputManager">Der InputManager, der Tasten auf Aktionen abbildet.</param>
+    /// <param name="manager">Der StateManager für Zustandswechsel.</param>
+    public void Enter(GL gl, IInputContext inputContext,InputManager inputManager, StateManager manager)
+    {
+        _gl = gl;
+        _inputContext = inputContext;
+        _manager = manager;
+        _inputManager = inputManager;
+        _inputManager.UnlockMouse();
+        
+        //Mauszeiger anzeigen. idk kann man mehrere mäuse benutzen in windows?
+        foreach (var mouse in _inputContext.Mice)
+        {
+            mouse.Cursor.CursorMode = CursorMode.Normal;
+        }
+        
+        //Egui.NET
+        _uiContext = new Context();
+        
+        _uiIntegration = new GameEguiIntegration(_uiContext, WindowSetup.Window, _inputContext, _inputManager);
+    }
+
+    /// <summary>
+    /// Wird in jedem Update-Frame aufgerufen. Im Menü aktuell ohne Funktionalität.
+    /// </summary>
+    /// <param name="delta">Die Zeit in Sekunden seit dem letzten Frame.</param>
+    public void Update(double delta)
+    {
+        
+    }
+
+    /// <summary>
+    /// Wird in jedem Render-Frame aufgerufen.
+    /// Zeichnet den UI-Hintergrund und die UI-Elemente.
+    /// </summary>
+    /// <param name="delta">Die Zeit in Sekunden seit dem letzten Frame.</param>
+    public void Render(double delta)
+    {
+        _gl.ClearColor(0.1f, 0.15f, 0.2f, 1.0f);
+        _gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        
+        _uiIntegration.Run(ctx => Draw(ctx));
+    }
+
+    /// <summary>
+    /// Wird bei einer Größenänderung des Framebuffers aufgerufen.
+    /// Im Menü aktuell ohne Funktionalität.
+    /// </summary>
+    /// <param name="newSize">Die neue Größe des Framebuffers.</param>
+    public void FramebufferResize(Vector2D<int> newSize)
+    {
+        
+    }
+
+    /// <summary>
+    /// Wird aufgerufen, wenn der Menü-Zustand verlassen wird.
+    /// Bereitet das Aufräumen von UI-Ressourcen vor.
+    /// </summary>
+    public void Exit()
+    {
+        Console.WriteLine("Exiting Menu State");
+        _uiIntegration?.Dispose();
+        _uiIntegration = null;
+        _uiContext = null;
+    }
+    
+    
+    /// <summary>
+    /// Zeichnet alle UI-Elemente des Menüs.
+    /// </summary>
+    /// <param name="ctx">Der Egui-Kontext.</param>
+    public void Draw(Context ctx)
+    {
+        new Area("MainMenuArea")
+            .Anchor(Align2.CenterCenter, new EVec2(0, 0))
+            .Show(ctx, ui =>
+            {
+                var backgroundFrame = new Frame
+                {
+                    Fill = Color32.DarkBlue,
+                    CornerRadius = new CornerRadius { Nw = 10, Ne = 10, Sw = 10, Se = 10 }
+                };
+
+                backgroundFrame.Show(ui, frameUi =>
+                {
+                    // Titel
+                    frameUi.Heading("MeinKraft");
+                    frameUi.Label("Version 0.12.0 Alpha");
+                    
+                    // Einen kleinen Strich als Trenner
+                    frameUi.Separator();
+                    
+                    if (frameUi.Button("Spiel starten").Clicked)
+                    {
+                        _manager.StateChange(new Game());
+                    }
+
+                    if (frameUi.Button("Einstellungen").Clicked)
+                    {
+                        _showSettings = !_showSettings; 
+                    }
+
+                    if (frameUi.Button("Beenden").Clicked)
+                    {
+                        _manager.CloseEngine(); 
+                    }
+                });
+            });
+        
+        if (_showSettings)
+        {
+            new Egui.Containers.Window("Menü Einstellungen")
+                .Resizable((false, false))
+                .Show(ctx, ui =>
+                {
+                    int dist = GameSettings.Current.RenderDistance;
+                    if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, 1, 40).Text("Render Distance")).Changed)
+                    {
+                        GameSettings.Current.SetRenderDistance(dist);
+                    }
+                    
+                    int size = GameSettings.Current.MapSize;
+                    if (ui.Add(new Egui.Widgets.Slider<int>(ref size, 1, 500).Text("World size (in Chunks)")).Changed)
+                    {
+                        GameSettings.Current.SetMapSize(size);
+                    }
+                    
+                    if (ui.Button("Schließen").Clicked)
+                    {
+                        _showSettings = false;
+                    }
+                });
+        }
+        
+        new Egui.Containers.Area("Controlls")
+                .Anchor(Align2.RightBottom, new EVec2(20, 10))
+                .Show(ctx, ui =>
+                {
+                    // Einen Frame definieren. Hier kannst du Farbe, Rundungen und Abstände (Margin) anpassen.
+                    var backgroundFrame = new Egui.Containers.Frame
+                    {
+                        Fill = Color32.Black,
+                        CornerRadius = new CornerRadius { Nw = 5, Ne = 5, Sw = 5, Se = 5 }
+                    };
+
+                    // Den Frame in das 'ui' der Area zeichnen. 
+                    backgroundFrame.Show(ui, frameUi =>
+                    {
+                        frameUi.Label("WASD Shift Space - Movement");
+                        frameUi.Label("F - Mouse Toggle");
+                        frameUi.Label("F1 - Debug Cam (No worki)");
+                        frameUi.Label("F11 - Fullscreen");
+                        frameUi.Label("F12 - Borderless Fullscreen");
+                    });
+                });
+
+        new Egui.Containers.Area("Pfp")
+            .Anchor(Align2.RightTop, new EVec2(10, 10))
+            .Show(ctx, ui =>
+            {
+                ui.Add(new Egui.Widgets.Image(EguiHelpers.IncludeImageResource("Core.images.me.png"))
+                    .FitToExactSize((128f, 128f)));
+            });
+    }
+}

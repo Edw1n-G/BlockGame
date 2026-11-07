@@ -1,4 +1,4 @@
-using Basics.PhysicsSystem.Structs;
+using Basics.PhysicsSystem;
 
 namespace BlockGame.Tests;
 

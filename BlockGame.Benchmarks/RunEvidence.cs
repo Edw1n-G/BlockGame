@@ -42,7 +42,7 @@ internal static class RunEvidence
         string[] managedDependencies=File.Exists(assetsPath) ? JsonDocument.Parse(File.ReadAllText(assetsPath)).RootElement.GetProperty("libraries").EnumerateObject().Select(p=>p.Name).Order(StringComparer.Ordinal).ToArray() : [];
         var runnerFiles=new[]{"global.json","run-benchmarks.ps1","verify-tests.ps1","scripts/ProcessTools.ps1","Directory.Build.props","Directory.Build.targets","Directory.Packages.props","NuGet.Config"};
         var harnessFiles=files.Where(f=>runnerFiles.Contains(f.path) ||
-            new[]{"BlockGame.Benchmarks/","BlockGame.Workloads/","BlockGame.Benchmarking/","BlockGame.Tests/TestData/BenchmarkControls/"}.Any(prefix=>f.path.StartsWith(prefix,StringComparison.Ordinal)) &&
+            new[]{"BlockGame.Benchmarks/","BlockGame.Workloads/","BlockGame.Benchmarking/"}.Any(prefix=>f.path.StartsWith(prefix,StringComparison.Ordinal)) &&
             new[]{".cs",".csproj",".json"}.Contains(Path.GetExtension(f.path))).ToArray();
         return new { root, commit = Git(root,"rev-parse", "HEAD"), branch = Git(root,"branch", "--show-current"), dirty = status.Length > 0, status,
             engineRoot,engineRevision,engineClean,engineFingerprint,engineFiles,managedDependencies,harnessFingerprint=EvidenceJson.Fingerprint(harnessFiles),

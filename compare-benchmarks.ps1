@@ -63,9 +63,6 @@ try {
         if (Test-Path -LiteralPath "$PSScriptRoot/$file") { Copy-Item -LiteralPath "$PSScriptRoot/$file" -Destination "$CheckoutDirectory/harness/$file" }
     }
     if(Test-Path -LiteralPath "$PSScriptRoot/docs"){Copy-Item -LiteralPath "$PSScriptRoot/docs" -Destination "$CheckoutDirectory/harness/docs" -Recurse}
-    $controlTarget="$CheckoutDirectory/harness/BlockGame.Tests/TestData"
-    New-Item -ItemType Directory -Path $controlTarget -Force | Out-Null
-    Copy-Item -LiteralPath "$PSScriptRoot/BlockGame.Tests/TestData/BenchmarkControls" -Destination $controlTarget -Recurse
     $experimentState=@{status='running';baselineRevision=$baselineRevision;candidateRevision=$candidateRevision;harnessSource='captured current harness; same fingerprint required';checkouts=$CheckoutDirectory}
     $experimentState | ConvertTo-Json | Set-Content "$OutputDirectory/experiment.json"
     foreach ($name in @('baseline','candidate')) {

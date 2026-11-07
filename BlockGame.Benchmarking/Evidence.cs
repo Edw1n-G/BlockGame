@@ -54,4 +54,8 @@ public sealed record ComparisonRow(string ScenarioId, string Status, string Reas
     double? AllocationDeltaBytes = null, string AllocationStatus = "unavailable", ScenarioContract? Contract = null);
 
 public sealed record ComparisonReport(int SchemaVersion, string Purpose, ComparisonPolicy Policy, ComparisonRow[] Rows,
-    string BaselineRevision, string CandidateRevision, string HarnessFingerprint, string EnvironmentFingerprint, string ComparatorFingerprint);
+    string BaselineRevision, string CandidateRevision, string HarnessFingerprint, string EnvironmentFingerprint, string ComparatorFingerprint)
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ControlValidationResult? Controls { get; init; }
+}

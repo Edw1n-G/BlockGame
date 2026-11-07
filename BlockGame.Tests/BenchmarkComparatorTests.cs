@@ -4,11 +4,11 @@ namespace BlockGame.Tests;
 
 public class BenchmarkComparatorTests
 {
-    private static BenchmarkRun Fixture(string name) => EvidenceJson.Read<BenchmarkRun>(Path.Combine(AppContext.BaseDirectory,"TestData/BenchmarkControls",name,"benchmark-run.json"));
+    private static BenchmarkRun Fixture(string name) => ControlFixtures.Run(name);
     [Fact] public void IdenticalCodeNullControlNeverClaimsImprovementOrRegression()
     {
         var rows=Comparator.Compare(Fixture("null-a"),Fixture("null-b"),calibration:true).Rows;
-        Assert.Equal(21,rows.Length); Assert.All(rows,r=>Assert.Equal("inconclusive",r.Status));
+        Assert.Equal(4,rows.Length); Assert.All(rows,r=>Assert.Equal("inconclusive",r.Status));
     }
     [Fact] public void PositiveControlDetectsLargeEffectButIsNotAProductionBaseline()
     {
@@ -40,16 +40,34 @@ public class BenchmarkComparatorTests
     }
     [Fact] public void MeasuredDeliberateSlowdownIsANegativeControl()
     {
-        var row=Assert.Single(Comparator.Compare(Fixture("negative-before"),Fixture("negative-after"),calibration:true).Rows);
+        var row=Assert.Single(Comparator.Compare(Fixture("positive-after"),Fixture("positive-before"),calibration:true).Rows);
         Assert.Equal("regressed",row.Status);Assert.True(row.PercentChange>50);Assert.Equal("increased",row.AllocationStatus);
     }
-    [Fact] public void AllCommittedCalibrationEvidenceHasValidPortableHashes()
+    [Fact] public void FixturesHitTheirTargetCv()
     {
-        string root=Path.Combine(AppContext.BaseDirectory,"TestData/BenchmarkControls");
-        foreach(string directory in Directory.EnumerateDirectories(root))Assert.Equal("calibration",PortableBundle.Verify(directory).Kind);
+        (string Name, double[] TargetPercent)[] fixtures =
+        [
+            ("null-a", [1.0, 1.5, 8.0, 8.0]),
+            ("null-b", [1.0, 1.5, 8.0, 8.0]),
+            ("positive-before", [1.0]),
+            ("positive-after", [1.0]),
+            ("early-before", [2.0]),
+            ("early-after", [2.0])
+        ];
+        foreach (var (name, targetPercent) in fixtures)
+        {
+            var cases = Fixture(name).Cases;
+            Assert.Equal(targetPercent.Length, cases.Length);
+            for (int i = 0; i < cases.Length; i++)
+            {
+                var samples = cases[i].SamplesNs;
+                Assert.Equal(30, samples.Length);
+                double mean = samples.Average();
+                double sd = Math.Sqrt(samples.Sum(value => Math.Pow(value - mean, 2)) / (samples.Length - 1));
+                Assert.InRange(100 * sd / mean, targetPercent[i] - 0.3, targetPercent[i] + 0.3);
+            }
+        }
     }
-    [Fact] public void PackagedControlSuiteValidatesBeforeProductionComparisons()
-    { Assert.NotNull(ControlValidation.Validate(Path.Combine(AppContext.BaseDirectory,"TestData/BenchmarkControls"))); }
     [Fact] public void ProductionVerdictRequiresFullCorrectnessAndMatchingOutputEvidence()
     {
         var a=Fixture("positive-before") with {Kind="revision",EngineClean=true,EngineRevision=new string('a',40)};

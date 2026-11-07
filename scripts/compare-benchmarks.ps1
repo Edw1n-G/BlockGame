@@ -34,27 +34,31 @@ try {
     if (-not $OutputDirectory) { $OutputDirectory = "artifacts/comparisons/$([Guid]::NewGuid().ToString('N'))" }
     $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
     if (Test-Path -LiteralPath $OutputDirectory) { throw 'Comparison output must be new' }
-    if (-not $CheckoutDirectory) { $CheckoutDirectory = "artifacts/checkouts/$([Guid]::NewGuid().ToString('N'))" }
+    $comparisonId = [Guid]::NewGuid().ToString('N')
+    if (-not $CheckoutDirectory) {
+        $CheckoutDirectory = Join-Path (Split-Path $repoRoot -Parent) "BlockGame.bench/$comparisonId"
+    }
     $CheckoutDirectory = [IO.Path]::GetFullPath($CheckoutDirectory)
     $separator = [IO.Path]::DirectorySeparatorChar
     $insideRepository = $CheckoutDirectory.StartsWith($repoRoot+$separator,[StringComparison]::OrdinalIgnoreCase)
-    $artifactPrefix = (Join-Path $repoRoot 'artifacts')+$separator
-    if ($CheckoutDirectory -eq $repoRoot -or ($insideRepository -and -not $CheckoutDirectory.StartsWith($artifactPrefix,[StringComparison]::OrdinalIgnoreCase))) {
-        throw 'Checkouts must be under artifacts/ or outside the working repository'
+    if ($CheckoutDirectory -eq $repoRoot -or $insideRepository) {
+        throw 'Checkouts must be outside the working repository'
     }
     if (Test-Path -LiteralPath $CheckoutDirectory) { throw 'Checkout directory must be new' }
     New-Item -ItemType Directory -Path $CheckoutDirectory | Out-Null
+    $checkoutLogs = Join-Path $repoRoot "artifacts/logs/$comparisonId"
+    New-Item -ItemType Directory -Path $checkoutLogs | Out-Null
     $revisions = [ordered]@{ harness = $harnessCommit; baseline = $baselineRevision; candidate = $candidateRevision }
     foreach ($name in $revisions.Keys) {
         $target = Join-Path $CheckoutDirectory $name
-        Invoke-Logged git @('clone','--quiet','--no-hardlinks','--no-checkout',$repoRoot,$target) "$CheckoutDirectory/clone-$name.log" 120 | Out-Null
-        Invoke-Logged git @('-C',$target,'checkout','--quiet','--detach',$revisions[$name]) "$CheckoutDirectory/checkout-$name.log" 120 | Out-Null
+        Invoke-Logged git @('clone','--quiet','--no-hardlinks','--no-checkout',$repoRoot,$target) "$checkoutLogs/clone-$name.log" 120 | Out-Null
+        Invoke-Logged git @('-C',$target,'checkout','--quiet','--detach',$revisions[$name]) "$checkoutLogs/checkout-$name.log" 120 | Out-Null
     }
     $harnessRoot = Join-Path $CheckoutDirectory 'harness'
     $harnessProject = Join-Path $harnessRoot 'BlockGame.Benchmarks/BlockGame.Benchmarks.csproj'
     foreach ($name in @('baseline','candidate')) {
         $engineProject = Join-Path $CheckoutDirectory "$name/BlockGame.Core/BlockGame.Core.csproj"
-        $buildLog = Join-Path $CheckoutDirectory "build-$name.log"
+        $buildLog = Join-Path $checkoutLogs "build-$name.log"
         try {
             if (-not (Test-Path -LiteralPath $engineProject)) {
                 "Engine project missing: $engineProject" | Set-Content -LiteralPath $buildLog
@@ -74,7 +78,7 @@ try {
         }
     }
     New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
-    $experimentState=@{status='running';baselineRevision=$baselineRevision;candidateRevision=$candidateRevision;harnessRevision=$harnessCommit;checkouts=$CheckoutDirectory}
+    $experimentState=@{status='running';baselineRevision=$baselineRevision;candidateRevision=$candidateRevision;harnessRevision=$harnessCommit;checkouts=$CheckoutDirectory;checkoutLogs=$checkoutLogs}
     $experimentState | ConvertTo-Json | Set-Content "$OutputDirectory/experiment.json"
     foreach ($name in @('baseline','candidate')) {
         if ((& git -C "$CheckoutDirectory/$name" status --porcelain | Out-String).Trim()) { throw 'Engine checkout is dirty before measurement' }

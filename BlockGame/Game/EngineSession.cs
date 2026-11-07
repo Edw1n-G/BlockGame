@@ -22,9 +22,8 @@ public class EngineSession : IDisposable
     /// </summary>
     /// <remarks>
     /// Dieser Wert ist derzeit informatisch: Der <see cref="EngineContext"/> initialisiert
-    /// keine GL-Ressourcen allein, unabhängig von diesem Flag. GL wird nur dann verwendet,
-    /// wenn <see cref="Renderer.Setup()"/>/<see cref="BlockRegistry.Initialize(GL, string)"/>
-    /// explizit aus einem fenstergesteuerten Game-Zustand aufgerufen werden.
+    /// keine GPU-Ressourcen allein, unabhängig von diesem Flag. Die Spielansicht
+    /// lädt GPU-Ressourcen separat auf dem Hauptthread.
     /// Das Flag dient dazu, dass Aufrufstellen denIntent dokumentieren können, und als
     /// Hook-Punkt, falls wir später echte Headless-Modus-Verzweigungen benötigen.
     /// </remarks>

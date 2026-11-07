@@ -1,6 +1,4 @@
-using System.Text.Json;
-using Basics.Game.texture;
-using Silk.NET.OpenGL;
+using Basics.Configurations;
 
 namespace Basics.Game.Configurations;
 
@@ -12,24 +10,6 @@ namespace Basics.Game.Configurations;
 /// </summary>
 public class BlockRegistry : IDisposable
 {
-    private sealed class BlockFile
-    {
-        public string? Name { get; set; }
-        public List<string>? Tags { get; set; }
-        public BlockTextureFaces? Textures { get; set; }
-    }
-
-    private sealed class BlockTextureFaces
-    {
-        public string? Top { get; set; }
-        public string? Bottom { get; set; }
-        public string? Front { get; set; }
-        public string? Back { get; set; }
-        public string? Left { get; set; }
-        public string? Right { get; set; }
-        public string? Sides { get; set; }
-    }
-
     private sealed class BlockDefinition
     {
         public required string Name { get; init; }
@@ -37,19 +17,13 @@ public class BlockRegistry : IDisposable
         public required HashSet<string> Tags { get; init; }
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly Dictionary<string, ushort> _blockIdByName = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, HashSet<ushort>> _blockIdsByTag = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ushort> _textureLayersByName = new(StringComparer.OrdinalIgnoreCase);
     private List<BlockDefinition> _definitions = new();
 
-    private TextureArray? _terrainTexture;
+    internal IReadOnlyList<string> TexturePaths { get; private set; } = [];
     private bool _initialized;
-    private bool _texturesLoaded;
 
     /// <summary>
     /// Index des oberen Face (Top) in der Layer-Array.
@@ -92,13 +66,6 @@ public class BlockRegistry : IDisposable
     public bool IsInitialized => _initialized;
 
     /// <summary>
-    /// Gibt die Terrain-Textur zurück, die alle Texturen als Texture-Array enthält.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Wird ausgelöst, wenn die Textur noch nicht initialisiert wurde.</exception>
-    public TextureArray TerrainTexture => _terrainTexture
-        ?? throw new InvalidOperationException("BlockTextures wurde nicht initialisiert. Initialize() aufrufen.");
-
-    /// <summary>
     /// Resolves den Content-Root-Pfad, der für das Laden von Blöcken und Texturen verwendet wird.
     /// Prüft verschiedene Pfade (Content, BaseDirectory/Content, BlockGame/Content, etc.).
     /// </summary>
@@ -121,29 +88,6 @@ public class BlockRegistry : IDisposable
     }
 
     /// <summary>
-    /// Initialisiert die BlockRegistry mit Texturen und Blockdefinitionen.
-    /// Lädt Texturen und Blöcke aus dem Content-Verzeichnis.
-    /// </summary>
-    /// <param name="gl">Die OpenGL-Instanz für die Textur-Erstellung.</param>
-    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
-    public void Initialize(GL gl, string contentRoot = "Content")
-    {
-        string root = ResolveContentRoot(contentRoot);
-        if (_initialized && _texturesLoaded)
-        {
-            return;
-        }
-
-        LoadTextures(gl, root);
-        if (!_initialized)
-        {
-            LoadBlocks(root);
-            _initialized = true;
-        }
-        _texturesLoaded = true;
-    }
-
-    /// <summary>
     /// Initialisiert die BlockRegistry ohne GPU-Texturen (für headless-Betrieb).
     /// Lädt nur die Blockdefinitionen und erkennt Texturen, erstellt aber keine Textur-Arrays.
     /// </summary>
@@ -159,8 +103,11 @@ public class BlockRegistry : IDisposable
 
         if (Directory.Exists(root))
         {
-            DiscoverTextureLayers(root);
-            LoadBlocks(root);
+            var (blocks, textures) = BlockDefinitionLoader.Load(root);
+            TexturePaths = textures.Select(texture => texture.FullPath).ToArray();
+            for (ushort i = 0; i < textures.Count; i++)
+                _textureLayersByName[textures[i].TextureId] = i;
+            RegisterBlocks(blocks);
         }
         else
         {
@@ -192,7 +139,7 @@ public class BlockRegistry : IDisposable
 
     /// <summary>
     /// Setzt die BlockRegistry auf den Ausgangszustand zurück.
-    /// Gibt Texturen frei und löscht alle gespeicherten Definitionen.
+    /// Löscht alle gespeicherten Definitionen und Texture-Layer.
     /// </summary>
     public void Reset()
     {
@@ -200,10 +147,8 @@ public class BlockRegistry : IDisposable
         _blockIdsByTag.Clear();
         _textureLayersByName.Clear();
         _definitions.Clear();
-        _terrainTexture?.Dispose();
-        _terrainTexture = null;
+        TexturePaths = [];
         _initialized = false;
-        _texturesLoaded = false;
     }
 
     /// <summary>
@@ -295,94 +240,9 @@ public class BlockRegistry : IDisposable
     }
 
     /// <summary>
-    /// Sucht alle Texturen im Content-Verzeichnis und weist ihnen Layer-IDs zu.
-    /// Wird für headless-Modus verwendet.
-    /// </summary>
-    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
-    private void DiscoverTextureLayers(string contentRoot)
-    {
-        if (!Directory.Exists(contentRoot))
-        {
-            return;
-        }
-
-        var textureFiles = new List<(string textureId, string fullPath)>();
-        foreach (string namespaceDir in Directory.EnumerateDirectories(contentRoot))
-        {
-            string namespaceName = Path.GetFileName(namespaceDir).ToLowerInvariant();
-            string textureDir = Path.Combine(namespaceDir, "Textures");
-            if (!Directory.Exists(textureDir))
-            {
-                continue;
-            }
-
-            foreach (string file in Directory.EnumerateFiles(textureDir, "*.png", SearchOption.AllDirectories))
-            {
-                string textureName = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
-                textureFiles.Add(($"{namespaceName}:{textureName}", file));
-            }
-        }
-
-        textureFiles.Sort((a, b) => string.CompareOrdinal(a.textureId, b.textureId));
-        for (ushort i = 0; i < textureFiles.Count; i++)
-        {
-            _textureLayersByName[textureFiles[i].textureId] = i;
-        }
-    }
-
-    /// <summary>
-    /// Lädt alle Texturen in ein TextureArray und weist ihnen Layer-IDs zu.
-    /// Wird während der regulären Initialisierung verwendet.
-    /// </summary>
-    /// <param name="gl">Die OpenGL-Instanz.</param>
-    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
-    /// <exception cref="DirectoryNotFoundException">Wird ausgelöst, wenn der Content-Root nicht gefunden wird.</exception>
-    /// <exception cref="InvalidDataException">Wird ausgelöst, wenn keine Texturen gefunden werden.</exception>
-    private void LoadTextures(GL gl, string contentRoot)
-    {
-        if (!Directory.Exists(contentRoot))
-        {
-            throw new DirectoryNotFoundException($"Content root nicht gefunden: {Path.GetFullPath(contentRoot)}");
-        }
-
-        var textureFiles = new List<(string textureId, string fullPath)>();
-
-        foreach (string namespaceDir in Directory.EnumerateDirectories(contentRoot))
-        {
-            string namespaceName = Path.GetFileName(namespaceDir).ToLowerInvariant();
-            string textureDir = Path.Combine(namespaceDir, "Textures");
-            if (!Directory.Exists(textureDir))
-            {
-                continue;
-            }
-
-            foreach (string file in Directory.EnumerateFiles(textureDir, "*.png", SearchOption.AllDirectories))
-            {
-                string textureName = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
-                textureFiles.Add(($"{namespaceName}:{textureName}", file));
-            }
-        }
-
-        if (textureFiles.Count == 0)
-        {
-            throw new InvalidDataException($"Keine Texturen unter '{contentRoot}/<namespace>/Textures' gefunden.");
-        }
-
-        textureFiles.Sort((a, b) => string.CompareOrdinal(a.textureId, b.textureId));
-        string[] orderedPaths = textureFiles.Select(x => x.fullPath).ToArray();
-        _terrainTexture = new TextureArray(gl, orderedPaths);
-
-        for (ushort i = 0; i < textureFiles.Count; i++)
-        {
-            _textureLayersByName[textureFiles[i].textureId] = i;
-        }
-    }
-
-    /// <summary>
     /// Lädt alle Blockdefinitionen aus JSON-Dateien im Content-Verzeichnis.
     /// </summary>
-    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
-    private void LoadBlocks(string contentRoot)
+    private void RegisterBlocks(List<(string BlockId, string FullPath, BlockDefinitionLoader.BlockFile Data)> blocks)
     {
         _definitions = new List<BlockDefinition>
         {
@@ -395,39 +255,10 @@ public class BlockRegistry : IDisposable
         };
         _blockIdByName["core:air"] = Air;
 
-        if (!Directory.Exists(contentRoot))
+        foreach (var (blockId, fullPath, block) in blocks)
         {
-            return;
-        }
-
-        var blockFiles = new List<(string blockId, string fullPath)>();
-        foreach (string namespaceDir in Directory.EnumerateDirectories(contentRoot))
-        {
-            string namespaceName = Path.GetFileName(namespaceDir).ToLowerInvariant();
-            string blocksDir = Path.Combine(namespaceDir, "Blocks");
-            if (!Directory.Exists(blocksDir))
-            {
-                continue;
-            }
-
-            foreach (string file in Directory.EnumerateFiles(blocksDir, "*.json", SearchOption.AllDirectories))
-            {
-                string blockName = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
-                blockFiles.Add(($"{namespaceName}:{blockName}", file));
-            }
-        }
-
-        blockFiles.Sort((a, b) => string.CompareOrdinal(a.blockId, b.blockId));
-        foreach ((string blockId, string fullPath) in blockFiles)
-        {
-            BlockFile? block = JsonSerializer.Deserialize<BlockFile>(File.ReadAllText(fullPath), JsonOptions);
-            if (block?.Textures == null)
-            {
-                throw new InvalidDataException($"Blockdatei ohne gültige 'textures': {fullPath}");
-            }
-
             ushort id = (ushort)_definitions.Count;
-            ushort[] layers = ResolveLayers(blockId, block.Textures, fullPath);
+            ushort[] layers = ResolveLayers(blockId, block.Textures!, fullPath);
             var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             if (block.Tags != null)
@@ -465,7 +296,7 @@ public class BlockRegistry : IDisposable
     /// <param name="textures">Die Texturen, die im Block definiert sind.</param>
     /// <param name="sourcePath">Der Pfad zur Block-Datei.</param>
     /// <returns>Ein Array mit 6 Layer-IDs (eine pro Face).</returns>
-    private ushort[] ResolveLayers(string blockId, BlockTextureFaces textures, string sourcePath)
+    private ushort[] ResolveLayers(string blockId, BlockDefinitionLoader.BlockTextureFaces textures, string sourcePath)
     {
         return new ushort[]
         {
@@ -495,16 +326,7 @@ public class BlockRegistry : IDisposable
         }
 
         string normalized = NormalizeId(textureName);
-        if (!_textureLayersByName.TryGetValue(normalized, out ushort layer))
-        {
-            if (!_texturesLoaded && !_textureLayersByName.ContainsKey(normalized))
-            {
-                return 0;
-            }
-            throw new InvalidDataException($"Unbekannte Textur '{textureName}' für {blockId}:{faceName} in {sourcePath}");
-        }
-
-        return layer;
+        return _textureLayersByName.GetValueOrDefault(normalized);
     }
 
     /// <summary>

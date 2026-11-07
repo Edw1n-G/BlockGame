@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Drawing;
-using Basics.Configurations;
 using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Logic.TerrainManaging.Meshing;
 using Basics.Game.texture;
@@ -42,8 +41,9 @@ public class Renderer
     /// </summary>
     /// <param name="camera">Die Kamera, die für das Rendern verwendet werden soll.</param>
     /// <param name="gl">Die OpenGL-Instanz.</param>
+    /// <param name="terrainTexture">Das Textur-Array für die Blockflächen.</param>
     /// <param name="chunkProvider">Optional ein neuer ChunkProvider, der verwendet werden soll.</param>
-    public unsafe void Setup(Camera camera, GL gl, ChunkProvider? chunkProvider = null)
+    public unsafe void Setup(Camera camera, GL gl, TextureArray terrainTexture, ChunkProvider? chunkProvider = null)
     {
         if (chunkProvider != null)
         {
@@ -55,7 +55,7 @@ public class Renderer
         
         _camera = camera;
         _terrainshader = new ShaderManager(_gl, "shader.vert", "shader.frag");
-        _terrainTexture = BlockLoader.TerrainTexture;
+        _terrainTexture = terrainTexture;
         
         _gl.Enable(EnableCap.Multisample);
     }

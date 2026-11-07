@@ -15,7 +15,7 @@ namespace Basics.Game.Logic.Player;
 public class PlayerCharacter : IDisposable
 {
     /// <summary>Die Standard-Block-ID zum Platzieren (Erde).</summary>
-    private static ushort DefaultPlaceBlockId => BlockLoader.GetBlockId("core:dirt");
+    private static ushort DefaultPlaceBlockId => BlockDefinitionLoader.GetBlockId("core:dirt");
 
     private readonly World? _world;
     private readonly Physics? _physics;

@@ -35,7 +35,7 @@ public class JobContext
     {
         TerrainGen = terrainGen;
         Provider = provider;
-        BlockRegistry = blockRegistry ?? EngineContext.Current?.BlockRegistry ?? BlockLoader.Current;
+        BlockRegistry = blockRegistry ?? EngineContext.Current?.BlockRegistry ?? BlockDefinitionLoader.Current;
         
         if (BlockRegistry == null)
         {

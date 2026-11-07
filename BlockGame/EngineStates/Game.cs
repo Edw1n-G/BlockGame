@@ -9,6 +9,7 @@ using Basics.Game.Logic.TerrainManaging;
 using Basics.Game.Logic.TerrainManaging.Generation;
 using Basics.Game.PhysicsSystem;
 using Basics.Game.Player;
+using Basics.Game.texture;
 using Basics.Game.Utilities;
 using Basics.Graphics.UI;
 using Basics.Window;
@@ -27,6 +28,7 @@ public class Game : IStates
 {
     private StateManager _manager;
     private EngineContext _context = null!;
+    private TextureArray? _terrainTexture;
     
     //Spielwelt und Renderer
     private static Renderer _playerRenderer = null!;
@@ -69,7 +71,7 @@ public class Game : IStates
         
         //Kerne aufteilen und reservieren
         _context.CoreAvailability.InitializeInstance();
-        _context.BlockRegistry.Initialize(_gl, "Content");
+        _terrainTexture = BlockTextureLoader.Load(_gl, _context.BlockRegistry);
         
         // Subsystem-Referenzen aus dem Kontext beziehen
         _chunkProvider = _context.ChunkProvider;
@@ -81,7 +83,7 @@ public class Game : IStates
 
         //Main Camera und Renderer erstellen
         _playerRenderer = new Renderer(_chunkProvider);
-        _playerRenderer.Setup(PlayerCamera, _gl);
+        _playerRenderer.Setup(PlayerCamera, _gl, _terrainTexture);
 
         //Movement-Controller für Player/Debug Kamera
         _playerMovement = new PlayerMovement(_player, _inputManager, _context.Settings);
@@ -136,7 +138,7 @@ public class Game : IStates
     {
         _player?.Dispose();
         if (_chunkRequestor != null && !_chunkRequestor.Stop()) return;
-        _context?.Dispose();
+        if (_context?.Shutdown() == true) _terrainTexture?.Dispose();
     }
     
     // Debug-Camera toggeln

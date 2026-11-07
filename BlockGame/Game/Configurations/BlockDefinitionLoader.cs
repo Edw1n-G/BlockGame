@@ -2,8 +2,7 @@ using System;
 using System.Collections.Generic;
 using Basics.Game;
 using Basics.Game.Configurations;
-using Basics.Game.texture;
-using Silk.NET.OpenGL;
+using System.Text.Json;
 
 namespace Basics.Configurations;
 
@@ -12,8 +11,71 @@ namespace Basics.Configurations;
 /// Delegiert alle Operationen an die aktive BlockRegistry des aktuellen EngineContexts
 /// oder erstellt eine Standardinstanz, wenn kein Context verfügbar ist.
 /// </summary>
-public static class BlockLoader
+public static class BlockDefinitionLoader
 {
+    internal sealed class BlockFile
+    {
+        public string? Name { get; set; }
+        public List<string>? Tags { get; set; }
+        public BlockTextureFaces? Textures { get; set; }
+    }
+
+    internal sealed class BlockTextureFaces
+    {
+        public string? Top { get; set; }
+        public string? Bottom { get; set; }
+        public string? Front { get; set; }
+        public string? Back { get; set; }
+        public string? Left { get; set; }
+        public string? Right { get; set; }
+        public string? Sides { get; set; }
+    }
+
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+    internal static (List<(string BlockId, string FullPath, BlockFile Data)> Blocks,
+        List<(string TextureId, string FullPath)> Textures) Load(string root)
+    {
+        var blockFiles = new List<(string Id, string FullPath)>();
+        var textures = new List<(string TextureId, string FullPath)>();
+        foreach (string namespaceDir in Directory.EnumerateDirectories(root))
+        {
+            string namespaceName = Path.GetFileName(namespaceDir).ToLowerInvariant();
+            string blocksDir = Path.Combine(namespaceDir, "Blocks");
+            if (Directory.Exists(blocksDir))
+            {
+                foreach (string file in Directory.EnumerateFiles(blocksDir, "*.json", SearchOption.AllDirectories))
+                {
+                    string name = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
+                    blockFiles.Add(($"{namespaceName}:{name}", file));
+                }
+            }
+
+            string textureDir = Path.Combine(namespaceDir, "Textures");
+            if (Directory.Exists(textureDir))
+            {
+                foreach (string file in Directory.EnumerateFiles(textureDir, "*.png", SearchOption.AllDirectories))
+                {
+                    string name = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
+                    textures.Add(($"{namespaceName}:{name}", file));
+                }
+            }
+        }
+
+        blockFiles.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
+        textures.Sort((a, b) => string.CompareOrdinal(a.TextureId, b.TextureId));
+
+        var blocks = new List<(string BlockId, string FullPath, BlockFile Data)>();
+        foreach (var (blockId, fullPath) in blockFiles)
+        {
+            var data = JsonSerializer.Deserialize<BlockFile>(File.ReadAllText(fullPath), JsonOptions);
+            if (data?.Textures is null)
+                throw new InvalidDataException($"Blockdatei ohne gültige 'textures': {fullPath}");
+            blocks.Add((blockId, fullPath, data));
+        }
+        return (blocks, textures);
+    }
+
     private static BlockRegistry? _defaultRegistry;
 
     /// <summary>
@@ -77,21 +139,6 @@ public static class BlockLoader
     /// Die Block-ID für Luft (Air).
     /// </summary>
     public static ushort Air => 0;
-
-    /// <summary>
-    /// Gibt die Terrain-Textur zurück, die alle Texturen als Texture-Array enthält.
-    /// </summary>
-    public static TextureArray TerrainTexture => Current.TerrainTexture;
-
-    /// <summary>
-    /// Initialisiert die BlockRegistry mit Texturen und Blockdefinitionen.
-    /// </summary>
-    /// <param name="gl">Die OpenGL-Instanz für die Textur-Erstellung.</param>
-    /// <param name="contentRoot">Der Pfad zum Content-Verzeichnis.</param>
-    public static void Initialize(GL gl, string contentRoot = "Content")
-    {
-        Current.Initialize(gl, contentRoot);
-    }
 
     /// <summary>
     /// Initialisiert die BlockRegistry ohne GPU-Texturen (für headless-Betrieb).

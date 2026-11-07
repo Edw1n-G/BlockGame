@@ -96,7 +96,7 @@ public class BaseMesher : IDisposable
     public BaseMesher(ChunkProvider? provider = null, BlockRegistry? blockRegistry = null)
     {
         _provider = provider ?? EngineContext.Current?.ChunkProvider ?? ChunkProvider.Current;
-        _blockRegistry = blockRegistry ?? EngineContext.Current?.BlockRegistry ?? BlockLoader.Current;
+        _blockRegistry = blockRegistry ?? EngineContext.Current?.BlockRegistry ?? BlockDefinitionLoader.Current;
         
         if (_blockRegistry == null)
         {

@@ -35,7 +35,7 @@ public class TerrainGenerator
         _noiseCalculator = noiseCalculator ?? EngineContext.Current?.NoiseCalculator ?? NoiseCalculator.Instance;
         _settings = settings ?? EngineContext.Current?.Settings ?? GameSettings.Current;
 
-        BlockRegistry registry = blockRegistry ?? EngineContext.Current?.BlockRegistry ?? BlockLoader.Current;
+        BlockRegistry registry = blockRegistry ?? EngineContext.Current?.BlockRegistry ?? BlockDefinitionLoader.Current;
         _dirtId = registry.GetBlockId("core:dirt");
         _grassId = registry.GetBlockId("core:grass");
         _stoneId = registry.GetBlockId("core:stone");

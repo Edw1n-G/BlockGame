@@ -90,12 +90,12 @@ public class Lod1Mesher : BaseMesher
                     if (data[idx] == 0) continue;
 
                     // Koordinaten direkt übergeben, IsBlock wurde optimiert
-                    if (!IsBlock(x, y + 1, z)) CreateCubeFace(x, y, z, BlockLoader.Top);
-                    if (!IsBlock(x, y - 1, z)) CreateCubeFace(x, y, z, BlockLoader.Bottom);
-                    if (!IsBlock(x, y, z + 1)) CreateCubeFace(x, y, z, BlockLoader.Front);
-                    if (!IsBlock(x, y, z - 1)) CreateCubeFace(x, y, z, BlockLoader.Back);
-                    if (!IsBlock(x - 1, y, z)) CreateCubeFace(x, y, z, BlockLoader.Left);
-                    if (!IsBlock(x + 1, y, z)) CreateCubeFace(x, y, z, BlockLoader.Right);
+                    if (!IsBlock(x, y + 1, z)) CreateCubeFace(x, y, z, BlockDefinitionLoader.Top);
+                    if (!IsBlock(x, y - 1, z)) CreateCubeFace(x, y, z, BlockDefinitionLoader.Bottom);
+                    if (!IsBlock(x, y, z + 1)) CreateCubeFace(x, y, z, BlockDefinitionLoader.Front);
+                    if (!IsBlock(x, y, z - 1)) CreateCubeFace(x, y, z, BlockDefinitionLoader.Back);
+                    if (!IsBlock(x - 1, y, z)) CreateCubeFace(x, y, z, BlockDefinitionLoader.Left);
+                    if (!IsBlock(x + 1, y, z)) CreateCubeFace(x, y, z, BlockDefinitionLoader.Right);
                 }
             }
         }
@@ -118,37 +118,37 @@ public class Lod1Mesher : BaseMesher
         
         switch (face)
         {
-            case BlockLoader.Top:
+            case BlockDefinitionLoader.Top:
                 AddVertex(x,     y + 1, z + 1, textureLayer);
                 AddVertex(x + 1, y + 1, z + 1, textureLayer);
                 AddVertex(x + 1, y + 1, z,     textureLayer);
                 AddVertex(x,     y + 1, z,     textureLayer);
                 break;
-            case BlockLoader.Bottom:
+            case BlockDefinitionLoader.Bottom:
                 AddVertex(x,     y, z,     textureLayer);
                 AddVertex(x + 1, y, z,     textureLayer);
                 AddVertex(x + 1, y, z + 1, textureLayer);
                 AddVertex(x,     y, z + 1, textureLayer);
                 break;
-            case BlockLoader.Front:
+            case BlockDefinitionLoader.Front:
                 AddVertex(x,     y,     z + 1, textureLayer);
                 AddVertex(x + 1, y,     z + 1, textureLayer);
                 AddVertex(x + 1, y + 1, z + 1, textureLayer);
                 AddVertex(x,     y + 1, z + 1, textureLayer);
                 break;
-            case BlockLoader.Back:
+            case BlockDefinitionLoader.Back:
                 AddVertex(x + 1, y,     z, textureLayer);
                 AddVertex(x,     y,     z, textureLayer);
                 AddVertex(x,     y + 1, z, textureLayer);
                 AddVertex(x + 1, y + 1, z, textureLayer);
                 break;
-            case BlockLoader.Left:
+            case BlockDefinitionLoader.Left:
                 AddVertex(x, y,     z,     textureLayer);
                 AddVertex(x, y,     z + 1, textureLayer);
                 AddVertex(x, y + 1, z + 1, textureLayer);
                 AddVertex(x, y + 1, z,     textureLayer);
                 break;
-            case BlockLoader.Right:
+            case BlockDefinitionLoader.Right:
                 AddVertex(x + 1, y,     z + 1, textureLayer);
                 AddVertex(x + 1, y,     z,     textureLayer);
                 AddVertex(x + 1, y + 1, z,     textureLayer);

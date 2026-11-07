@@ -106,16 +106,54 @@ internal sealed class ChunkSelectionPlan
         Added.Clear(); Removed.Clear();
         if (shouldStop?.Invoke() == true) return false;
         horizontal = Math.Max(0,horizontal); vertical = Math.Max(0,vertical);
-        bool Matches(ChunkSelectionShape? s) => s is not null && s.Horizontal == horizontal && s.Vertical == vertical;
-        if (!Matches(_shape))
+
+        var next = Scan(center, horizontal, vertical);
+        if (next is null) return false;
+        if (previous is { } old)
         {
-            var next = Matches(_previousShape) ? _previousShape : ChunkSelectionShape.Create(horizontal,vertical,shouldStop);
-            if (next is null) return false;
-            _previousShape = _shape; _shape = next;
+            var active = Scan(old.Center, old.Shape.Horizontal, old.Shape.Vertical);
+            if (active is null) return false;
+
+            var pendingRequests = new HashSet<ChunkCoord>();
+            foreach (var chunk in next)
+                if (!active.Contains(chunk)) pendingRequests.Add(chunk);
+            active.ExceptWith(next);
+            Added.AddRange(pendingRequests);
+            Removed.AddRange(active);
         }
-        Target = new(center,_shape!);
-        if (previous is { } old && old.Center == center && old.Shape.Horizontal == horizontal && old.Shape.Vertical == vertical) return true;
-        return Target.AppendExcept(previous,Added,shouldStop) &&
-            (previous is null || previous.Value.AppendExcept(Target,Removed,shouldStop));
+        else
+        {
+            Added.AddRange(next);
+        }
+
+        var shape = ChunkSelectionShape.Create(horizontal, vertical, shouldStop);
+        if (shape is null) return false;
+        Target = new(center, shape);
+        return true;
+
+        HashSet<ChunkCoord>? Scan(ChunkCoord targetChunk, int renderDistance, int verticalRenderDistance)
+        {
+            float renderDistanceSq = renderDistance * renderDistance;
+            float verticalRenderDistanceSq = verticalRenderDistance * verticalRenderDistance;
+
+            HashSet<ChunkCoord> newActiveChunks = new(renderDistance * renderDistance * verticalRenderDistance * 8);
+
+            for (int x = -renderDistance; x <= renderDistance; x++)
+            {
+                if (shouldStop?.Invoke() == true) return null;
+                for (int z = -renderDistance; z <= renderDistance; z++)
+                {
+                    for (int y = -verticalRenderDistance; y <= verticalRenderDistance; y++)
+                    {
+                        float distanceFactor = (x * x + z * z) / renderDistanceSq + (y * y) / verticalRenderDistanceSq;
+                        if (distanceFactor > 1f) continue;
+
+                        ChunkCoord coord = new ChunkCoord(targetChunk.X + x, targetChunk.Y + y, targetChunk.Z + z, 0);
+                        newActiveChunks.Add(coord);
+                    }
+                }
+            }
+            return newActiveChunks;
+        }
     }
 }

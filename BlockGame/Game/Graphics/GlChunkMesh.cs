@@ -1,5 +1,4 @@
 using Basics.Game.Logic.TerrainManaging;
-using Basics.Game.Logic.TerrainManaging.Meshing;
 using Silk.NET.OpenGL;
 
 namespace Basics.Game.Graphics;
@@ -42,7 +41,7 @@ internal sealed class GlChunkMesh(GL gl) : IChunkGpuMesh
             _gl.BufferData(BufferTargetARB.ElementArrayBuffer, _eboCapacity, iPtr, BufferUsageARB.DynamicDraw);
         }
 
-        BaseMesher.ConfigureVertexLayout(_gl);
+        ChunkVertexLayout.Configure(_gl);
     }
 
     internal unsafe void Update(ReadOnlySpan<byte> vertexSpan, ReadOnlySpan<uint> indexSpan)

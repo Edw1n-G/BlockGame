@@ -1,11 +1,8 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
-
 using Basics.Configurations;
 using Basics.Game.Configurations;
 using Basics.Game.Utilities;
-
-using Silk.NET.OpenGL;
 
 namespace Basics.Game.Logic.TerrainManaging.Meshing;
 
@@ -16,17 +13,13 @@ namespace Basics.Game.Logic.TerrainManaging.Meshing;
 public class BaseMesher : IDisposable
 {
     /// <summary>
-    /// Layout eines Vertices: 3 floats (12 Bytes) + ushort (2 Bytes für Texture-Layer) + 1 byte (AO) + 1 byte (Padding) = 16 Bytes pro Vertex.
-    /// </summary>
-    protected const int VertexStride = 16;
-    /// <summary>
     /// Geschätzte Anzahl sichtbarer Flächen pro Chunk (maximale Schätzung für Speicherallokation).
     /// </summary>
     protected static readonly int EstimatedSurfaceFaces = 6 * 16 * 16;
     /// <summary>
     /// Geschätzte Gesamtbytes für Vertices (bei maximaler Flächenanzahl).
     /// </summary>
-    protected static readonly int EstimatedVertexBytes = EstimatedSurfaceFaces * 4 * VertexStride;
+    protected static readonly int EstimatedVertexBytes = EstimatedSurfaceFaces * 4 * ChunkVertexFormat.VertexStride;
     /// <summary>
     /// Geschätzte Anzahl von Indices (6 indices pro Fläche).
     /// </summary>
@@ -272,18 +265,6 @@ public class BaseMesher : IDisposable
         this._vertices = null!;
         this._indices = null!;
         _uploaded = true;
-    }
-
-    internal static unsafe void ConfigureVertexLayout(GL gl)
-    {
-        gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, VertexStride, (void*)0);
-        gl.EnableVertexAttribArray(0);
-        
-        gl.VertexAttribIPointer(1, 1, VertexAttribIType.UnsignedShort, VertexStride, (void*)12);
-        gl.EnableVertexAttribArray(1);
-        
-        gl.VertexAttribIPointer(2, 1, VertexAttribIType.UnsignedByte, VertexStride, (void*)14);
-        gl.EnableVertexAttribArray(2);
     }
 
     /// <summary>

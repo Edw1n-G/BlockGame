@@ -14,6 +14,8 @@ Run from the repository root with PowerShell 7, Windows x64, and the SDK pinned 
 
 Use `-Case 'pattern1','pattern2'` to select a union. Every pattern must match. Custom output and checkout directories must be new. Defaults are under `artifacts/`. Keep source snapshots zipped and retain the ZIPs, their SHA-256 sidecars, and the comparison report.
 
+For the selection comparison, run `./scripts/compare-benchmarks.ps1 -Baseline bench/selection-baseline -Candidate 'codex/test&refactor' -Case 'selection/*','selectiondelta/*'`.
+
 ## Modes
 
 - **Smoke** uses BenchmarkDotNet's Dry job to prove the harness runs. Its timings are never used for comparison. Family preflight is available for iteration.

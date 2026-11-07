@@ -60,7 +60,7 @@ try {
             Copy-Item -LiteralPath $file.FullName -Destination $destination
         }
     }
-    foreach ($file in @('global.json','.gitignore','AGENTS.md','Documentation.md','BENCHMARK_WORKER_TRIAL.md','BENCHMARK_MILESTONE_DRAFT.md','Directory.Build.props','Directory.Build.targets','Directory.Packages.props','NuGet.Config')) {
+    foreach ($file in @('global.json','.gitignore','AGENTS.md','Documentation.md','Directory.Build.props','Directory.Build.targets','Directory.Packages.props','NuGet.Config')) {
         if (Test-Path -LiteralPath "$repoRoot/$file") { Copy-Item -LiteralPath "$repoRoot/$file" -Destination "$CheckoutDirectory/harness/$file" }
     }
     if(Test-Path -LiteralPath "$repoRoot/docs"){Copy-Item -LiteralPath "$repoRoot/docs" -Destination "$CheckoutDirectory/harness/docs" -Recurse}

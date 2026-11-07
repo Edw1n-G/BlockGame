@@ -32,8 +32,11 @@ This document provides essential context and guidelines for AI coding agents wor
 
 ## Verification and performance work
 
-- Read `BlockGame.Benchmarks/README.md` for the short worker workflow; history is optional in `docs/benchmark-history/`.
+- Engine logic goes into `BlockGame.Core` and must not use OpenGL, windowing, input or image libraries.
+- Namespace equals folder path.
+- Run output is never committed (`artifacts/` is ignored).
+- Benchmarking is documented only in `docs/benchmarking.md`.
 - Use full correctness before acceptance. Focused family smoke is iteration-only; all GPU rules above still apply.
-- Compare actual clean Git engine revisions using `compare-benchmarks.ps1` and the same captured harness. Never substitute a hand-copied reference as a revision baseline.
+- Compare actual clean Git engine revisions using `scripts/compare-benchmarks.ps1` and the same captured harness. Never substitute a hand-copied reference as a revision baseline.
 - Pair scenario ID/version/unit/input fingerprint; preserve correctness outputs, source/runtime/native identities and portable ZIP/hash evidence. Early-return/near-zero/noisy rows cannot establish speedup headlines. Policy remains advisory.
 - Keep the requestor's committed region consistent with its active set; canceled/failed plans roll back additions and explicit unload invalidates the region. Retain movement/reset/resize/failure/wraparound tests.

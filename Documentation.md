@@ -31,7 +31,7 @@ Headless correctness tests (Windows x64, pinned SDK from `global.json`; no GL co
 
 ```
 dotnet test --project BlockGame.Tests/BlockGame.Tests.csproj
-./verify-tests.ps1 -Repeats 20 -ParallelThreads 4
+./scripts/verify-tests.ps1 -Repeats 20 -ParallelThreads 4
 ```
 
 ### Controls (defaults from `InputManager`)
@@ -87,7 +87,7 @@ BlockGame/                         main project (Exe)
 BlockGame.Tests/                   xUnit v3 / Microsoft.Testing.Platform executable
 BlockGame.Workloads/               versioned shared CPU fixtures and frozen terrain
 BlockGame.Benchmarks/              BenchmarkDotNet executable (Release, Windows x64)
-verify-tests.ps1, run-benchmarks.ps1  bounded verification and measurement entry points
+scripts/                           bounded verification and benchmark entry points
 ```
 
 Namespaces do not always mirror folders. Examples: jobs live in `Basics.Game.Utilities`, `PlayerMovement` in `Basics.Game.Player`, `PlayerCharacter` in `Basics.Game.Logic.Player`, the physics structs in `Basics.PhysicsSystem.Structs`, input in `Basics.Input`, `Renderer`/`Frustum` in `Basics.Game.Graphics`, `Shader` in `Basics.Graphics`. Source comments and XML docs are mostly in German.
@@ -276,9 +276,9 @@ Window defaults (`WindowSetup`): 800×600, title "Game", 60 updates/s initially 
 
 ## 11. Tests and benchmarks
 
-Run `dotnet test --project BlockGame.Tests/BlockGame.Tests.csproj` for MTP correctness or `./verify-tests.ps1 -Repeats 20 -ParallelThreads 4` for repeated Debug/Release verification. The nonparallel StaticFacades collection isolates process-wide events/facades. Headless engine tests still need Windows native DLLs/content; GPU validation remains separate.
+Run `dotnet test --project BlockGame.Tests/BlockGame.Tests.csproj` for MTP correctness or `./scripts/verify-tests.ps1 -Repeats 20 -ParallelThreads 4` for repeated Debug/Release verification. The nonparallel StaticFacades collection isolates process-wide events/facades. Headless engine tests still need Windows native DLLs/content; GPU validation remains separate.
 
-Use the [short worker operating guide](BlockGame.Benchmarks/README.md) for focused smoke, clean sibling Git-revision measurements, portable bundles and advisory comparisons. Scenario contracts separate inputs/units from algorithms. Model references are calibration controls, never production baselines. [Historical evidence](docs/benchmark-history) is retained separately.
+Use the [benchmarking guide](docs/benchmarking.md) for focused smoke, clean sibling Git-revision measurements, portable bundles and advisory comparisons. Scenario contracts separate inputs/units from algorithms. Model references are calibration controls, never production baselines. [Historical evidence](docs/benchmark-history.md) is retained separately.
 
 ## 12. Conventions
 

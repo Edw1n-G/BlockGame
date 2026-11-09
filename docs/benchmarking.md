@@ -1,88 +1,85 @@
-# What this is
+# CPU benchmarking
 
-The CPU benchmark harness checks correctness, measures individual engine workloads, and compares the same scenarios across clean Git revisions. It records managed allocations alongside timings. GPU work and frame timing are outside these workloads.
+Use the .NET CLI directly to test, measure engine workloads with BenchmarkDotNet, and compare saved results. PowerShell scripts are optional shortcuts. GPU work and frame timing are outside these benchmarks.
 
-## Quick start
+## Manual workflow
 
-Run from the repository root with PowerShell 7, Windows x64, and the SDK pinned in `global.json`. Pass `-Dotnet` if the SDK is outside PATH.
+Run from the repository root on Windows x64 with the SDK pinned in `global.json`.
 
-```powershell
-./scripts/run-benchmarks.ps1 -Mode Smoke -Preflight Family -Case 'selection/typical/*'
-./scripts/run-benchmarks.ps1 -Mode Measure -Case 'selection/typical/*'
-./scripts/compare-benchmarks.ps1 -Baseline BASELINE_SHA -Candidate CANDIDATE_SHA -Case 'selection/typical/*'
-```
-
-Use `-Case 'pattern1','pattern2'` to select a union. Every pattern must match. Custom output and checkout directories must be new. Logs and results default to `artifacts/`. Each comparison retains its clean sibling checkouts under `BlockGame.bench/` beside the repository. Keep source snapshots zipped and retain the ZIPs, their SHA-256 sidecars, and the comparison report.
-
-For the selection comparison, list the two approved failures by exact test name. Both revisions run the full suite. Only the baseline may report these failures, and the bundle's `verification/result.json` records the allowance and the failures from each run.
+Before a baseline measurement, finish and commit all changes: `git status --short` must be empty, including staged and untracked files. A local commit is sufficient; pushing is not required. Run the **entire** test suite successfully on that code before measuring. Do the same for the candidate. Failed tests must be fixed before collecting a performance baseline; historical test waivers are not part of this workflow.
 
 ```powershell
-$legacyFailures = @(
-    'BlockGame.Tests.IncrementalSelectionTests.DeltaMatchesReferenceForRandomMovesResizesTeleportsAndWraparound'
-    'BlockGame.Tests.ChunkRequestorMovementTests.ResizingAtSamePositionReconcilesPreviouslyCommittedChunks'
-)
-./scripts/compare-benchmarks.ps1 -Baseline bench/selection-baseline -Candidate 'codex/test&refactor' `
-    -Case 'selection/*','selectiondelta/*' -BaselineAllowedFailures $legacyFailures
+dotnet test
+dotnet run -c Release --project BlockGame.Benchmarks -- --mode Measure --case 'mesh/*' --output artifacts/baseline
+
+# Change the code, run the full tests, and commit.
+dotnet test
+git add <changed-files>
+git commit -m "Optimize meshing"
+
+dotnet run -c Release --project BlockGame.Benchmarks -- --mode Measure --case 'mesh/*' --output artifacts/candidate
+dotnet run -c Release --project BlockGame.Benchmarks -- compare artifacts/baseline artifacts/candidate
 ```
 
-## Modes
+Stop if a command fails. Save the complete baseline output directory **before** changing code. Keep the candidate results too. Existing nonempty result directories are never overwritten; choose fresh names for later experiments. Output under `artifacts/` is ignored by Git.
 
-- **Smoke** uses BenchmarkDotNet's Dry job to prove the harness runs. Its timings are never used for comparison. Family preflight is available for iteration.
-- **Measure** runs the Release benchmark in a child process. Comparison requires full correctness and matching harness, environment, runtime, dependencies, and correctness output evidence. The script runs both clean sibling checkouts sequentially using the same harness.
+Measurement checks that the working tree is clean at startup. Running the full test suite and leaving the source unchanged during measurement are guidelines for the person or agent doing the work. There is no scripted test attestation, repeated Debug/Release preflight, source snapshot, result checksum, or session drift gate. The workload correctness checks still run in the benchmark processes; they do not replace `dotnet test`.
 
-## Scenario contracts
-
-A contract records the scenario ID, version, unit, canonical input fingerprint, and timing class. The input fingerprint covers the serialized workload inputs. Timing classes are `normal`, `early-return`, and `diagnostic`. Type and method names identify implementations independently of the scenario contract.
-
-Fresh complete sets and closed movement paths have separate units. A movement path has two transitions, or nine for burst, and excludes provider calls, tasks, and locks.
-
-### Adding a scenario
-
-- Define a stable scenario ID and version in the shared workload catalog.
-- Specify one unit and the timing class.
-- Serialize all inputs, including path steps, radii, seed, and configuration where applicable.
-- Add independent correctness expectations and preserve the output fingerprint.
-- Register the benchmark case and verify discovery and Smoke.
-- Bump the version when the inputs or semantic expectations change.
-
-## Verdicts and policy
-
-| Verdict | Meaning |
-| --- | --- |
-| `improved` | The candidate is faster beyond practical drift and sampling uncertainty. |
-| `regressed` | The candidate is slower beyond practical drift and sampling uncertainty. |
-| `inconclusive` | Timing is within the budget, noisy, near zero, or diagnostic. |
-| `not comparable` | Required evidence is incompatible, invalid, missing, or ambiguous. |
-
-| Policy | Value |
-| --- | ---: |
-| Practical threshold | 5% |
-| Absolute threshold | 10 ns |
-| Near-zero floor | 100 ns |
-| Maximum CV | 3% |
-| Minimum samples | 10 |
-| Uncertainty multiplier | 3 |
-
-The thresholds are provisional and advisory. Managed allocation changes are reported separately. Missing allocation data stays unavailable.
-
-## Controls
-
-Four checks use deterministic in-code fixtures. The null pair stays inconclusive across stable and diagnostic cases. The positive pair detects a large improvement. The early-return pair suppresses ratios and percentages. The reversed positive pair detects a regression.
+## Commands
 
 ```powershell
-dotnet run --project BlockGame.Benchmarks -c Release -- validate-controls
+# Measure all engine cases; output defaults to a new artifacts/runs/<id> directory.
+dotnet run -c Release --project BlockGame.Benchmarks
+
+# Discover case IDs without running measurements.
+dotnet run --project BlockGame.Benchmarks -- --list
+
+# Quick iteration check; dirty working trees are allowed. Never use Smoke timings as a baseline.
+dotnet run -c Release --project BlockGame.Benchmarks -- --mode Smoke --case 'mesh/*' --output artifacts/smoke
+
+# Compare saved directories; comparison itself can run in Debug.
+dotnet run --project BlockGame.Benchmarks -- compare artifacts/baseline artifacts/candidate
+
+# Optionally choose the report path.
+dotnet run --project BlockGame.Benchmarks -- compare artifacts/baseline artifacts/candidate artifacts/comparison.json
 ```
 
-## Seam policy
+Repeat `--case` to select a union of patterns; every pattern must match. `Measure` uses BenchmarkDotNet's normal sampling; `Smoke` uses its Dry job. Benchmark execution requires Release and no attached debugger. Comparison writes JSON and Markdown to a new `artifacts/comparisons/<id>/` directory unless a report path is supplied.
 
-A revision can be measured only if it contains the engine members that the selected workloads call (the seam). When an optimization replaces code behind a seam, the baseline is not a copy of old code inside the harness. It is a branch named `bench/<topic>-baseline`, created from the candidate's tree, in which the old algorithm sits behind the same seam, in one commit. The comparison then runs the same harness commit against both trees. A revision that does not build with the harness is reported as such and is never worked around.
+## Results and environment
 
-## Known noise
+Keep BenchmarkDotNet's `results/` reports (Markdown, CSV, full JSON and raw measurements), logs, `manifest.json`, `children/` workload checks, and `benchmark-run.json` together. The last file is a comparison index derived from BenchmarkDotNet's measurements. No packing or hashing of result files is needed.
 
-The historical outside-map controls were multimodal, reaching 8.69% CV, and are diagnostic only. Early-return scenarios never produce a percentage headline.
+Each run records its Git revision and the operating system, processor, physical/logical core counts, architecture, SDK, runtime and benchmark job alongside its measurements. The comparison includes both environments. Use the same machine, OS, runtime and workload settings for baseline and candidate; incompatible environments are reported as not comparable. Run the full test suite on the measured revision on that machine. If you retain a test log, keep it alongside the corresponding results with the revision and environment. The comparator does not claim to have verified the full test suite.
 
-## Roadmap
+Minimize background work: close unnecessary applications, avoid concurrent builds/benchmarks, and let the machine settle. Prefer the same power plan and power source for both runs. These are guidelines, not prerequisites enforced by scripts. BenchmarkDotNet leaves the current power plan unchanged. Background load and power-plan effects are treated as potential noise when reviewing variance and uncertainty; automation cannot remove a systematic bias from two runs. Repeat uncertain measurements under more consistent conditions.
 
-- Calibrate the comparison policy on a designated quiet runner using repeated measurements and an explicit policy for diagnostic-only controls.
-- Run correctness and Smoke in general Windows CI. Retain evidence for runs on the designated measurement machine and enable failure thresholds only after repeatability has been demonstrated.
-- Resolve FastNoise provenance or document a mitigation before extending claims to shared-node worker scaling.
+## Comparing and interpreting
+
+Keep the same benchmark workloads and settings across the engine change. Compare actual committed engine code, not a hand-copied reference implementation. Pair scenarios by ID, version, unit and input fingerprint, with matching correctness outputs. These internal scenario fingerprints identify the work being measured; they are not hashes of saved result files.
+
+The comparison is advisory. It reports timings and allocations, with `improved`, `regressed`, `inconclusive`, or `not comparable` verdicts. Its provisional policy uses a 5% practical threshold, 10 ns absolute threshold, 100 ns near-zero floor, 3% maximum CV, at least 10 samples, and a three-standard-error uncertainty allowance. Noisy, diagnostic and early-return results do not support speedup headlines. Review BenchmarkDotNet's statistics and warnings, not just the verdict.
+
+Full-suite testing is a manual prerequisite in the current run format (v3). Workload checks are recorded separately. Older v2 bundles retain their old validation rules and can still be read, but cannot be paired with v3 runs; remeasure both revisions with the current workflow. Optional `pack`/`verify` commands exist only for archival compatibility and are not used by the normal workflow.
+
+## Optional scripts
+
+These wrappers invoke the same commands and propagate failures:
+
+```powershell
+./scripts/verify-tests.ps1
+./scripts/run-benchmarks.ps1 -Mode Measure -Case 'mesh/*' -OutputDirectory artifacts/baseline
+./scripts/compare-benchmarks.ps1 -Baseline artifacts/baseline -Candidate artifacts/candidate
+```
+
+The run wrapper executes `dotnet test` once before benchmarking. Pass `-Dotnet <path>` if needed. The comparison wrapper accepts saved directories, not Git refs. Scripts do not create checkouts, enforce power plans, verify session drift, or pack/hash results.
+
+## Adding scenarios
+
+Define a stable ID, version, unit, timing class and serialized inputs in the workload catalog. Include independent correctness expectations and an output fingerprint. Register the benchmark case and check discovery and Smoke. Bump the version when inputs or semantic expectations change. Keep fresh-set and movement-path workloads distinct.
+
+Comparator controls can be checked with:
+
+```powershell
+dotnet run --project BlockGame.Benchmarks -- validate-controls
+```

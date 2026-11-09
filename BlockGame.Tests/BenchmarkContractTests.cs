@@ -17,6 +17,15 @@ public class DiscoveryFixture
 
 public class BenchmarkContractTests
 {
+    [Fact] public void MeshFamilyFilterSelectsExistingMeshingCases()
+    {
+        var cases=CaseDiscovery.Discover(typeof(HarnessRunner).Assembly,DefaultConfig.Instance,false);
+        var byFamily=CaseDiscovery.Select(cases,["mesh/*"]);
+        Assert.NotEmpty(byFamily);
+        Assert.Equal(CaseDiscovery.Select(cases,["meshing/*"]).Select(CaseDiscovery.Id),byFamily.Select(CaseDiscovery.Id));
+        Assert.Single(CaseDiscovery.Select(cases,["mesh/floor/*"]));
+        Assert.Throws<ArgumentException>(()=>CaseDiscovery.Select(cases,["mesh/does-not-exist/*"]));
+    }
     [Fact] public void DiscoveryIncludesMethodsAndAllParametersWithoutManualRegistration()
     {
         var cases=CaseDiscovery.Discover(typeof(DiscoveryFixture).Assembly,DefaultConfig.Instance,true);

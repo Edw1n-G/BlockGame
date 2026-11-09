@@ -30,8 +30,7 @@ The working directory must allow `Content/` to be found. `BlockRegistry.ResolveC
 Headless correctness tests (Windows x64, pinned SDK from `global.json`; no GL context required):
 
 ```
-dotnet test --project BlockGame.Tests/BlockGame.Tests.csproj
-./scripts/verify-tests.ps1 -Repeats 20 -ParallelThreads 4
+dotnet test
 ```
 
 ### Controls (defaults from `InputManager`)
@@ -278,7 +277,7 @@ Window defaults (`WindowSetup`): 800×600, title "Game", 60 updates/s initially 
 
 ## 11. Tests and benchmarks
 
-Run `dotnet test --project BlockGame.Tests/BlockGame.Tests.csproj` for MTP correctness or `./scripts/verify-tests.ps1 -Repeats 20 -ParallelThreads 4` for repeated Debug/Release verification. The nonparallel StaticFacades collection isolates process-wide events/facades. Headless engine tests still need Windows native DLLs/content; GPU validation remains separate.
+Run `dotnet test` for the full MTP correctness suite; `./scripts/verify-tests.ps1` is an optional shortcut for the same command. The nonparallel StaticFacades collection isolates process-wide events/facades. Headless engine tests still need Windows native DLLs/content; GPU validation remains separate.
 
 Use the [benchmarking guide](docs/benchmarking.md) for focused smoke, clean sibling Git-revision measurements, portable bundles and advisory comparisons. Scenario contracts separate inputs/units from algorithms. Model references are calibration controls, never production baselines. [Historical evidence](docs/benchmark-history.md) is retained separately.
 

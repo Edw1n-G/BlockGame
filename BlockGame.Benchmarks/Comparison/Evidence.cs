@@ -43,7 +43,10 @@ public sealed record Observation(string CaseId, ScenarioContract Scenario, strin
 
 public sealed record BenchmarkRun(int SchemaVersion, string Kind, string Mode, string EngineRevision, bool EngineClean,
     string HarnessFingerprint, string EnvironmentFingerprint, bool CorrectnessPassed, bool SourceUnchanged,
-    Observation[] Cases, string Provenance, string[] EvidencePaths, string CorrectnessScope = "full");
+    Observation[] Cases, string Provenance, string[] EvidencePaths, string CorrectnessScope = "full")
+{
+    public JsonElement? EnvironmentInfo { get; init; }
+}
 
 public sealed record ComparisonPolicy(double PracticalPercent = 5, double AbsoluteDeltaNs = 10,
     double NearZeroNs = 100, double MaxCvPercent = 3, int MinimumSamples = 10, double UncertaintyMultiplier = 3);
@@ -57,4 +60,6 @@ public sealed record ComparisonReport(int SchemaVersion, string Purpose, Compari
 {
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public ControlValidationResult? Controls { get; init; }
+    public JsonElement? BaselineEnvironment { get; init; }
+    public JsonElement? CandidateEnvironment { get; init; }
 }

@@ -45,23 +45,21 @@ internal static class ResultNormalizer
                     cpu=host.GetProperty("ProcessorName").GetString(),os=host.GetProperty("OsVersion").GetString(),runtime=host.GetProperty("RuntimeVersion").GetString(),
                     architecture=host.GetProperty("Architecture").GetString(),sdk=host.GetProperty("DotNetCliVersion").GetString(),childRuntime,
                     logicalCores=host.GetProperty("LogicalCoreCount"),physicalCores=host.GetProperty("PhysicalCoreCount"),
-                    machine=Environment.MachineName,bdn=host.GetProperty("BenchmarkDotNetVersion").GetString(),managedDependencies=identity.GetProperty("managedDependencies"),
+                    machine=Environment.MachineName,bdn=host.GetProperty("BenchmarkDotNetVersion").GetString(),
                     intrinsics=row.GetProperty("HardwareIntrinsics").GetString(), gc="concurrent workstation",jit="RyuJit",dependencies,
-                    power=Environment.GetEnvironmentVariable("EDWINCRAFT_BENCHMARK_POWER_PLAN") ?? "unknown",
                     settings=Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>().Where(e=>((string)e.Key).StartsWith("COMPlus_",StringComparison.Ordinal) || ((string)e.Key).StartsWith("DOTNET_",StringComparison.Ordinal) && (string)e.Key!="DOTNET_HOST_PATH")
                         .OrderBy(e=>(string)e.Key,StringComparer.Ordinal).ToDictionary(e=>(string)e.Key,e=>e.Value)
                 });
                 if(environment is { } previous && EvidenceJson.Fingerprint(previous)!=EvidenceJson.Fingerprint(env)) throw new InvalidDataException("Child environment differs across cases");
                 environment=env;
             }
-            bool preflight=false;
-            string? preflightPath=Environment.GetEnvironmentVariable("EDWINCRAFT_PREFLIGHT_RESULT");
-            if(preflightPath is not null && File.Exists(preflightPath)) preflight=JsonDocument.Parse(File.ReadAllText(preflightPath)).RootElement.GetProperty("status").GetString()=="passed";
             bool controls=selected.Any(c=>CaseDiscovery.Family(c.Descriptor.Type).Kind!="engine");
-            return new(2,controls?"calibration":"revision",mode,identity.GetProperty("engineRevision").GetString()!,identity.GetProperty("engineClean").GetBoolean(),
-                identity.GetProperty("harnessFingerprint").GetString()!,EvidenceJson.Fingerprint(environment!.Value),preflight,true,records.ToArray(),
-                controls?"Control/model evidence; never a production revision baseline":"Actual engine Git revision built by common harness",["manifest.json","source.zip","children/","results/"],
-                Environment.GetEnvironmentVariable("EDWINCRAFT_PREFLIGHT_SCOPE") ?? "unverified");
+            // Full-suite testing is a workflow prerequisite, not an inferred or scripted attestation.
+            // CorrectnessPassed here describes the workload checks in the benchmark processes only.
+            return new BenchmarkRun(3,controls?"calibration":"revision",mode,identity.GetProperty("engineRevision").GetString()!,identity.GetProperty("engineClean").GetBoolean(),
+                identity.GetProperty("commit").GetString()!,EvidenceJson.Fingerprint(environment!.Value),true,false,records.ToArray(),
+                controls?"Control/model evidence; never a production revision baseline":"Manual workflow; run dotnet test before measuring. No session drift verification.",["manifest.json","children/","results/"],
+                "workload") { EnvironmentInfo=environment };
         }
         finally {foreach(var doc in raw)doc.Dispose();}
     }

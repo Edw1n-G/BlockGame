@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using System.IO.Compression;
 
 namespace BlockGame.Benchmarks.Harness;
 
@@ -28,57 +27,15 @@ internal static class RunEvidence
         }
         string root = Path.GetFullPath(Git(Environment.CurrentDirectory,"rev-parse", "--show-toplevel"));
         string status = Git(root,"status", "--porcelain=v1", "--untracked-files=all");
-        var files = Git(root,"ls-files", "-z", "--cached", "--others", "--exclude-standard").Split('\0', StringSplitOptions.RemoveEmptyEntries)
-            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
-            .Select(path => new { path, sha256 = File.Exists(Path.Combine(root, path)) ? WorkloadEnvironment.Hash(File.ReadAllBytes(Path.Combine(root, path))) : "DELETED" }).ToArray();
-        string Fingerprint(string prefix) => WorkloadEnvironment.Hash(System.Text.Encoding.UTF8.GetBytes(string.Join("\n", files.Where(f => f.path.StartsWith(prefix, StringComparison.Ordinal)).Select(f => f.path + "=" + f.sha256))));
-        string engineRoot=Path.GetFullPath(Environment.GetEnvironmentVariable("EDWINCRAFT_ENGINE_ROOT") ?? root);
-        string engineRevision=Git(engineRoot,"rev-parse","HEAD");
-        bool engineClean=Git(engineRoot,"status","--porcelain=v1","--untracked-files=all").Length==0;
-        var engineFiles=Git(engineRoot,"ls-files","-z").Split('\0',StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal)
-            .Select(path=>new {path,sha256=File.Exists(Path.Combine(engineRoot,path)) ? WorkloadEnvironment.Hash(File.ReadAllBytes(Path.Combine(engineRoot,path))) : "DELETED"}).ToArray();
-        string engineFingerprint=EvidenceJson.Fingerprint(engineFiles);
-        string assetsPath=Path.Combine(engineRoot,"BlockGame.Core/obj/project.assets.json");
-        string[] managedDependencies=File.Exists(assetsPath) ? JsonDocument.Parse(File.ReadAllText(assetsPath)).RootElement.GetProperty("libraries").EnumerateObject().Select(p=>p.Name).Order(StringComparer.Ordinal).ToArray() : [];
-        var runnerFiles=new[]{"global.json","scripts/run-benchmarks.ps1","scripts/verify-tests.ps1","Directory.Build.props","Directory.Build.targets","Directory.Packages.props","NuGet.Config"};
-        var harnessFiles=files.Where(f=>runnerFiles.Contains(f.path) ||
-            f.path.StartsWith("BlockGame.Benchmarks/",StringComparison.Ordinal) &&
-            new[]{".cs",".csproj",".json"}.Contains(Path.GetExtension(f.path))).ToArray();
-        return new { root, commit = Git(root,"rev-parse", "HEAD"), branch = Git(root,"branch", "--show-current"), dirty = status.Length > 0, status,
-            engineRoot,engineRevision,engineClean,engineFingerprint,engineFiles,managedDependencies,harnessFingerprint=EvidenceJson.Fingerprint(harnessFiles),
-            treeSha256 = Fingerprint(""), engineSourceSha256 = Fingerprint("BlockGame.Core/"), harnessSourceSha256 = Fingerprint("BlockGame.Benchmarks/"),
-            workloadSourceSha256 = Fingerprint("BlockGame.Benchmarks/Workloads/"), files };
-    }
-
-    public static void Snapshot(string output, object identity)
-    {
-        var source=JsonSerializer.SerializeToElement(identity);
-        string root=source.GetProperty("root").GetString()!;
-        using var zip=ZipFile.Open(Path.Combine(output,"source.zip"),ZipArchiveMode.Create);
-        foreach(var file in source.GetProperty("files").EnumerateArray())
+        string engineRoot = Path.GetFullPath(Environment.GetEnvironmentVariable("EDWINCRAFT_ENGINE_ROOT") ?? root);
+        return new
         {
-            string path=file.GetProperty("path").GetString()!, hash=file.GetProperty("sha256").GetString()!;
-            if(hash=="DELETED") continue;
-            string absolute=Path.GetFullPath(Path.Combine(root,path));
-            if(!absolute.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase) || WorkloadEnvironment.Hash(File.ReadAllBytes(absolute))!=hash)
-                throw new InvalidDataException("Source changed or escaped archive root: "+path);
-            ZipFileExtensions.CreateEntryFromFile(zip,absolute,path,CompressionLevel.Optimal);
-        }
-        string engineRoot=source.GetProperty("engineRoot").GetString()!;
-        // Clean revision source is independently portable, even when harness and engine are sibling checkouts.
-        if(engineRoot!=root)
-        {
-            foreach(var file in source.GetProperty("engineFiles").EnumerateArray())
-            {
-                string path=file.GetProperty("path").GetString()!,hash=file.GetProperty("sha256").GetString()!;
-                if(hash=="DELETED")continue;
-                string absolute=Path.GetFullPath(Path.Combine(engineRoot,path));
-                if(!absolute.StartsWith(engineRoot+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase) || WorkloadEnvironment.Hash(File.ReadAllBytes(absolute))!=hash)throw new InvalidDataException("Engine source changed while archiving");
-                ZipFileExtensions.CreateEntryFromFile(zip,absolute,"engine/"+path,CompressionLevel.Optimal);
-            }
-        }
+            root, commit = Git(root, "rev-parse", "HEAD"), branch = Git(root, "branch", "--show-current"),
+            dirty = status.Length > 0, status, engineRoot,
+            engineRevision = Git(engineRoot, "rev-parse", "HEAD"),
+            engineClean = status.Length == 0 && Git(engineRoot, "status", "--porcelain=v1", "--untracked-files=all").Length == 0
+        };
     }
-
     public static object RuntimeIdentity() => new
     {
         runtime = RuntimeInformation.FrameworkDescription, runtimeVersion = Environment.Version.ToString(),
@@ -87,9 +44,7 @@ internal static class RunEvidence
         gcLatency = GCSettings.LatencyMode.ToString(), debugger = Debugger.IsAttached,
         settings = Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>()
             .Where(e => ((string)e.Key).StartsWith("DOTNET_", StringComparison.Ordinal) || ((string)e.Key).StartsWith("COMPlus_", StringComparison.Ordinal))
-            .ToDictionary(e => (string)e.Key, e => (string?)e.Value),
-        assemblies = new[] { typeof(Basics.Terrain.Chunks.ChunkProvider).Assembly, typeof(WorkloadCatalog).Assembly, typeof(ScenarioContract).Assembly, typeof(HarnessRunner).Assembly }
-            .Distinct().Select(a => new { name = a.GetName().Name, sha256 = WorkloadEnvironment.Hash(File.ReadAllBytes(a.Location)) }).ToArray()
+            .ToDictionary(e => (string)e.Key, e => (string?)e.Value)
     };
 
     public static void Child(Type type, string scenario, WorkloadEnvironment? environment = null, object? input = null, string? outputFingerprint = null)

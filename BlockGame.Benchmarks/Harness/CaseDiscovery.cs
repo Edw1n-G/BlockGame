@@ -25,7 +25,13 @@ public static class CaseDiscovery
     {
         if(filters.Length==0) filters=["*"];
         var patterns=filters.Select(f=>new Regex("^"+Regex.Escape(f).Replace("\\*",".*").Replace("\\?",".")+"$",RegexOptions.CultureInvariant)).ToArray();
-        for(int i=0;i<patterns.Length;i++) if(!cases.Any(c=>patterns[i].IsMatch(Id(c)))) throw new ArgumentException("No benchmark cases match '"+filters[i]+"'");
-        return cases.Where(c=>patterns.Any(p=>p.IsMatch(Id(c)))).ToArray();
+        // Accept workload family names (mesh/*) as well as existing implementation IDs (meshing/*).
+        bool Matches(Regex pattern, BenchmarkCase c)
+        {
+            string id=Id(c);
+            return pattern.IsMatch(id) || pattern.IsMatch(Family(c.Descriptor.Type).Family+id[id.IndexOf('/')..]);
+        }
+        for(int i=0;i<patterns.Length;i++) if(!cases.Any(c=>Matches(patterns[i],c))) throw new ArgumentException("No benchmark cases match '"+filters[i]+"'");
+        return cases.Where(c=>patterns.Any(p=>Matches(p,c))).ToArray();
     }
 }

@@ -8,7 +8,8 @@ public static class Comparator
         if (policy.PracticalPercent <= 0 || policy.AbsoluteDeltaNs < 0 || policy.NearZeroNs <= 0 || policy.MaxCvPercent <= 0 || policy.MinimumSamples < 2 || policy.UncertaintyMultiplier <= 0)
             throw new ArgumentException("Invalid comparison policy");
         string? global = ValidateRun(baseline,calibration) ?? ValidateRun(candidate,calibration);
-        if (baseline.HarnessFingerprint != candidate.HarnessFingerprint) global ??= "Harness differs";
+        if (baseline.SchemaVersion != candidate.SchemaVersion) global ??= "Run formats differ; remeasure both revisions with the current workflow";
+        if (baseline.SchemaVersion == 2 && baseline.HarnessFingerprint != candidate.HarnessFingerprint) global ??= "Harness differs";
         if (baseline.EnvironmentFingerprint != candidate.EnvironmentFingerprint) global ??= "Environment/job/dependencies differ";
         string Key(Observation c)=>c.Scenario.Id+"|"+c.Scenario.Version+"|"+c.Scenario.Unit+"|"+c.Scenario.InputFingerprint;
         var ids = baseline.Cases.Select(Key).Union(candidate.Cases.Select(Key)).Order(StringComparer.Ordinal);
@@ -28,15 +29,18 @@ public static class Comparator
         if (rows.Count == 0) rows.Add(new("<none>","not comparable","No scenarios discovered"));
         return new(1,calibration ? "calibration fixture validation only" : "advisory revision comparison; policy is provisional",policy,rows.ToArray(),
             baseline.EngineRevision,candidate.EngineRevision,baseline.HarnessFingerprint,baseline.EnvironmentFingerprint,
-            EvidenceJson.Hash(File.ReadAllBytes(typeof(Comparator).Assembly.Location)));
+            typeof(Comparator).Assembly.GetName().Version?.ToString() ?? "unknown")
+        { BaselineEnvironment=baseline.EnvironmentInfo, CandidateEnvironment=candidate.EnvironmentInfo };
     }
 
     private static string? ValidateRun(BenchmarkRun run, bool calibration)
     {
-        if (run.SchemaVersion != 2 || run.Mode != "Measure" || !run.CorrectnessPassed || !run.SourceUnchanged) return "Failed, smoke, unsupported or incomplete run";
+        if (run.SchemaVersion is not (2 or 3) || run.Mode != "Measure" || !run.CorrectnessPassed) return "Failed, smoke, unsupported or incomplete run";
+        if (run.SchemaVersion == 2 && !run.SourceUnchanged) return "Incomplete legacy run";
         if (!calibration && (run.Kind != "revision" || !run.EngineClean || run.EngineRevision.Length != 40 || !run.EngineRevision.All(Uri.IsHexDigit)))
             return "Requires an actual clean Git revision; models/controls/dirty runs are not production baselines";
-        if (!calibration && run.CorrectnessScope != "full") return "Focused preflight is iteration evidence; full correctness required for revision verdicts";
+        if (!calibration && run.SchemaVersion == 2 && run.CorrectnessScope != "full") return "Focused preflight is iteration evidence; full correctness required for revision verdicts";
+        if (!calibration && run.SchemaVersion == 3 && run.CorrectnessScope != "workload") return "Missing workload correctness checks";
         if (string.IsNullOrWhiteSpace(run.HarnessFingerprint) || string.IsNullOrWhiteSpace(run.EnvironmentFingerprint)) return "Missing harness/environment identity";
         return null;
     }

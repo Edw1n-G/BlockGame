@@ -19,25 +19,37 @@ public static class ComparisonCli
                     Console.WriteLine($"controls: {checks.Checks}/{checks.Checks} checks passed");
                     break;
                 case "compare":
+                    if (args.Length is not (3 or 4)) throw new ArgumentException("Use compare <baseline-directory> <candidate-directory> [report.json]");
                     var validation = ControlValidation.Run();
-                    PortableBundle.Verify(args[1]);
-                    PortableBundle.Verify(args[2]);
                     var report = Comparator.Compare(ReadRun(args[1]), ReadRun(args[2])) with { Controls = validation };
-                    EvidenceJson.Write(args[3],report);
-                    File.WriteAllLines(Path.ChangeExtension(args[3],".md"), new[] {"# Advisory benchmark comparison","", $"Baseline: {report.BaselineRevision}; candidate: {report.CandidateRevision}.","Policy: provisional 5% practical budget, 100 ns timing floor; no automatic performance gate.","", "| Scenario | Unit | Result | Baseline ns | Candidate ns | Reason |","|---|---|---|---:|---:|---|"}
+                    string reportPath=Path.GetFullPath(args.Length==4 ? args[3] : Path.Combine("artifacts","comparisons",$"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}","comparison.json"));
+                    Directory.CreateDirectory(Path.GetDirectoryName(reportPath)!);
+                    EvidenceJson.Write(reportPath,report);
+                    File.WriteAllLines(Path.ChangeExtension(reportPath,".md"), new[] {"# Advisory benchmark comparison","", $"Baseline: {report.BaselineRevision}; candidate: {report.CandidateRevision}.","Policy: provisional 5% practical budget, 100 ns timing floor; no automatic performance gate.",
+                        "Full dotnet test runs are a manual prerequisite. Background load and power plan are uncontrolled noise; inspect the BenchmarkDotNet reports and repeat uncertain measurements.",
+                        "",$"Baseline environment: {report.BaselineEnvironment}",$"Candidate environment: {report.CandidateEnvironment}","", "| Scenario | Unit | Result | Baseline ns | Candidate ns | Reason |","|---|---|---|---:|---:|---|"}
                         .Concat(report.Rows.Select(r => $"| {r.ScenarioId} | {r.Contract?.Unit} | {r.Status} | {r.BaselineNs?.ToString("F3",System.Globalization.CultureInfo.InvariantCulture)} | {r.CandidateNs?.ToString("F3",System.Globalization.CultureInfo.InvariantCulture)} | {r.Reason} |")));
                     Console.WriteLine(string.Join(Environment.NewLine,report.Rows.Select(r => $"{r.ScenarioId}: {r.Status} — {r.Reason}")));
+                    Console.WriteLine($"Comparison report: {Path.ChangeExtension(reportPath,".md")}");
                     break;
-                default: throw new ArgumentException("Use pack <directory> <zip>, verify <bundle>, or compare <baseline-bundle> <candidate-bundle> <report.json>");
+                default: throw new ArgumentException("Use compare <baseline-directory> <candidate-directory> [report.json], validate-controls, pack <directory> <zip>, or verify <bundle>");
             }
             return 0;
         }
         catch (Exception ex) { Console.Error.WriteLine(ex.Message); return 1; }
     }
 
-    private static BenchmarkRun ReadRun(string zipPath)
+    private static BenchmarkRun ReadRun(string path)
     {
-        using var zip = ZipFile.OpenRead(zipPath);
+        if (Directory.Exists(path))
+        {
+            using var file = File.OpenRead(Path.Combine(path,"benchmark-run.json"));
+            return JsonSerializer.Deserialize<BenchmarkRun>(file,EvidenceJson.Options)
+                ?? throw new InvalidDataException("Missing run");
+        }
+        // Reading an old portable bundle is optional; ordinary runs need no archive or checksum.
+        PortableBundle.Verify(path);
+        using var zip = ZipFile.OpenRead(path);
         var entry = zip.GetEntry("benchmark-run.json") ?? throw new InvalidDataException("Missing benchmark-run.json");
         using var stream = entry.Open();
         return JsonSerializer.Deserialize<BenchmarkRun>(stream, EvidenceJson.Options)

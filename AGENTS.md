@@ -37,6 +37,8 @@ This document provides essential context and guidelines for AI coding agents wor
 - Run output is never committed (`artifacts/` is ignored).
 - Benchmarking is documented only in `docs/benchmarking.md`.
 - Use full correctness before acceptance. Focused family smoke is iteration-only; all GPU rules above still apply.
-- Compare actual clean Git engine revisions using `scripts/compare-benchmarks.ps1` and the same captured harness. Never substitute a hand-copied reference as a revision baseline.
-- Pair scenario ID/version/unit/input fingerprint; preserve correctness outputs, source/runtime/native identities and portable ZIP/hash evidence. Early-return/near-zero/noisy rows cannot establish speedup headlines. Policy remains advisory.
+- Use the manual workflow in `docs/benchmarking.md`: `dotnet test`, `dotnet run -c Release --project BlockGame.Benchmarks`, and `dotnet run --project BlockGame.Benchmarks -- compare <baseline-directory> <candidate-directory>`. Scripts are optional shortcuts.
+- Before baseline and candidate measurements, pass the full test suite and commit all changes so the working tree is clean. Preserve baseline results before editing code. Compare actual Git engine revisions with the same workloads; never substitute a hand-copied reference.
+- Retain BenchmarkDotNet reports with revision, OS and hardware information. Minimize background load and prefer a consistent power plan as guidelines; account for their effects as noise. Do not require scripted result hashes, portable ZIPs or session drift checks.
+- Pair scenario ID/version/unit/input fingerprint and correctness outputs. Early-return/near-zero/noisy rows cannot establish speedup headlines. Policy remains advisory.
 - Keep the requestor's committed region consistent with its active set; canceled/failed plans roll back additions and explicit unload invalidates the region. Retain movement/reset/resize/failure/wraparound tests.

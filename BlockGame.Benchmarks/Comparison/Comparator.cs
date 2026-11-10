@@ -8,8 +8,7 @@ public static class Comparator
         if (policy.PracticalPercent <= 0 || policy.AbsoluteDeltaNs < 0 || policy.NearZeroNs <= 0 || policy.MaxCvPercent <= 0 || policy.MinimumSamples < 2 || policy.UncertaintyMultiplier <= 0)
             throw new ArgumentException("Invalid comparison policy");
         string? global = ValidateRun(baseline,calibration) ?? ValidateRun(candidate,calibration);
-        if (baseline.SchemaVersion != candidate.SchemaVersion) global ??= "Run formats differ; remeasure both revisions with the current workflow";
-        if (baseline.SchemaVersion == 2 && baseline.HarnessFingerprint != candidate.HarnessFingerprint) global ??= "Harness differs";
+        bool harnessChanged = global is null && baseline.HarnessTree != candidate.HarnessTree;
         if (baseline.EnvironmentFingerprint != candidate.EnvironmentFingerprint) global ??= "Environment/job/dependencies differ";
         string Key(Observation c)=>c.Scenario.Id+"|"+c.Scenario.Version+"|"+c.Scenario.Unit+"|"+c.Scenario.InputFingerprint;
         var ids = baseline.Cases.Select(Key).Union(candidate.Cases.Select(Key)).Order(StringComparer.Ordinal);
@@ -27,21 +26,25 @@ public static class Comparator
             rows.Add(CompareCase(a[0],b[0],policy) with {Contract=contract});
         }
         if (rows.Count == 0) rows.Add(new("<none>","not comparable","No scenarios discovered"));
-        return new(1,calibration ? "calibration fixture validation only" : "advisory revision comparison; policy is provisional",policy,rows.ToArray(),
-            baseline.EngineRevision,candidate.EngineRevision,baseline.HarnessFingerprint,baseline.EnvironmentFingerprint,
+        return new(2,calibration ? "calibration fixture validation only" : "advisory revision comparison; policy is provisional",policy,rows.ToArray(),
+            baseline.EngineRevision,candidate.EngineRevision,baseline.HarnessTree,candidate.HarnessTree,baseline.EnvironmentFingerprint,
             typeof(Comparator).Assembly.GetName().Version?.ToString() ?? "unknown")
-        { BaselineEnvironment=baseline.EnvironmentInfo, CandidateEnvironment=candidate.EnvironmentInfo };
+        {
+            BaselineEnvironment = baseline.EnvironmentInfo,
+            CandidateEnvironment = candidate.EnvironmentInfo,
+            Warnings = harnessChanged
+                ? ["Benchmark harness tree differs. Review changes under BlockGame.Benchmarks before attributing timing differences to the engine."]
+                : []
+        };
     }
 
     private static string? ValidateRun(BenchmarkRun run, bool calibration)
     {
-        if (run.SchemaVersion is not (2 or 3) || run.Mode != "Measure" || !run.CorrectnessPassed) return "Failed, smoke, unsupported or incomplete run";
-        if (run.SchemaVersion == 2 && !run.SourceUnchanged) return "Incomplete legacy run";
+        if (run.SchemaVersion != BenchmarkRun.CurrentSchemaVersion) return "Unsupported run format; remeasure both revisions with the current workflow";
+        if (run.Mode != "Measure") return "Only Measure runs are comparable";
         if (!calibration && (run.Kind != "revision" || !run.EngineClean || run.EngineRevision.Length != 40 || !run.EngineRevision.All(Uri.IsHexDigit)))
             return "Requires an actual clean Git revision; models/controls/dirty runs are not production baselines";
-        if (!calibration && run.SchemaVersion == 2 && run.CorrectnessScope != "full") return "Focused preflight is iteration evidence; full correctness required for revision verdicts";
-        if (!calibration && run.SchemaVersion == 3 && run.CorrectnessScope != "workload") return "Missing workload correctness checks";
-        if (string.IsNullOrWhiteSpace(run.HarnessFingerprint) || string.IsNullOrWhiteSpace(run.EnvironmentFingerprint)) return "Missing harness/environment identity";
+        if (string.IsNullOrWhiteSpace(run.HarnessTree) || string.IsNullOrWhiteSpace(run.EnvironmentFingerprint)) return "Missing harness/environment identity";
         return null;
     }
 

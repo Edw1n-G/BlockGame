@@ -15,9 +15,9 @@ public static class ControlFixtures
             _ => throw new ArgumentException($"Unknown control fixture: {name}", nameof(name))
         };
 
-        return new(2, "calibration", "Measure", name, false,
+        return new(BenchmarkRun.CurrentSchemaVersion, "calibration", "Measure", name, false,
             EvidenceJson.Fingerprint("control harness"), EvidenceJson.Fingerprint("control environment"),
-            true, true, cases, "Deterministic comparator control", []);
+            cases, "Deterministic comparator control");
     }
 
     private static Observation[] NullCases(double fast, double slow, double outsideOne, double outsideTwo) =>

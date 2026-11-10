@@ -6,7 +6,7 @@ namespace BlockGame.Benchmarks;
 public static class Program
 {
     public static int Main(string[] args) =>
-        args.ElementAtOrDefault(0) is "compare" or "pack" or "verify" or "validate-controls"
+        args.ElementAtOrDefault(0) is "compare" or "validate-controls"
             ? ComparisonCli.Run(args)
             : HarnessRunner.Run(args);
 }

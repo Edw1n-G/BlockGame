@@ -58,9 +58,11 @@ Minimize background work: close unnecessary applications, avoid concurrent build
 
 Keep the same benchmark workloads and settings across the engine change. Compare actual committed engine code, not a hand-copied reference implementation. Pair scenarios by ID, version, unit and input fingerprint, with matching correctness outputs. These internal scenario fingerprints identify the work being measured; they are not hashes of saved result files.
 
+Each run records the Git tree ID of the committed `BlockGame.Benchmarks` directory (`git rev-parse HEAD:BlockGame.Benchmarks`). Engine changes outside that directory leave the tree ID unchanged. If the IDs differ, the comparison still shows its verdicts and warns in the report. Review the benchmark changes before attributing any timing difference to the engine.
+
 The comparison is advisory. It reports timings and allocations, with `improved`, `regressed`, `inconclusive`, or `not comparable` verdicts. Its provisional policy uses a 5% practical threshold, 10 ns absolute threshold, 100 ns near-zero floor, 3% maximum CV, at least 10 samples, and a three-standard-error uncertainty allowance. Noisy, diagnostic and early-return results do not support speedup headlines. Review BenchmarkDotNet's statistics and warnings, not just the verdict.
 
-Full-suite testing is a manual prerequisite in the current run format (v3). Workload checks are recorded separately. Older v2 bundles retain their old validation rules and can still be read, but cannot be paired with v3 runs; remeasure both revisions with the current workflow. Optional `pack`/`verify` commands exist only for archival compatibility and are not used by the normal workflow.
+Comparison uses result folders from the current run format (v4). Remeasure both revisions if you only have results from an older format.
 
 ## Optional scripts
 

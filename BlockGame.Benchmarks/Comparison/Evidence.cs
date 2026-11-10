@@ -42,9 +42,9 @@ public sealed record Observation(string CaseId, ScenarioContract Scenario, strin
     double? BytesPerOperation, string[] Diagnostics, bool Success = true, string? OutputFingerprint = null);
 
 public sealed record BenchmarkRun(int SchemaVersion, string Kind, string Mode, string EngineRevision, bool EngineClean,
-    string HarnessFingerprint, string EnvironmentFingerprint, bool CorrectnessPassed, bool SourceUnchanged,
-    Observation[] Cases, string Provenance, string[] EvidencePaths, string CorrectnessScope = "full")
+    string HarnessTree, string EnvironmentFingerprint, Observation[] Cases, string Provenance)
 {
+    public const int CurrentSchemaVersion = 4;
     public JsonElement? EnvironmentInfo { get; init; }
 }
 
@@ -56,8 +56,10 @@ public sealed record ComparisonRow(string ScenarioId, string Status, string Reas
     double? AllocationDeltaBytes = null, string AllocationStatus = "unavailable", ScenarioContract? Contract = null);
 
 public sealed record ComparisonReport(int SchemaVersion, string Purpose, ComparisonPolicy Policy, ComparisonRow[] Rows,
-    string BaselineRevision, string CandidateRevision, string HarnessFingerprint, string EnvironmentFingerprint, string ComparatorFingerprint)
+    string BaselineRevision, string CandidateRevision, string BaselineHarnessTree, string CandidateHarnessTree,
+    string EnvironmentFingerprint, string ComparatorFingerprint)
 {
+    public string[] Warnings { get; init; } = [];
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public ControlValidationResult? Controls { get; init; }
     public JsonElement? BaselineEnvironment { get; init; }

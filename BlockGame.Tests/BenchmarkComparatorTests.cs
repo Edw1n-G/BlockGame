@@ -68,7 +68,7 @@ public class BenchmarkComparatorTests
             }
         }
     }
-    [Fact] public void ProductionVerdictRequiresFullCorrectnessAndMatchingOutputEvidence()
+    [Fact] public void ProductionVerdictRequiresMatchingOutputEvidence()
     {
         var a=Fixture("positive-before") with {Kind="revision",EngineClean=true,EngineRevision=new string('a',40)};
         var b=Fixture("positive-after") with {Kind="revision",EngineClean=true,EngineRevision=new string('b',40)};
@@ -76,11 +76,10 @@ public class BenchmarkComparatorTests
         a=a with {Cases=[a.Cases[0] with {OutputFingerprint="same-output"}]};
         b=b with {Cases=[b.Cases[0] with {OutputFingerprint="same-output"}]};
         Assert.Equal("improved",Assert.Single(Comparator.Compare(a,b).Rows).Status);
-        Assert.Equal("not comparable",Assert.Single(Comparator.Compare(a,b with {CorrectnessScope="family"}).Rows).Status);
         Assert.Equal("not comparable",Assert.Single(Comparator.Compare(a,b with {Cases=[b.Cases[0] with {OutputFingerprint="changed-output"}]}).Rows).Status);
     }
     [Theory]
-    [InlineData("unit")][InlineData("version")][InlineData("input")][InlineData("environment")][InlineData("harness")]
+    [InlineData("unit")][InlineData("version")][InlineData("input")][InlineData("environment")]
     [InlineData("missing")][InlineData("failed")][InlineData("smoke")][InlineData("duplicate")]
     public void IncompatibleEvidenceCannotWin(string mutation)
     {
@@ -90,8 +89,7 @@ public class BenchmarkComparatorTests
             "version"=>b with {Cases=[c with {Scenario=c.Scenario with {Version=2}}]},
             "input"=>b with {Cases=[c with {Scenario=ScenarioContract.Create(c.Scenario.Id,1,c.Scenario.Unit,new {different=true})}]},
             "environment"=>b with {EnvironmentFingerprint="another machine"},
-            "harness"=>b with {HarnessFingerprint="another harness"},
-            "missing"=>b with {Cases=[]}, "failed"=>b with {CorrectnessPassed=false}, "smoke"=>b with {Mode="Smoke"},
+            "missing"=>b with {Cases=[]}, "failed"=>b with {Cases=[c with {Success=false}]}, "smoke"=>b with {Mode="Smoke"},
             "duplicate"=>b with {Cases=[c,c]}, _=>throw new Exception()};
         Assert.All(Comparator.Compare(a,b,calibration:true).Rows,r=>Assert.Equal("not comparable",r.Status));
     }

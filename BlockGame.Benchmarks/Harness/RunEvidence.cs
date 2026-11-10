@@ -28,9 +28,11 @@ internal static class RunEvidence
         string root = Path.GetFullPath(Git(Environment.CurrentDirectory,"rev-parse", "--show-toplevel"));
         string status = Git(root,"status", "--porcelain=v1", "--untracked-files=all");
         string engineRoot = Path.GetFullPath(Environment.GetEnvironmentVariable("EDWINCRAFT_ENGINE_ROOT") ?? root);
+        string commit = Git(root, "rev-parse", "HEAD");
         return new
         {
-            root, commit = Git(root, "rev-parse", "HEAD"), branch = Git(root, "branch", "--show-current"),
+            root, commit, branch = Git(root, "branch", "--show-current"),
+            harnessTree = Git(root, "rev-parse", $"{commit}:BlockGame.Benchmarks"),
             dirty = status.Length > 0, status, engineRoot,
             engineRevision = Git(engineRoot, "rev-parse", "HEAD"),
             engineClean = status.Length == 0 && Git(engineRoot, "status", "--porcelain=v1", "--untracked-files=all").Length == 0

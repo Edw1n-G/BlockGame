@@ -54,12 +54,10 @@ internal static class ResultNormalizer
                 environment=env;
             }
             bool controls=selected.Any(c=>CaseDiscovery.Family(c.Descriptor.Type).Kind!="engine");
-            // Full-suite testing is a workflow prerequisite, not an inferred or scripted attestation.
-            // CorrectnessPassed here describes the workload checks in the benchmark processes only.
-            return new BenchmarkRun(3,controls?"calibration":"revision",mode,identity.GetProperty("engineRevision").GetString()!,identity.GetProperty("engineClean").GetBoolean(),
-                identity.GetProperty("commit").GetString()!,EvidenceJson.Fingerprint(environment!.Value),true,false,records.ToArray(),
-                controls?"Control/model evidence; never a production revision baseline":"Manual workflow; run dotnet test before measuring. No session drift verification.",["manifest.json","children/","results/"],
-                "workload") { EnvironmentInfo=environment };
+            return new BenchmarkRun(BenchmarkRun.CurrentSchemaVersion, controls ? "calibration" : "revision", mode,
+                identity.GetProperty("engineRevision").GetString()!, identity.GetProperty("engineClean").GetBoolean(),
+                identity.GetProperty("harnessTree").GetString()!, EvidenceJson.Fingerprint(environment!.Value), records.ToArray(),
+                controls ? "Control/model evidence" : "Manual revision comparison") { EnvironmentInfo = environment };
         }
         finally {foreach(var doc in raw)doc.Dispose();}
     }

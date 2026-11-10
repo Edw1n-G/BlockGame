@@ -71,11 +71,10 @@ public static class HarnessRunner
             var toolchain=CsProjCoreToolchain.From(new NetCoreAppSettings("net10.0",null,".NET 10",customDotNetCliPath:dotnet));
             var job=(mode=="Smoke"?Job.Dry:Job.Default).WithId(mode).WithPlatform(Platform.X64).WithJit(Jit.RyuJit).WithGcServer(false)
                 .WithToolchain(toolchain).DontEnforcePowerPlan().WithEnvironmentVariable("EDWINCRAFT_BENCHMARK_EVIDENCE",Path.Combine(output,"children"));
-            manifest=new(){["schemaVersion"]=3,["status"]="running",["mode"]=mode,["source"]=source,["dependencies"]=dependencies,
+            manifest=new(){["schemaVersion"]=4,["status"]="running",["mode"]=mode,["source"]=source,["dependencies"]=dependencies,
                 ["startedUtc"]=DateTime.UtcNow,["selectedCases"]=selected.Select(CaseDiscovery.Id).ToArray(),["commandArguments"]=args,
                 ["contracts"]=selected.Select(c=>new {caseId=CaseDiscovery.Id(c),contract=CaseDiscovery.Contract(c,dependencies),kind=CaseDiscovery.Family(c.Descriptor.Type).Kind}).ToArray(),
-                ["host"]=RunEvidence.RuntimeIdentity(),["powerPlan"]=Environment.GetEnvironmentVariable("EDWINCRAFT_BENCHMARK_POWER_PLAN"),
-                ["loadNote"]=Environment.GetEnvironmentVariable("EDWINCRAFT_BENCHMARK_LOAD_NOTE")??"Uncontrolled desktop session",
+                ["host"]=RunEvidence.RuntimeIdentity(),
                 ["job"]=new {mode,dotnet,configuration="Release",platform="X64",jit="RyuJit",serverGC=false,powerPlan="preserve current",sampling=mode=="Smoke"?"Dry":"BenchmarkDotNet defaults"}};
             RunEvidence.WriteJson(manifestPath,manifest);
             var selectedIds=selected.Select(CaseDiscovery.Id).ToHashSet(StringComparer.Ordinal);

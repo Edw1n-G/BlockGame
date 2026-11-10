@@ -4,6 +4,8 @@ using Basics.Terrain;
 using Basics.Terrain.Chunks;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Buffers.Binary;
 
 namespace Basics.Terrain.Meshing;
 
@@ -114,6 +116,22 @@ public class Lod0Mesher : BaseMesher
         _neighborCache = null;
     }
     
+    // Reserve one complete vertex in the pooled list before taking a borrowed span.
+    // Explicit little-endian writes preserve the existing GPU byte layout and zero padding.
+    private new void AddVertex(float x, float y, float z, ushort layer, byte aoLevel)
+    {
+        int offset = _vertices.Count;
+        CollectionsMarshal.SetCount(_vertices, checked(offset + 16));
+        Span<byte> vertex = CollectionsMarshal.AsSpan(_vertices).Slice(offset, 16);
+        BinaryPrimitives.WriteSingleLittleEndian(vertex, x);
+        BinaryPrimitives.WriteSingleLittleEndian(vertex.Slice(4), y);
+        BinaryPrimitives.WriteSingleLittleEndian(vertex.Slice(8), z);
+        BinaryPrimitives.WriteUInt16LittleEndian(vertex.Slice(12), layer);
+        vertex[14] = aoLevel;
+        vertex[15] = 0;
+        _vertexCount++;
+    }
+
     private void CreateCubeFace(int x, int y, int z, int face)
     {
         int id = _blockData[x * 256 + y * 16 + z];

@@ -1,5 +1,15 @@
 # CPU benchmarking
 
+## Terrain density buffer pooling experiment (2026-11-11)
+
+- Inspect `TerrainGenerator.GenerateChunk`: each in-map chunk creates a temporary 16 x 17 x 16 float density array, used only until block classification completes. Reuse this scratch buffer with the built-in `ArrayPool<float>.Shared`; add an internal span-filling method to the existing `NoiseCalculator`, preserving its array-returning API. No new classes or scripts.
+- Start from clean revision `9cd3797972f2a3120e035ed8721c947f31920ec2`. Run the complete suite (396 passed, zero failed/skipped), then the normal Measure job with `--case 'terrain/*' --case 'noise/*' --output artifacts/terrain-pool-baseline-20261111`. All ten cases completed before any engine edits. Keep the full output directory.
+- Rent only for in-map chunks, pass an exactly sized span to native generation, and return the buffer in `finally`, including exception paths. Do not clear on return because generation overwrites every value before reading it. The final chunk block array remains independently owned. Classification, native inputs, and GPU behavior are unchanged.
+- Add tests to existing classes: NaN-prefilled destinations and guard values for two seeds and several step sizes (including step normalization), too-short buffer rejection before native writes, retained chunk data after buffer reuse, and parallel generation with distinct coordinates/LODs. Full candidate suite: 402 passed, zero failed/skipped. The parallel test is regression coverage, not proof of general native-library thread safety.
+- Commit the tested candidate, measure the identical ten cases into `artifacts/terrain-pool-candidate-20261111`, and run the existing comparator against the saved baseline. The noise-only cases still use the owning array API and act as controls. Record SHAs and all results in `benchmark-history.md`.
+- Constraints/tradeoffs: the pool keeps reusable arrays in memory; fewer allocated bytes per operation does not imply an equal reduction in retained memory. Cold pool misses may allocate, and buffers can be larger than the requested 4,352 floats. The benchmark measures the warmed steady state. Default desktop background load and the unchanged power plan remain possible noise sources.
+- Use the explicit SDK path `C:/Users/Edwin/.dotnet/dotnet.exe` outside the sandbox, without the unsuitable `-m:1` test argument identified in the previous experiment. No new execution failures occurred during baseline or candidate tests; existing compiler/analyzer warnings remain. Test logs: `artifacts/terrain-pool-baseline-tests-20261111.log` and `artifacts/terrain-pool-candidate-tests-20261111.log`; launcher logs use the run-directory names plus `.log`. Retain raw reports and manifests in each ignored result directory.
+
 ## LOD0 neighbor lookup experiment (2026-11-11)
 
 - Scope: replace conditional coordinate wrapping in the existing `Lod0Mesher.IsBlockNeighbor` with arithmetic shifts and masks. Face/AO callers only query coordinates in -1..16; shifting by four gives -1/0/1 and masking with 15 gives the local coordinate. No new classes or scripts; GPU work and buffer pooling are unchanged.

@@ -6,6 +6,7 @@ using Basics.Settings;
 using Basics.Terrain;
 using System;
 using System.IO;
+using System.Buffers;
 
 namespace Basics.Terrain.Generation;
 
@@ -73,59 +74,70 @@ public class TerrainGenerator
         const int noiseSizeX = 16;
         const int noiseSizeY = 17;
         const int noiseSizeZ = 16;
-        float[] densityField = _noiseCalculator.GetNoiseValues(
-            chunkStartX,
-            chunkStartY,
-            chunkStartZ,
-            noiseSizeX,
-            noiseSizeY,
-            noiseSizeZ,
-            stepSize);
-
-        for (byte x = 0; x < 16; x++)
+        const int densityCount = noiseSizeX * noiseSizeY * noiseSizeZ;
+        float[] densityField = ArrayPool<float>.Shared.Rent(densityCount);
+        try
         {
-            for (byte z = 0; z < 16; z++)
+            _noiseCalculator.FillNoiseValues(
+                densityField.AsSpan(0, densityCount),
+                chunkStartX,
+                chunkStartY,
+                chunkStartZ,
+                noiseSizeX,
+                noiseSizeY,
+                noiseSizeZ,
+                stepSize);
+
+            for (byte x = 0; x < 16; x++)
             {
-                for (byte y = 0; y < 16; y++)
+                for (byte z = 0; z < 16; z++)
                 {
-                    int globalY = chunkStartY + y * stepSize;
-
-                    int blockIndex = x * 256 + y * 16 + z;
-
-                    int densityIndex = x + y * noiseSizeX + z * noiseSizeX * noiseSizeY;
-                    int aboveIndex = densityIndex + noiseSizeX;
-
-                    float density = densityField[densityIndex];
-                    float densityAbove = densityField[aboveIndex];
-
-                    if (density > 0)
+                    for (byte y = 0; y < 16; y++)
                     {
-                        bool isTopSolidBlock = densityAbove <= 0;
-                        bool isNearSurface = isTopSolidBlock || density <= 4 * stepSize;
+                        int globalY = chunkStartY + y * stepSize;
 
-                        if (globalY > 80 && isTopSolidBlock)
+                        int blockIndex = x * 256 + y * 16 + z;
+
+                        int densityIndex = x + y * noiseSizeX + z * noiseSizeX * noiseSizeY;
+                        int aboveIndex = densityIndex + noiseSizeX;
+
+                        float density = densityField[densityIndex];
+                        float densityAbove = densityField[aboveIndex];
+
+                        if (density > 0)
                         {
-                            chunkBlocks[blockIndex] = _snowId;
-                        }
-                        else if (isTopSolidBlock)
-                        {
-                            chunkBlocks[blockIndex] = _grassId;
-                        }
-                        else if (isNearSurface)
-                        {
-                            chunkBlocks[blockIndex] = _dirtId;
+                            bool isTopSolidBlock = densityAbove <= 0;
+                            bool isNearSurface = isTopSolidBlock || density <= 4 * stepSize;
+
+                            if (globalY > 80 && isTopSolidBlock)
+                            {
+                                chunkBlocks[blockIndex] = _snowId;
+                            }
+                            else if (isTopSolidBlock)
+                            {
+                                chunkBlocks[blockIndex] = _grassId;
+                            }
+                            else if (isNearSurface)
+                            {
+                                chunkBlocks[blockIndex] = _dirtId;
+                            }
+                            else
+                            {
+                                chunkBlocks[blockIndex] = _stoneId;
+                            }
                         }
                         else
                         {
-                            chunkBlocks[blockIndex] = _stoneId;
+                            chunkBlocks[blockIndex] = 0;
                         }
-                    }
-                    else
-                    {
-                        chunkBlocks[blockIndex] = 0;
                     }
                 }
             }
+        }
+        finally
+        {
+            // No clearing needed: every value is overwritten before the next read.
+            ArrayPool<float>.Shared.Return(densityField);
         }
         
         

@@ -161,6 +161,40 @@ public class WorkloadTests
         Assert.True(expected.SetEquals(WorkloadCatalog.Select(c,h,v)));
     }
 
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(42, 2)]
+    [InlineData(1, 4)]
+    [InlineData(42, 0)]
+    public void NoiseFillsReusedBufferWithoutTouchingGuards(int seed, int step)
+    {
+        using var env = new WorkloadEnvironment(seed);
+        const int count = 16 * 17 * 16;
+        var buffer = new float[count + 2];
+        Array.Fill(buffer, float.NaN);
+        buffer[0] = 12345;
+        buffer[^1] = -12345;
+        var expected = env.Noise.GetNoiseValues(-16, -928, 32, 16, 17, 16, step);
+
+        env.Noise.FillNoiseValues(buffer.AsSpan(1, count), -16, -928, 32, 16, 17, 16, step);
+
+        Assert.Equal(expected, buffer.AsSpan(1, count).ToArray());
+        Assert.All(buffer, value => Assert.True(float.IsFinite(value)));
+        Assert.Equal(12345f, buffer[0]);
+        Assert.Equal(-12345f, buffer[^1]);
+    }
+
+    [Fact]
+    public void NoiseRejectsShortBufferBeforeNativeWrite()
+    {
+        using var env = new WorkloadEnvironment();
+        var buffer = new float[16 * 17 * 16 - 1];
+        Array.Fill(buffer, 12345f);
+        Assert.Throws<ArgumentException>(() =>
+            env.Noise.FillNoiseValues(buffer, 0, 0, 0, 16, 17, 16));
+        Assert.All(buffer, value => Assert.Equal(12345f, value));
+    }
+
     private static Vector3 Position(ReadOnlySpan<byte> bytes, int vertex) => new(
         BitConverter.ToSingle(bytes.Slice(vertex * 16, 4)), BitConverter.ToSingle(bytes.Slice(vertex * 16 + 4, 4)), BitConverter.ToSingle(bytes.Slice(vertex * 16 + 8, 4)));
 }

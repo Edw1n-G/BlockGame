@@ -88,11 +88,18 @@ public class NoiseCalculator : IDisposable
     /// </remarks>
     public float[] GetNoiseValues(int startX, int startY, int startZ, int sizeX, int sizeY, int sizeZ, int stepSize = 1)
     {
-        if (_Node == null) SetNoiseParameters();
-        if (stepSize < 1) stepSize = 1;
-
         int totalCount = sizeX * sizeY * sizeZ;
         float[] noiseOutput = new float[totalCount];
+        FillNoiseValues(noiseOutput, startX, startY, startZ, sizeX, sizeY, sizeZ, stepSize);
+        return noiseOutput;
+    }
+
+    // The caller owns the buffer. Native generation completes synchronously and fills the grid.
+    internal void FillNoiseValues(Span<float> noiseOutput, int startX, int startY, int startZ,
+        int sizeX, int sizeY, int sizeZ, int stepSize = 1)
+    {
+        if (_Node == null) SetNoiseParameters();
+        if (stepSize < 1) stepSize = 1;
 
         int seed = _customSeed ?? _settings?.Seed ?? GameSettings.Current.Seed;
 
@@ -109,6 +116,5 @@ public class NoiseCalculator : IDisposable
             stepSize,
             seed);
 
-        return noiseOutput;
     }
 }

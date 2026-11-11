@@ -45,8 +45,13 @@ public class TerrainGenerationTests
         var coord = new ChunkCoord(1, 0, -1, 0);
 
         ChunkData first = session.TerrainGenerator.GenerateChunk(coord);
+        ushort[] saved = (ushort[])first.Blocks!.Clone();
+        // Reuse temporary generation buffers for different chunks and LODs.
+        for (byte lod = 0; lod < 4; lod++)
+            session.TerrainGenerator.GenerateChunk(new ChunkCoord(-2, -58, 3, lod));
         ChunkData second = session.TerrainGenerator.GenerateChunk(coord);
 
+        Assert.Equal(saved, first.Blocks);
         Assert.Equal(first.Blocks, second.Blocks);
         Assert.Equal(coord, first.Coord);
     }
@@ -113,5 +118,24 @@ public class TerrainGenerationTests
 
         Assert.True(small.TerrainGenerator.GenerateChunk(coord).IsEmpty());
         Assert.NotNull(large.TerrainGenerator.GenerateChunk(coord).Blocks);
+    }
+
+    [Fact]
+    [Trait("Category", "Threaded")]
+    public async Task ConcurrentGenerationKeepsTemporaryBuffersIndependent()
+    {
+        using var session = NewSession(1);
+        ChunkCoord[] coords = [new(0, -58, 0, 0), new(-1, -29, 2, 1),
+            new(2, -15, -1, 2), new(0, 64, 0, 0)];
+        var expected = coords.Select(c => session.TerrainGenerator.GenerateChunk(c).Blocks).ToArray();
+        using var start = new ManualResetEventSlim();
+        var tasks = Enumerable.Range(0, coords.Length).Select(i => Task.Run(() =>
+        {
+            start.Wait();
+            for (int round = 0; round < 20; round++)
+                Assert.Equal(expected[i], session.TerrainGenerator.GenerateChunk(coords[i]).Blocks);
+        })).ToArray();
+        start.Set();
+        await Task.WhenAll(tasks);
     }
 }

@@ -1,5 +1,6 @@
 using BlockGame.Benchmarks.Workloads;
 using Basics.Common;
+using Basics.Terrain;
 using System.Buffers.Binary;
 using System.Numerics;
 
@@ -73,19 +74,36 @@ public class WorkloadTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void TopAoAndDiagonalFollowKnownOccluders(bool leftFront)
+    [InlineData(true, 8, 8, 8)]
+    [InlineData(false, 8, 8, 8)]
+    [InlineData(true, 0, 15, 0)]
+    [InlineData(false, 0, 15, 0)]
+    [InlineData(true, 15, 15, 0)]
+    [InlineData(false, 15, 15, 0)]
+    [InlineData(true, 0, 15, 15)]
+    [InlineData(false, 0, 15, 15)]
+    [InlineData(true, 15, 15, 15)]
+    [InlineData(false, 15, 15, 15)]
+    public void TopAoAndDiagonalFollowKnownOccluders(bool leftFront, int x, int y, int z)
     {
         using var env = new WorkloadEnvironment(); using var f = new MeshWorkload("allocated-air", env.Registry);
         ushort stone = env.Registry.GetBlockId("core:stone");
-        f.Data.SetBlock(8, 8, 8, stone);
-        f.Data.SetBlock(leftFront ? 7 : 9, 9, 8, stone);
-        f.Data.SetBlock(8, 9, 9, stone);
+        void SetWorldBlock(int wx, int wy, int wz)
+        {
+            var coord = ChunkData.WorldToChunkCoord(wx, wy, wz);
+            var (lx, ly, lz) = ChunkData.WorldToLocal(wx, wy, wz);
+            var chunk = f.Provider.Chunkdata[coord];
+            if (chunk.Blocks is null)
+                f.Provider.Chunkdata[coord] = chunk = new ChunkData(coord, new ushort[4096]);
+            chunk.SetBlock(lx, ly, lz, stone);
+        }
+        SetWorldBlock(x, y, z);
+        SetWorldBlock(x + (leftFront ? -1 : 1), y + 1, z);
+        SetWorldBlock(x, y + 1, z + 1);
         using var m = f.Build(); var v = MeshWorkload.Vertices(m); var indices = MeshWorkload.Indices(m);
         int quad = -1;
         for (int i = 0; i < v.Length / 16; i += 4)
-            if (Position(v, i) == new Vector3(8, 9, 9) && Position(v, i + 2) == new Vector3(9, 9, 8)) { quad = i; break; }
+            if (Position(v, i) == new Vector3(x, y + 1, z + 1) && Position(v, i + 2) == new Vector3(x + 1, y + 1, z)) { quad = i; break; }
         Assert.True(quad >= 0);
         byte[] ao = leftFront ? [3, 1, 0, 1] : [1, 3, 1, 0];
         for (int i = 0; i < 4; i++) Assert.Equal(ao[i], v[(quad + i) * 16 + 14]);

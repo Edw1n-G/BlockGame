@@ -217,26 +217,18 @@ public class Lod0Mesher : BaseMesher
     [MethodImpl(MethodImplOptions.NoInlining)]
     private bool IsBlockNeighbor(int x, int y, int z)
     {
-        int cx = 1;
-        int cy = 1;
-        int cz = 1;
-
-        // Koordinaten "wrappen" und Nachbar-Index berechnen
-        if (x < 0)       { cx = 0; x += 16; }
-        else if (x > 15) { cx = 2; x -= 16; }
-
-        if (y < 0)       { cy = 0; y += 16; }
-        else if (y > 15) { cy = 2; y -= 16; }
-
-        if (z < 0)       { cz = 0; z += 16; }
-        else if (z > 15) { cz = 2; z -= 16; }
+        // Face/AO queries are at most one block outside the chunk (-1..16).
+        // Arithmetic shifts map these to neighbor offsets -1/0/1, including -1.
+        int cx = (x >> 4) + 1;
+        int cy = (y >> 4) + 1;
+        int cz = (z >> 4) + 1;
 
         // Cache Index (0 bis 26) berechnen
         ushort[] neighborData = _neighborCache[cx * 9 + cy * 3 + cz];
 
         if (neighborData != null)
         {
-            return neighborData[x * 256 + y * 16 + z] != 0;
+            return neighborData[(x & 15) * 256 + (y & 15) * 16 + (z & 15)] != 0;
         }
 
         return false; // Nachbar nicht geladen

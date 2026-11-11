@@ -1,5 +1,15 @@
 # CPU benchmarking
 
+## LOD0 neighbor lookup experiment (2026-11-11)
+
+- Scope: replace conditional coordinate wrapping in the existing `Lod0Mesher.IsBlockNeighbor` with arithmetic shifts and masks. Face/AO callers only query coordinates in -1..16; shifting by four gives -1/0/1 and masking with 15 gives the local coordinate. No new classes or scripts; GPU work and buffer pooling are unchanged.
+- Preserve the pre-existing AGENTS/script edits and document deletion in a separate baseline commit (`fb89622c1dd6ed26274f882bb2776390993ca6ad`), with user approval.
+- Run the full test suite, then measure all seven existing `mesh/*` cases with the normal Measure job. Preserve `artifacts/lod0-neighbor-baseline-20261111` before editing engine code. Baseline: 388 tests passed, none skipped; all seven measurements completed.
+- Extend the existing AO/diagonal test with eight cases at the top chunk corners, exercising negative and positive X/Z wrapping and positive Y wrapping. Check both diagonal orientations against explicit expected AO and index values.
+- Run the full suite again, commit the candidate, then measure the same cases into `artifacts/lod0-neighbor-candidate-20261111`. Compare the saved directories with the existing `compare` command. Record final SHAs, results and interpretation in `benchmark-history.md`.
+- Environment problems: `dotnet test -m:1` failed during MSBuild discovery inside the sandbox. Outside the sandbox that extra argument resulted in zero tests (exit 5); it is not appropriate for the current test runner. The documented plain `dotnet test` succeeded outside the sandbox. Use `C:/Users/Edwin/.dotnet/dotnet.exe` explicitly; do not modify PATH. Existing compiler/analyzer warnings remain. Run tests and measurements sequentially outside the sandbox, keeping the current power plan; normal desktop background load remains a possible source of noise.
+- Logs: `artifacts/lod0-neighbor-baseline-20261111.log`, `artifacts/lod0-neighbor-candidate-tests.log`, and `artifacts/lod0-neighbor-candidate-20261111.log`. Raw BenchmarkDotNet reports, child correctness evidence and environment/revision manifests stay in their respective result directories and are not committed.
+
 Use the .NET CLI directly to test, measure engine workloads with BenchmarkDotNet, and compare saved results. PowerShell scripts are optional shortcuts. GPU work and frame timing are outside these benchmarks.
 
 ## Manual workflow

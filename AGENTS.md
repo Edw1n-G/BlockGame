@@ -2,7 +2,7 @@
 
 This document provides essential context and guidelines for AI coding agents working on the EdwinCraft (Voxel Rendering Engine) codebase.
 
-## 🏗️ Architecture & Boundaries
+## Architecture & Boundaries
 
 - **Deferred State Machine**: The app's lifecycle is driven by `StateManager`. Heavy systems live inside discrete states (`IStates` like `Menu.cs`, `Game.cs`). Do not perform immediate state changes; use `StateChange` to schedule it for the end of the frame.
 - **Global Static Façades**: Most subsystem interactions should use the centralized static APIs configured in `Game.Enter()`:
@@ -11,7 +11,7 @@ This document provides essential context and guidelines for AI coding agents wor
   - `InputManager` for event bindings and state polling.
   - `GameSettings` for global configuration values.
 
-## 🌍 Terrain Generation & Threading
+## Terrain Generation & Threading
 
 - **Strict Threading Model**:
   - `TerrainGenerator` and CPU-side meshing (`Lod0Mesher`) run on `JobScheduler` worker threads. `ChunkRequestor` also uses a background task.
@@ -19,13 +19,13 @@ This document provides essential context and guidelines for AI coding agents wor
 - **Coordinate Systems**: The game strictly separates World Coordinates (`x, y, z`) and Chunk Grid Coordinates (`ChunkCoord`). A single chunk is 16x16x16 blocks. Use `ChunkData` helper methods (`WorldToChunkCoord`, `WorldToLocal`) to convert safely.
 - **GC Pressure Mitigation**: We avoid allocations during meshing. Always use the object pools provided by `ChunkProvider` (`VramPool`, `VertexListPool`, `IndexListPool`) instead of instantiating new lists for vertex/index arrays.
 
-## 🎨 Rendering Pipeline & Shader Quirks
+## Rendering Pipeline & Shader Quirks
 
 - **No UV Data in Vertices**: We use `Texture2DArray` for block textures. UVs are computationally generated in `shader.vert` using `gl_VertexID % 4`. 
 - **Vertex Layout**: Each vertex is 16 bytes: three position floats, a `ushort` texture layer, a byte AO level (0–3), and one padding byte. The shader maps AO levels to brightness.
 - **Meshing & AO Flow**: Adding new block geometries? You must correctly split quads based on the AO brightness gradient (`CalcAoLevel()`) to prevent interpolation artifacts across the diagonal.
 
-## ⌨️ Input & UI Patterns
+## Input & UI Patterns
 
 - **Action-Based Input**: Do not map raw Silk.NET inputs manually. Bind C# Actions to keys in `InputManager` (e.g., `inputManager.SetActionBindings(Actions.ToggleDebugCamera, callback)`).
 - **GUI**: We use Egui.NET via `GameEguiIntegration` and the package Silk integration. Draw UI in `_uiIntegration.Run(ctx => Draw(ctx))` during the active state's Render pass.
@@ -42,3 +42,4 @@ This document provides essential context and guidelines for AI coding agents wor
 - Retain BenchmarkDotNet reports with revision, OS and hardware information. Minimize background load and prefer a consistent power plan as guidelines; account for their effects as noise. Do not require scripted result hashes, portable ZIPs or session drift checks.
 - Pair scenario ID/version/unit/input fingerprint and correctness outputs. Early-return/near-zero/noisy rows cannot establish speedup headlines. Policy remains advisory.
 - Keep the requestor's committed region consistent with its active set; canceled/failed plans roll back additions and explicit unload invalidates the region. Retain movement/reset/resize/failure/wraparound tests.
+- Write the result tables and SHAs into `benchmark-history.md`

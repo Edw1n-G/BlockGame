@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Push-Location (Join-Path $PSScriptRoot '..')
 try {
-    $compareArgs = @('run', '--project', 'BlockGame.Benchmarks', '--', 'compare', $Baseline, $Candidate)
+    $compareArgs = @('run','-c', 'Release', '--project', 'BlockGame.Benchmarks', '--', 'compare', $Baseline, $Candidate)
     if ($Report) { $compareArgs += $Report }
     & $Dotnet @compareArgs
     exit $LASTEXITCODE

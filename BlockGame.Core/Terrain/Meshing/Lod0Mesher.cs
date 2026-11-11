@@ -202,8 +202,9 @@ public class Lod0Mesher : BaseMesher
     [MethodImpl(MethodImplOptions.AggressiveInlining)] // Black magic 
     private bool IsBlock(int x, int y, int z)
     {
-        // Der "uint" Trick: Prüft (>= 0 UND < 16)
-        if ((uint)x < 16u && (uint)y < 16u && (uint)z < 16u)
+        // All coordinates are in 0..15 exactly when their combined high bits are zero.
+        // A negative coordinate retains its sign bit and fails the unsigned comparison.
+        if ((uint)(x | y | z) < 16u)
         {
             // Blitzschneller Array-Zugriff. 
             return _blockData[x * 256 + y * 16 + z] != 0;

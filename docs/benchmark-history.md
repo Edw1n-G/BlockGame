@@ -29,6 +29,42 @@ Lessons
   | P3 | Local SDK selection needed an explicit executable | Used `C:/Users/Edwin/.dotnet/dotnet.exe` consistently | Discover/validate the pinned SDK early and emit the exact reusable command |
   | P3 | Statistical warnings are not fully represented in the manifest | Current `warnings` field contains validation messages; raw logs must also be reviewed | Export BenchmarkDotNet statistical conclusions with affected case IDs before automated performance verdicts |
 
+## Terrain density buffer pooling — 2026-11-11
+
+Goal: eliminate the short-lived density array allocated by every in-map `TerrainGenerator.GenerateChunk` call. The existing generator now rents a scratch array from `ArrayPool<float>.Shared`, fills an exactly sized span through the existing `NoiseCalculator`, and returns it in `finally`. The public owning-array API and block classification remain unchanged. No new classes or scripts.
+
+- Baseline: `9cd3797972f2a3120e035ed8721c947f31920ec2`; full suite **396 passed**, zero failures/skips.
+- Candidate: `47638c272eecdebf204104aee36775e812701211`; full suite **402 passed**, zero failures/skips.
+- Both measured trees were clean. Both runs completed all ten existing `terrain/*` and `noise/*` cases with the normal Measure job. Identical benchmark harness tree: `a2c571cefff70eb671cb784fee37cc3ccbcced29`.
+- Environment: AMD Ryzen 9 7900X, 12 physical / 24 logical cores, Windows 11 10.0.26200.9457, SDK 10.0.103, runtime .NET 10.0.3, BenchmarkDotNet 0.15.8, x64 RyuJIT, workstation GC. Runs were sequential, with the power plan unchanged; desktop background load remains uncontrolled.
+
+Times are mean ns/op. Terrain unit: one chunk generation; noise unit: one grid generation including an owned result array. All runtime verdicts are **inconclusive**; the allocation verdict is separate.
+
+| Scenario | Baseline ns | Candidate ns | Baseline B/op | Candidate B/op | Allocation verdict | Timing verdict |
+|---|---:|---:|---:|---:|---|---|
+| noise/grid-s1 | 48815.984 | 47242.241 | 17432 | 17432 | unchanged | inconclusive |
+| noise/grid-s42 | 47132.379 | 47556.492 | 17432 | 17432 | unchanged | inconclusive |
+| terrain/air-s1 | 53702.559 | 51166.194 | 25688 | 8256 | decreased | inconclusive |
+| terrain/air-s42 | 51364.035 | 50520.520 | 25688 | 8256 | decreased | inconclusive |
+| terrain/outside-s1 | 2.768 | 3.206 | 40 | 40 | unchanged | inconclusive: early return |
+| terrain/outside-s42 | 2.932 | 3.055 | 40 | 40 | unchanged | inconclusive: early return |
+| terrain/solid-s1 | 54041.480 | 53327.472 | 25688 | 8256 | decreased | inconclusive |
+| terrain/solid-s42 | 54535.691 | 54298.378 | 25688 | 8256 | decreased | inconclusive |
+| terrain/surface-s1 | 54497.735 | 54977.970 | 25688 | 8256 | decreased | inconclusive |
+| terrain/surface-s42 | 54464.323 | 54328.680 | 25688 | 8256 | decreased | inconclusive |
+
+The comparator passed **4/4 controls**, matched scenario IDs/versions/units/input fingerprints and output fingerprints for all ten cases, and reported no harness mismatch. The six in-map terrain cases each save **17,432 B/op (67.86%)**, exactly the removed float-array allocation. Reported Gen0 collections per 1,000 operations fall from 1.5259 to 0.4883 in those rows. The final candidate has no normalized statistical diagnostics. Outlier handling is preserved in the raw reports; the baseline outside-s42 control has about 3.83% CV and cannot support a timing claim in any event.
+
+Decision: retain this as an **allocation optimization**, with no claimed runtime or FPS gain. In-map timing differences range from roughly -4.72% to +0.88%, within the declared practical/uncertainty budget. Noise-only control timings also drift in both directions. Outside-map timings are early-return diagnostics, so ratios are suppressed. A warmed pool reduces allocation churn but retains reusable arrays; cold misses may allocate, and this experiment does not measure retained memory or whole-game GC pauses.
+
+Steps, problems and mitigations are in [benchmarking.md](benchmarking.md#terrain-density-buffer-pooling-experiment-2026-11-11). This run encountered no test or benchmark execution failure. The meaningful limitation is the absence of a demonstrated timing gain. Existing compiler/analyzer warnings remain. Additional tests cover complete writes into NaN-prefilled destinations, guard preservation, too-short buffer rejection, retained outputs after reuse, step normalization and concurrent generation at different coordinates/LODs. The concurrency test is not proof of general FastNoise thread safety.
+
+Retained local evidence (ignored, not committed):
+
+- `artifacts/terrain-pool-baseline-20261111/` and `artifacts/terrain-pool-candidate-20261111/`: full manifests, child correctness evidence, normalized results and raw BenchmarkDotNet reports/measurements.
+- `artifacts/terrain-pool-comparison-20261111.json`, `.md` and `.log`: comparison results, including allocation deltas in JSON.
+- `artifacts/terrain-pool-baseline-tests-20261111.log` and `artifacts/terrain-pool-candidate-tests-20261111.log`: complete test logs. Launcher logs use the result-directory names plus `.log`.
+
 ## LOD0 coordinate lookup optimization — 2026-11-11
 
 Measured actual committed engine revisions using the unchanged existing seven `mesh/*` workloads and BenchmarkDotNet Measure defaults:

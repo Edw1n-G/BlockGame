@@ -29,6 +29,40 @@ Lessons
   | P3 | Local SDK selection needed an explicit executable | Used `C:/Users/Edwin/.dotnet/dotnet.exe` consistently | Discover/validate the pinned SDK early and emit the exact reusable command |
   | P3 | Statistical warnings are not fully represented in the manifest | Current `warnings` field contains validation messages; raw logs must also be reviewed | Export BenchmarkDotNet statistical conclusions with affected case IDs before automated performance verdicts |
 
+## LOD0 coordinate lookup optimization — 2026-11-11
+
+Measured actual committed engine revisions using the unchanged existing seven `mesh/*` workloads and BenchmarkDotNet Measure defaults:
+
+- Baseline: `fb89622c1dd6ed26274f882bb2776390993ca6ad` (388/388 full-suite tests passed).
+- Candidate 1, neighbor wrapping with shifts/masks: `82fa0b90492c5640cfb1406c15af10daf59d53f9` (396/396 tests passed).
+- Candidate 2, additionally combine the interior coordinate checks: `a3bb1ff4e4c0b2f54d342a381725a8ffa7beb096` (396/396 tests passed).
+- All three measured trees were clean. Benchmark harness tree was identical: `a2c571cefff70eb671cb784fee37cc3ccbcced29`. No new classes or scripts were added.
+- Environment: AMD Ryzen 9 7900X, 12 physical / 24 logical cores, Windows 11 10.0.26200.9457, SDK 10.0.103, runtime .NET 10.0.3, BenchmarkDotNet 0.15.8, x64 RyuJIT, workstation GC. Power plan unchanged. Measurements ran sequentially; ordinary desktop background load was not controlled.
+
+Unit: one LOD0 build and return of pooled buffers; all times are mean ns/op. Both candidate verdicts compare against the same preserved baseline. Managed allocation was **408 B/op in every row of all three runs**.
+
+| Scenario | Baseline ns | Candidate 1 ns | C1 verdict | Candidate 2 ns | C2 mean change | C2 verdict |
+|---|---:|---:|---|---:|---:|---|
+| mesh/allocated-air | 1355.742 | 1353.833 | inconclusive | 1357.601 | +0.14% | inconclusive |
+| mesh/checkerboard | 480364.262 | 458112.584 | inconclusive | 455706.198 | -5.13% | inconclusive |
+| mesh/exposed-solid | 94270.444 | 89551.228 | inconclusive | 88031.875 | -6.62% | improved |
+| mesh/floor | 56497.081 | 53534.940 | inconclusive | 52794.102 | -6.55% | improved |
+| mesh/frozen-terrain | 19644.352 | 19207.755 | inconclusive | 18853.233 | -4.03% | inconclusive |
+| mesh/null-air | 26.671 | 25.710 | inconclusive | 33.516 | suppressed | inconclusive: near-zero |
+| mesh/occluded-solid | 13170.599 | 12919.569 | inconclusive | 12832.978 | -2.56% | inconclusive |
+
+Both comparisons passed the four comparator controls, matched scenario ID/version/unit/input and correctness output fingerprints for all seven rows, and reported no harness mismatch. All three runs completed all seven workloads. BenchmarkDotNet removed outliers as recorded in its retained reports; the final run has no normalized statistical diagnostics. Candidate 2's exposed-solid mean/SD is 88031.875/255.814 ns and floor mean/SD is 52794.102/134.530 ns; corresponding baseline values are 94270.444/702.332 ns and 56497.081/478.412 ns.
+
+Decision: retain candidate 2. Only exposed-solid and floor clear the advisory 5% practical threshold plus sampling uncertainty. Checkerboard's 5.13% mean reduction does not clear that combined budget. Frozen terrain does not establish a practical improvement. Null-air increased by about 6.8 ns in the final run; its early return is below the 100 ns floor and bypasses the changed lookups, so no ratio or speedup claim is appropriate. These CPU workload results do not establish an FPS improvement or a general improvement across machines.
+
+Steps and encountered problems are recorded in [benchmarking.md](benchmarking.md#lod0-neighbor-lookup-experiment-2026-11-11), including the initial dirty tree, sandbox/MSBuild failure, unsuitable `-m:1` test argument, and the inconclusive first candidate. Existing compiler/analyzer warnings were not changed. The eight new AO cases verify known lighting values and diagonal choices across top chunk corners.
+
+Retained local evidence (ignored, not committed):
+
+- `artifacts/lod0-neighbor-baseline-20261111/`, `artifacts/lod0-neighbor-candidate-20261111/`, `artifacts/lod0-neighbor-candidate2-20261111/`: complete manifests, normalized results, child correctness evidence, raw measurements and BenchmarkDotNet reports.
+- `artifacts/lod0-neighbor-comparison-20261111.json` / `.md` and `artifacts/lod0-neighbor-comparison2-20261111.json` / `.md`: both comparisons.
+- Launcher logs next to those run directories; full candidate test logs in `artifacts/lod0-neighbor-candidate-tests.log` and `artifacts/lod0-neighbor-candidate2-tests.log`. The successful baseline test summary was observed in the command output (388 passed, zero failed/skipped), not saved as a separate log.
+
 ## Baseline review
 
 | Stable case ID | A mean ns/op | B mean ns/op | Mean drift | Managed bytes/op |

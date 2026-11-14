@@ -30,17 +30,17 @@ public sealed class FrameBenchmarkRun
     {
         _options = options; _graphics = graphics;
         Input = new(options.Duration);
-        _metrics = new((int)(options.Duration * 2000 + 100), (int)(options.Duration * 240 + 100), (int)options.Duration + 3);
+        _metrics = new((int)(options.Duration * 2000 + 100), (int)(options.Duration * ScriptedMovementInput.NominalUpdatesPerSecond * 4 + 100), (int)options.Duration + 3);
         _shape = ChunkSelectionShape.Create(settings.RenderDistance, settings.VerticalRenderDistance)!;
         _revision = ReadGit("rev-parse", "HEAD");
         if (ReadGit("status", "--porcelain").Length != 0) _revision += " (dirty)";
-        _workload = FormattableString.Invariant($"{options.Script}/v{ScriptedMovementInput.Version}; duration={options.Duration}; seed={settings.Seed}; start=0,150,0; yaw=-90; pitch=-45; speed={settings.PlayerMoveSpeed}; yawRate={ScriptedMovementInput.YawDegreesPerSecond}; rd={settings.RenderDistance}; vertical={settings.VerticalRenderDistance}; msaa={settings.Msaa}; vsync=false; cap=1000; updates=60; size=800x600; warmup=initial-streaming-settled-30-consecutive-under-50ms; worldName={options.World}; mapSize={settings.MapSize}; world={settings.Worldtype}");
+        _workload = FormattableString.Invariant($"{options.Script}/v{ScriptedMovementInput.Version}; duration={options.Duration}; seed={settings.Seed}; start={ScriptedMovementInput.StartPosition.X},{ScriptedMovementInput.StartPosition.Y},{ScriptedMovementInput.StartPosition.Z}; yaw={ScriptedMovementInput.StartYawDegrees}; pitch={ScriptedMovementInput.StartPitchDegrees}; speed={settings.PlayerMoveSpeed}; yawRate={ScriptedMovementInput.YawDegreesPerSecond}; rd={settings.RenderDistance}; vertical={settings.VerticalRenderDistance}; msaa={settings.Msaa}; vsync=false; cap=1000; updates={ScriptedMovementInput.NominalUpdatesPerSecond}; size=800x600; warmup=initial-streaming-settled-30-consecutive-under-50ms; worldName={options.World}; mapSize={settings.MapSize}; world={settings.Worldtype}");
     }
     private static string ReadGit(params string[] args)
     {
         try
         {
-            var info = new ProcessStartInfo("git") { RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
+            var info = new ProcessStartInfo("git") { RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true, WorkingDirectory = AppContext.BaseDirectory };
             foreach (string arg in args) info.ArgumentList.Add(arg);
             using var p = Process.Start(info)!;
             string output = p.StandardOutput.ReadToEnd().Trim();
@@ -115,7 +115,7 @@ public sealed class FrameBenchmarkRun
         if (failure != null) reasons.Add(failure);
         if (_metrics.Overflow) reasons.Add("Preallocated recording buffer overflow");
         if (_metrics.FrameCount < 30) reasons.Add("Fewer than 30 measured frames");
-        if (_metrics.UpdateCount < _options.Duration * 60 * .9) degraded.Add("Degraded: fewer than 90% of expected 60 Hz updates");
+        if (_metrics.UpdateCount < _options.Duration * ScriptedMovementInput.NominalUpdatesPerSecond * .9) degraded.Add("Degraded: fewer than 90% of expected 60 Hz updates");
         double expected = provider.Settings.PlayerMoveSpeed * _options.Duration;
         if (Math.Abs(_metrics.Distance - expected) > expected * .05) reasons.Add("Path distance differs from speed × duration by over 5%");
         if (elapsed > _options.Duration * 1.05) reasons.Add("Wall-clock duration overshot by over 5%");
@@ -137,7 +137,7 @@ public sealed class FrameBenchmarkRun
             FrameP99Ms = FrameMetrics.Percentile(frames.Select(f => f.IntervalMs), .99),
             FrameMaxMs = frames.Length == 0 ? 0 : frames.Max(f => f.IntervalMs),
             RenderCpuP95Ms = FrameMetrics.Percentile(frames.Select(f => f.RenderCpuMs), .95),
-            MaxUpdateGapMs = maxGap, LongestUpdateHitchMs = Math.Max(0, maxGap - 1000d/60),
+            MaxUpdateGapMs = maxGap, LongestUpdateHitchMs = Math.Max(0, maxGap - 1000d / ScriptedMovementInput.NominalUpdatesPerSecond),
             Distance = _metrics.Distance, ExpectedDistance = expected,
             Counts = Started ? provider.Metrics.Snapshot() - _baseline : default,
             MeanDrawnFraction = streaming.Length == 0 ? 0 : streaming.Average(s => s.DrawnFraction),

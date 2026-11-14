@@ -196,6 +196,43 @@ public class FrameBenchmarkTests
         Assert.ThrowsAny<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark",key,value]));
 
     [Fact]
+    public void SweepParsesDistinctFixedDistancesAndRejectsConflicts()
+    {
+        var sweep = FrameBenchmarkOptions.Parse(["--benchmark", "--sweep", "8, 12,16"]);
+        Assert.Equal(new[] { 8, 12, 16 }, sweep.Sweep);
+        Assert.False(sweep.Calibrate);
+        Assert.Equal(8, sweep.RenderDistance);
+        Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "--sweep", "8,8"]));
+        Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "--sweep", "0,12"]));
+        Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "--sweep", "61"]));
+        Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "calibrate", "--sweep", "8"]));
+    }
+
+    [Fact]
+    public void SweepReportListsEachDistanceAndFlagsProblems()
+    {
+        var good = Summary() with { FrameP50Ms = 10 };
+        var bad = Summary() with { FrameP50Ms = 20, InvalidReasons = ["x"], DegradedReasons = ["y"] };
+        string text = FrameBenchmarkReport.DescribeSweep(new[] { (8, new[] { good, good, good }), (16, new[] { good, bad }) });
+        Assert.Contains("| 8 | 3/3 |", text);
+        Assert.Contains("| 16 | 1/2 |", text);
+        Assert.Contains("INVALID, DEGRADED, NOISY", text);
+    }
+
+    [Fact]
+    public void SweepFolderCannotBeComparedAsOneRun()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "sweep.json"), "[]");
+            Assert.Throws<ArgumentException>(() => FrameBenchmarkReport.ReadRuns(dir));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
     public void PipelineCountersRetainConcurrentWork()
     {
         var metrics = new ChunkPipelineMetrics();

@@ -4,7 +4,7 @@ using Basics.Settings;
 
 namespace Basics.Diagnostics;
 
-public sealed record FrameBenchmarkOptions(int RenderDistance, double Duration, string Script, string Output, int Repeats, string World = "terrain", bool Calibrate = false, int MaxRenderDistance = 60)
+public sealed record FrameBenchmarkOptions(int RenderDistance, double Duration, string Script, string Output, int Repeats, string World = "terrain", bool Calibrate = false, int MaxRenderDistance = 60, int[]? Sweep = null)
 {
     public static FrameBenchmarkOptions Parse(string[] args)
     {
@@ -12,6 +12,7 @@ public sealed record FrameBenchmarkOptions(int RenderDistance, double Duration, 
         bool explicitDistance = false, calibrate = args.Length > 1 && args[1] == "calibrate";
         string world = "terrain";
         string? baseline = null;
+        int[]? sweep = null;
         bool workloadOverride = false;
         double duration = 30;
         string script = ScriptedMovementInput.ScriptName;
@@ -30,6 +31,10 @@ public sealed record FrameBenchmarkOptions(int RenderDistance, double Duration, 
                 case "--world": world = value; workloadOverride = true; break;
                 case "--max-render-distance": maximum = int.Parse(value, CultureInfo.InvariantCulture); break;
                 case "--baseline": baseline = value; break;
+                case "--sweep":
+                    sweep = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Select(v => int.Parse(v, CultureInfo.InvariantCulture)).ToArray();
+                    workloadOverride = true; break;
                 default: throw new ArgumentException($"Unknown benchmark option {args[i]}");
             }
         }
@@ -41,6 +46,13 @@ public sealed record FrameBenchmarkOptions(int RenderDistance, double Duration, 
             explicitDistance = true;
         }
         else if (!explicitDistance && world == "checkerboard") distance = 2;
+        if (sweep != null)
+        {
+            if (calibrate) throw new ArgumentException("--sweep cannot be combined with calibration.");
+            if (sweep.Length == 0 || sweep.Distinct().Count() != sweep.Length || sweep.Any(d => d is < 1 or > 60))
+                throw new ArgumentException("--sweep needs distinct render distances between 1 and 60, e.g. 8,12,16.");
+            distance = sweep[0]; explicitDistance = true;
+        }
         if (world is not ("terrain" or "checkerboard")) throw new ArgumentException("World must be terrain or checkerboard.");
         if (maximum is < 1 or > 60 || maximum < distance) throw new ArgumentException("Maximum render distance must be between the starting distance and 60.");
         if (distance is < 1 or > 60 || !double.IsFinite(duration) || duration is < 1 or > 600 || repeats is < 1 or > 20)
@@ -48,7 +60,7 @@ public sealed record FrameBenchmarkOptions(int RenderDistance, double Duration, 
         if (script != ScriptedMovementInput.ScriptName) throw new ArgumentException($"Unknown script '{script}'. Available: fly-sweep");
         if (Directory.Exists(output) && Directory.EnumerateFileSystemEntries(output).Any())
             throw new ArgumentException("Output directory must be new or empty.");
-        return new(distance, duration, script, output, repeats, world, calibrate || !explicitDistance, maximum);
+        return new(distance, duration, script, output, repeats, world, calibrate || !explicitDistance, maximum, sweep);
     }
 
     public GameSettings Settings() => new()

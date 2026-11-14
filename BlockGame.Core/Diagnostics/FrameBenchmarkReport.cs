@@ -69,6 +69,8 @@ public static class FrameBenchmarkReport
     public static FrameBenchmarkSummary[] ReadRuns(string path)
     {
         if (File.Exists(path)) return [Read(path)];
+        if (File.Exists(Path.Combine(path, "sweep.json")))
+            throw new ArgumentException("This is a sweep folder with several render distances; pass one of its rd-NN folders.");
         if (File.Exists(Path.Combine(path, "calibration.json"))) path = Path.Combine(path, "runs");
         return Directory.GetFiles(path, "summary.json", SearchOption.AllDirectories).Order().Select(Read).ToArray();
     }
@@ -87,6 +89,23 @@ public static class FrameBenchmarkReport
         text.AppendLine("\nRevisions: " + string.Join(", ", runs.Select(r => r.Revision).Distinct()));
         foreach (string warning in runs.Skip(1).SelectMany(run => CompareWarnings(runs[0], run)).Distinct())
             text.AppendLine(warning);
+        return text.ToString();
+    }
+
+    public static string DescribeSweep(IReadOnlyList<(int Distance, FrameBenchmarkSummary[] Runs)> sweep)
+    {
+        var text = new System.Text.StringBuilder("| Render distance | Valid runs | Frame p50 (ms) | Frame p95 (ms) | Frame p99 (ms) | Updates | Max update gap (ms) | Generated/s | Drawn fraction | Flags |\n|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n");
+        foreach (var (distance, runs) in sweep)
+        {
+            if (runs.Length == 0) continue;
+            double Median(Func<FrameBenchmarkSummary, double> selector) => FrameMetrics.Percentile(runs.Select(selector), .5);
+            var flags = new List<string>();
+            if (runs.Any(r => !r.Valid)) flags.Add("INVALID");
+            if (runs.Any(r => r.DegradedReasons.Length > 0)) flags.Add("DEGRADED");
+            if (FrameMetrics.RelativeSpread(runs.Select(r => r.FrameP50Ms)) > .05) flags.Add("NOISY");
+            text.AppendLine(FormattableString.Invariant(
+                $"| {distance} | {runs.Count(r => r.Valid)}/{runs.Length} | {Median(r => r.FrameP50Ms):F2} | {Median(r => r.FrameP95Ms):F2} | {Median(r => r.FrameP99Ms):F2} | {Median(r => r.Updates):F0} | {Median(r => r.MaxUpdateGapMs):F1} | {Median(r => r.Counts.Generated / Math.Max(.001, r.MeasuredSeconds)):F1} | {Median(r => r.MeanDrawnFraction):F3} | {string.Join(", ", flags)} |"));
+        }
         return text.ToString();
     }
 

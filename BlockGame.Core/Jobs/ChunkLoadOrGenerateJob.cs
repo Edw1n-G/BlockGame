@@ -45,6 +45,7 @@ public class ChunkLoadOrGenerateJob : IJob
             }
 
             ChunkData newChunk = context.TerrainGen.GenerateChunk(ChunkCoord);
+            context.Provider.Metrics.Generated();
             if (!context.Provider.TryPublishChunkData(ChunkCoord, _generation, newChunk)) return;
 
             OnChunkDataGenerated(context.Provider, ChunkCoord);

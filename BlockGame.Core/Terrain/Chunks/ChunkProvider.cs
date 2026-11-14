@@ -15,6 +15,7 @@ public readonly record struct MeshRequest(ChunkCoord Coord, long Generation);
 /// </summary>
 public class ChunkProvider : IDisposable
 {
+    public Basics.Diagnostics.ChunkPipelineMetrics Metrics { get; } = new();
     /// <summary>
     /// Enthält alle Chunk-Daten für geladene Chunks.
     /// </summary>
@@ -111,6 +112,7 @@ public class ChunkProvider : IDisposable
         if (_jobScheduler is null) return;
         long? generation = BeginChunkRequest(coord);
         if (generation is null) return;
+        Metrics.Requested();
         var job = new ChunkLoadOrGenerateJob(coord, generation.Value);
         if (!_jobScheduler.EnqueueLow(job)) CompleteChunkRequest(coord, generation.Value);
     }

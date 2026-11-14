@@ -2,19 +2,17 @@ using Basics.Engine;
 using Basics.Input;
 using Basics.Settings;
 using System.Numerics;
-using Silk.NET.Input;
 
 namespace Basics.Player;
 
 /// <summary>
 /// Verwaltet die Spielerbewegung basierend auf Eingabe und Kamera.
 /// </summary>
-public class PlayerMovement
+public class PlayerMovement : IDisposable
 {
     private readonly PlayerCharacter _player;
-    private readonly InputManager _inputManager;
+    private readonly IMovementInput _input;
     private readonly GameSettings _settings;
-    private Vector2 _lastMousePosition;
     private Camera _activeCamera;
 
     /// <summary>
@@ -23,17 +21,17 @@ public class PlayerMovement
     /// <param name="player">Der zu steuernde <see cref="PlayerCharacter"/>.</param>
     /// <param name="inputManager">Der <see cref="InputManager"/> zur Verarbeitung der Eingaben.</param>
     /// <param name="settings">Die optionalen <see cref="GameSettings"/> für Bewegungsparameter.</param>
-    public PlayerMovement(PlayerCharacter player,InputManager inputManager, GameSettings? settings = null)
+    public PlayerMovement(PlayerCharacter player, InputManager inputManager, GameSettings? settings = null)
+        : this(player, new RealMovementInput(inputManager, settings ?? GameSettings.Current), settings) { }
+
+    public PlayerMovement(PlayerCharacter player, IMovementInput input, GameSettings? settings = null)
     {
-        _player = player;
-        
-        // Mausbewegungen verfolgen
-        _inputManager = inputManager;
-        _inputManager.MouseMoved += LookUpdate;
-        
+        _player = player; _input = input;
         _settings = settings ?? EngineContext.Current?.Settings ?? GameSettings.Current;
         _activeCamera = player.Camera;
     }
+
+    public void Dispose() { if (_input is IDisposable disposable) disposable.Dispose(); }
 
     /// <summary>
     /// Legt die aktive Kamera für die Bewegung fest.
@@ -42,7 +40,7 @@ public class PlayerMovement
     public void SetActiveCamera(Camera camera)
     {
         _activeCamera = camera;
-        _lastMousePosition = default;
+        _input.ResetLook();
     }
 
     /// <summary>
@@ -51,7 +49,7 @@ public class PlayerMovement
     public void UsePlayerCamera()
     {
         _activeCamera = _player.Camera;
-        _lastMousePosition = default;
+        _input.ResetLook();
     }
 
     /// <summary>
@@ -60,27 +58,14 @@ public class PlayerMovement
     /// <param name="deltaTime">Die Zeit in Sekunden seit dem letzten Frame.</param>
     public void MovementUpdate(double deltaTime)
     {
-        Vector3 direction = Vector3.Zero;
-
-        if (_inputManager.IsActionPressed(Actions.Forward))
-            direction.Z += 1.0f;
-        if (_inputManager.IsActionPressed(Actions.Backward))
-            direction.Z -= 1.0f;
-
-        if (_inputManager.IsActionPressed(Actions.Left))
-            direction.X -= 1.0f;
-        if (_inputManager.IsActionPressed(Actions.Right))
-            direction.X += 1.0f;
-
-        if (_inputManager.IsActionPressed(Actions.Up))
-            direction.Y += 1.0f;
-        if (_inputManager.IsActionPressed(Actions.Down))
-            direction.Y -= 1.0f;
+        var sample = _input.Read(deltaTime);
+        _activeCamera.Rotate(sample.LookDegrees.X, sample.LookDegrees.Y);
+        Vector3 direction = sample.Direction;
 
         if (direction == Vector3.Zero)
             return;
 
-        direction = Vector3.Normalize(direction) * _settings.PlayerMoveSpeed * (float)deltaTime;
+        direction = Vector3.Normalize(direction) * _settings.PlayerMoveSpeed * (float)deltaTime * sample.MovementFraction;
         
         // Nur neue Chunks wenn die Spieler Kamera und nicht die Debugkamera bewegt wird
         if (ReferenceEquals(_activeCamera, _player.Camera))
@@ -99,18 +84,7 @@ public class PlayerMovement
     /// <param name="mousePosition">Die aktuelle Mausposition.</param>
     public void LookUpdate(Vector2 mousePosition)
     {
-        if (_lastMousePosition == default)
-            _lastMousePosition = mousePosition;
-
-        float deltaX = mousePosition.X - _lastMousePosition.X;
-        float deltaY = mousePosition.Y - _lastMousePosition.Y;
-
-        _lastMousePosition = mousePosition;
-
-        float yaw = deltaX * _settings.MouseSensitivity;
-        float pitch = deltaY * _settings.MouseSensitivity;
-
-        _activeCamera.Rotate(yaw, pitch);
+        if (_input is RealMovementInput real) real.LookUpdate(mousePosition);
     }
 
     /// <summary>

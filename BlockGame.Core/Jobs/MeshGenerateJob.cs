@@ -29,6 +29,7 @@ public class MeshGenerateJob : IJob
                 2 => new Lod2Mesher(_request.Coord, data, _provider, context.BlockRegistry),
                 _ => throw new InvalidOperationException($"Invalid LOD {_request.Coord.LodLevel}")
             };
+            _provider.Metrics.Meshed();
             // Only the request that still owns the marker can publish its result.
             if (_provider.CompleteMeshRequest(_request)) _provider.UploadQueue.Enqueue(mesh);
             else mesh.Dispose();

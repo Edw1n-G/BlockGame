@@ -12,22 +12,16 @@
 
 Lessons
 
-- **Superseded optimization claim:** the copied double-precision model did not reproduce the actual float arithmetic or set preallocation at Git revision c2a6ab2. The new pipeline requires real Git revision builds.
-- Pipeline experience and improvement data
+- **Superseded optimization claim.** The copied double-precision model did not reproduce the actual float arithmetic or set preallocation at Git revision `c2a6ab2`. Use the [current workflow for comparing Git revisions](benchmarking.md#manual-workflow).
 
-  | Priority | Observed friction | Evidence / consequence | Recommended follow-up |
-  |---|---|---|---|
-  | P1 | Existing selection benchmarks measured fresh sets only | A useful 18% fresh-call gain understates the 93–98% improvement in movement work; existing cases did not expose whole-set difference scans or obsolete requests | Keep a workload ladder: fresh calculation, retained movement/difference, cold requestor population, then real asynchronous/coalescing integration. Give each its own unit |
-  | P1 | No automatic baseline/candidate pairing or verdict | This trial required a frozen reference, new benchmark families and manual JSON joins; type-based IDs differ between algorithms | Implement milestone-three comparability checks and reports using a shared scenario contract plus algorithm ID. Include method/parameter identity, units, correctness, warnings, native/runtime/environment and uncertainty |
-  | P1 | Movement metadata needs richer scenario serialization | Child evidence records scenario name, initial radii and transition count; exact centers/resized radii currently require the archived workload source | Serialize the complete per-step path/configuration and a canonical input fingerprint in each case contract |
-  | P2 | Wrapper initially accepted only one case pattern | Selecting original + candidate + fresh controls together required several patterns | **Fixed in this trial:** `-Case` accepts multiple patterns; repeated CLI `--case` flags form a union. Every individual pattern must match; empty lists and mixed valid/invalid patterns are rejected. Failure-path tests pass |
-  | P2 | Case discovery/registration is manual and assumes one method per type | Added original/incremental/reference families had to be registered in Program; using multiple benchmark methods would collide with current type/scenario IDs | Derive discovery from BenchmarkDotNet cases and include method identity; test multiple methods/parameters without breaking existing stable IDs |
-  | P2 | Long launcher output is buffered | The 22-case run took about seven minutes; progress required reading the raw BenchmarkDotNet log manually | Stream/tee child output while retaining watchdog behavior; provide completed/remaining case status and artifact links |
-  | P2 | Selection-only runs still require native/content setup | The launcher always constructs WorkloadEnvironment, and the wrapper runs the full engine preflight | Make benchmark dependency preflight family-specific. Keep full correctness required for final acceptance; optionally offer a clearly labeled focused iteration preflight |
-  | P2 | Working tree must remain completely unchanged during measurement | The full-tree hash also covers docs; implementation/report edits during a run invalidate completion | Use isolated sibling checkouts for concurrent work. Retain a source archive automatically; distinguish compiled inputs from documentation while preserving complete provenance |
-  | P2 | Zero allocation can be misread as zero application memory | Warmed lists/sets cache capacity; task/delegate allocations and initial population are outside the movement benchmark | Keep explicit pool/warmup policies and add cold/retained-memory scenarios before making broader memory claims |
-  | P3 | Local SDK selection needed an explicit executable | Used `C:/Users/Edwin/.dotnet/dotnet.exe` consistently | Discover/validate the pinned SDK early and emit the exact reusable command |
-  | P3 | Statistical warnings are not fully represented in the manifest | Current `warnings` field contains validation messages; raw logs must also be reviewed | Export BenchmarkDotNet statistical conclusions with affected case IDs before automated performance verdicts |
+### Open follow-ups
+
+| Priority | Follow-up | Reason |
+|---|---|---|
+| P1 | Add separate benchmarks for cold requestor population and asynchronous request coalescing, each with its own unit. | The warm movement workload measures selection, set differences, and active-set updates. Provider calls, tasks, and locks are outside its scope. |
+| P2 | Measure retained capacity after a warm movement path. | Warmed lists and sets retain storage even when the operation reports zero allocated bytes. |
+| P3 | Print a copyable benchmark command with the resolved .NET executable. | The SDK is pinned in `global.json`, and the optional wrapper accepts `-Dotnet` when PATH resolves to a different installation. |
+| P3 | Normalize additional case-level statistical warnings from BenchmarkDotNet. | The manifest already records multimodality per case. Review the raw BenchmarkDotNet logs for other warnings. |
 
 ## Terrain density buffer pooling — 2026-11-11
 
@@ -55,7 +49,7 @@ Times are mean ns/op. Terrain unit: one chunk generation; noise unit: one grid g
 
 The comparator passed **4/4 controls**, matched scenario IDs/versions/units/input fingerprints and output fingerprints for all ten cases, and reported no harness mismatch. The six in-map terrain cases each save **17,432 B/op (67.86%)**, exactly the removed float-array allocation. Reported Gen0 collections per 1,000 operations fall from 1.5259 to 0.4883 in those rows. The final candidate has no normalized statistical diagnostics. Outlier handling is preserved in the raw reports; the baseline outside-s42 control has about 3.83% CV and cannot support a timing claim in any event.
 
-Decision: retain this as an **allocation optimization**, with no claimed runtime or FPS gain. In-map timing differences range from roughly -4.72% to +0.88%, within the declared practical/uncertainty budget. Noise-only control timings also drift in both directions. Outside-map timings are early-return diagnostics, so ratios are suppressed. A warmed pool reduces allocation churn but retains reusable arrays; cold misses may allocate, and this experiment does not measure retained memory or whole-game GC pauses.
+The density buffer pooling change was retained as an **allocation optimization**, with no claimed runtime or FPS gain. In-map timing differences range from roughly -4.72% to +0.88%, within the declared practical/uncertainty budget. Noise-only control timings also drift in both directions. Outside-map timings are early-return diagnostics, so ratios are suppressed. A warmed pool reduces allocation churn but retains reusable arrays; cold misses may allocate, and this experiment does not measure retained memory or whole-game GC pauses.
 
 Steps, problems and mitigations are in [benchmarking.md](benchmarking.md#terrain-density-buffer-pooling-experiment-2026-11-11). This run encountered no test or benchmark execution failure. The meaningful limitation is the absence of a demonstrated timing gain. Existing compiler/analyzer warnings remain. Additional tests cover complete writes into NaN-prefilled destinations, guard preservation, too-short buffer rejection, retained outputs after reuse, step normalization and concurrent generation at different coordinates/LODs. The concurrency test is not proof of general FastNoise thread safety.
 
@@ -89,7 +83,7 @@ Unit: one LOD0 build and return of pooled buffers; all times are mean ns/op. Bot
 
 Both comparisons passed the four comparator controls, matched scenario ID/version/unit/input and correctness output fingerprints for all seven rows, and reported no harness mismatch. All three runs completed all seven workloads. BenchmarkDotNet removed outliers as recorded in its retained reports; the final run has no normalized statistical diagnostics. Candidate 2's exposed-solid mean/SD is 88031.875/255.814 ns and floor mean/SD is 52794.102/134.530 ns; corresponding baseline values are 94270.444/702.332 ns and 56497.081/478.412 ns.
 
-Decision: retain candidate 2. Only exposed-solid and floor clear the advisory 5% practical threshold plus sampling uncertainty. Checkerboard's 5.13% mean reduction does not clear that combined budget. Frozen terrain does not establish a practical improvement. Null-air increased by about 6.8 ns in the final run; its early return is below the 100 ns floor and bypasses the changed lookups, so no ratio or speedup claim is appropriate. These CPU workload results do not establish an FPS improvement or a general improvement across machines.
+Candidate 2 was retained. Exposed-solid and floor were the only cases to clear the advisory 5% practical threshold plus sampling uncertainty. Checkerboard's 5.13% mean reduction does not clear that combined budget. Frozen terrain does not establish a practical improvement. Null-air increased by about 6.8 ns in the final run; its early return is below the 100 ns floor and bypasses the changed lookups, so no ratio or speedup claim is appropriate. These CPU workload results do not establish an FPS improvement or a general improvement across machines.
 
 Steps and encountered problems are recorded in [benchmarking.md](benchmarking.md#lod0-neighbor-lookup-experiment-2026-11-11), including the initial dirty tree, sandbox/MSBuild failure, unsuitable `-m:1` test argument, and the inconclusive first candidate. Existing compiler/analyzer warnings were not changed. The eight new AO cases verify known lighting values and diagonal choices across top chunk corners.
 
@@ -128,7 +122,7 @@ Retained local evidence (ignored, not committed):
 Lessons
 
 - The maximum absolute mean drift in the complete pair was **3.29%**, with no code change.
-- Meshing still allocates 432 managed bytes/op despite reusing its vertex/index buffers.
+- In this baseline pair, meshing allocated 432 managed bytes/op with vertex and index buffer reuse.
 - In the complete pair, outside-map controls reached 6.51% within-run coefficient of variation. A third targeted run of both controls completed with unchanged source: outside-s1 mean 2.894 ns, 85 samples, CV 8.69%, another multimodal warning; outside-s42 mean 2.630 ns, 15 samples, CV 2.44%. Both still allocated 40 B/op.
 
 ## Second iteration
@@ -143,4 +137,4 @@ Lessons
 - Baseline: 907f124c13f46a50d0db4028066b9faf76938cd6; candidate: 907f124c13f46a50d0db4028066b9faf76938cd6.
 - Policy: provisional 5% practical budget, 100 ns timing floor; no automatic performance gate.
 - Inconclusive: -0.49%; equal output and allocation fingerprints
-- At horizontal radius 2 and vertical radius 0, the original `c2a6ab2` float scan selected 25 chunks because `0f / 0f` is `NaN` and `NaN > 1f` is false. The new planner fixed this and selects 13. The legacy baseline keeps the original scan and explicitly waives the resize regression test and the incremental planner reference test.
+- At horizontal radius 2 and vertical radius 0, the original `c2a6ab2` float scan selected 25 chunks because `0f / 0f` is `NaN` and `NaN > 1f` is false. The new planner fixed this and selects 13. That legacy comparison used the original scan and waived the resize regression test and the incremental planner reference test.

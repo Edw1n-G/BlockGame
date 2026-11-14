@@ -11,6 +11,7 @@ public class JobScheduler
     private readonly Queue<IJob> _low = new();
     private readonly List<Thread> _workers = new();
     private State _state;
+    private int _generationQueued, _meshQueued;
     private JobContext? _context;
     private readonly Queue<Exception> _failures = new();
     private const int MaxRetainedFailures = 32;
@@ -47,6 +48,18 @@ public class JobScheduler
         }
     }
 
+    /// <summary>Waiting jobs only; updated under the scheduler gate without scanning the queue.</summary>
+    public (int Generation, int Mesh) QueueDepths
+    {
+        get { lock (_gate) return (_generationQueued, _meshQueued); }
+    }
+
+    private void CountQueued(IJob job, int delta)
+    {
+        if (job is ChunkLoadOrGenerateJob) _generationQueued += delta;
+        else if (job is MeshGenerateJob) _meshQueued += delta;
+    }
+
     public bool EnqueueHigh(IJob job) => Enqueue(job, _high);
     public bool EnqueueLow(IJob job) => Enqueue(job, _low);
 
@@ -57,6 +70,7 @@ public class JobScheduler
         {
             if (_state is State.Stopping or State.Stopped) return false;
             queue.Enqueue(job);
+            CountQueued(job, 1);
             Monitor.Pulse(_gate);
             return true;
         }
@@ -72,6 +86,7 @@ public class JobScheduler
                 while (_state == State.Running && _high.Count == 0 && _low.Count == 0) Monitor.Wait(_gate);
                 if (_state != State.Running) return;
                 job = _high.Count > 0 ? _high.Dequeue() : _low.Dequeue();
+                CountQueued(job, -1);
             }
             try { job.Execute(_context!); }
             catch (Exception ex)
@@ -99,6 +114,7 @@ public class JobScheduler
                     catch (Exception ex) { ReportFailure(ex); }
                 _high.Clear();
                 _low.Clear();
+                _generationQueued = _meshQueued = 0;
                 Monitor.PulseAll(_gate);
             }
         }

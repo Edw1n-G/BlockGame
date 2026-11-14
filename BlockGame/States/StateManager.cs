@@ -50,6 +50,7 @@ namespace Basics.States
             WindowSetup.Window.Render += onRender;
             WindowSetup.Window.Update += onUpdate;
             WindowSetup.Window.FramebufferResize += onFramebufferResize;
+            WindowSetup.Window.Closing += () => _currentState?.Exit();
         
             //Fenster starten und Haupt-thread
             WindowSetup.Run();
@@ -72,6 +73,7 @@ namespace Basics.States
             
             _currentState = new Menu();
             _currentState.Enter(_gl, _inputContext, _inputManager, this);
+            if (Basics.Diagnostics.FrameBenchmarkRun.Options != null) StateChange(new Game());
         }
 
         /// <summary>

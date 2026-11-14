@@ -30,8 +30,8 @@ public class ShaderManager : IDisposable
     {
         _gl = gl;
 
-        string vertPath = "Graphics/Shader/" + vertexShaderFile;
-        string fragPath = "Graphics/Shader/" + fragmentShaderFile;
+        string vertPath = Path.Combine(AppContext.BaseDirectory, "Graphics", "Shader", vertexShaderFile);
+        string fragPath = Path.Combine(AppContext.BaseDirectory, "Graphics", "Shader", fragmentShaderFile);
         
         _shader = new Shader(gl, vertPath, fragPath);
     }

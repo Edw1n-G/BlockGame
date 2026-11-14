@@ -72,8 +72,9 @@ public class Renderer
         _camera = camera;
     }
 
-    private int totalchunks;
-    private int shownchunks;
+    internal Basics.Terrain.Selection.ChunkSelectionRegion? CoverageRegion { get; set; }
+    public int TargetResident { get; private set; }
+    public int TargetDrawn { get; private set; }
     
     /// <summary>
     /// Führt den Rendervorgang durch. Lädt Chunks aus der Upload-Queue in die GPU,
@@ -101,6 +102,7 @@ public class Renderer
             }
             
             chunk.UploadToGpu();
+            ChunkProvider.Metrics.Uploaded();
 
             ChunkProvider.AcceptUpload(chunk);
             
@@ -110,14 +112,20 @@ public class Renderer
             }
         }
 
+        TargetResident = 0; TargetDrawn = 0;
         foreach (var kvp in ChunkProvider.LoadedChunks) 
         {
             BaseMesher chunk = kvp.Value;
             
+            bool inTarget = CoverageRegion?.Contains(kvp.Key) == true;
+            if (inTarget) TargetResident++;
             if (chunk.IsEmpty) continue;
             if (!frustum.IsInFrustum(chunk.ChunkPosition)) continue;
             if (chunk.GpuMesh is GlChunkMesh mesh)
+            {
                 mesh.Render(_terrainshader, chunk.Model, chunk.IndexCount);
+                if (inTarget) TargetDrawn++;
+            }
         }
         
         while (ChunkProvider.UnloadQueue.TryDequeue(out BaseMesher? chunk))

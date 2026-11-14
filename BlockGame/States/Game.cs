@@ -30,6 +30,10 @@ namespace Basics.States;
 public class Game : IStates
 {
     private StateManager _manager;
+    private long _fpsStart = System.Diagnostics.Stopwatch.GetTimestamp();
+    private int _fpsFrames;
+    public static double FrameMilliseconds;
+    private Basics.Diagnostics.FrameBenchmarkRun? _benchmark;
     private EngineContext _context = null!;
     private TextureArray? _terrainTexture;
     
@@ -67,7 +71,8 @@ public class Game : IStates
         _manager = manager;
         _inputManager = inputManager;
         _inputManager.LockMouse();
-        _inputManager.SetActionBindings(Actions.ToggleDebugCamera, ToggleDebugCamera);
+        if (Basics.Diagnostics.FrameBenchmarkRun.Options == null)
+            _inputManager.SetActionBindings(Actions.ToggleDebugCamera, ToggleDebugCamera);
 
         _context = new EngineContext(new GlChunkMeshFactory(gl), settings: GameSettings.Current);
         EngineContext.SetGlobal(_context);
@@ -81,15 +86,25 @@ public class Game : IStates
         _terrainGenerator = _context.TerrainGenerator;
         
         // Spieler mit eigener Kamera erstellen (injizierte Subsysteme)
-        _player = new PlayerCharacter(PlayerStartPosition, _inputManager, _context.World, _context.Physics);
+        _player = new PlayerCharacter(Basics.Diagnostics.FrameBenchmarkRun.Options != null ? new Vector3(0, 150, 0) : PlayerStartPosition, _inputManager, _context.World, _context.Physics);
         PlayerCamera = _player.Camera;
+        if (Basics.Diagnostics.FrameBenchmarkRun.Options != null) PlayerCamera.Rotate(0, 45);
 
         //Main Camera und Renderer erstellen
         _playerRenderer = new Renderer(_chunkProvider);
         _playerRenderer.Setup(PlayerCamera, _gl, _terrainTexture);
 
         //Movement-Controller für Player/Debug Kamera
-        _playerMovement = new PlayerMovement(_player, _inputManager, _context.Settings);
+        if (Basics.Diagnostics.FrameBenchmarkRun.Options is { } options)
+        {
+            _benchmark = new(options, _context.Settings, $"{gl.GetStringS(StringName.Vendor)} / {gl.GetStringS(StringName.Renderer)} / {gl.GetStringS(StringName.Version)}");
+            _playerMovement = new PlayerMovement(_player, _benchmark.Input, _context.Settings);
+            _inputManager.SetActionBindings(Actions.DestroyBlock, () => { });
+            _inputManager.SetActionBindings(Actions.PlaceBlock, () => { });
+            _inputManager.SetActionBindings(Actions.Fullscreen, () => { });
+            _inputManager.SetActionBindings(Actions.Borderless, () => { });
+        }
+        else _playerMovement = new PlayerMovement(_player, _inputManager, _context.Settings);
 
         //Egui.NET
         _uiContext = new Context();
@@ -113,7 +128,16 @@ public class Game : IStates
     //Wird jeden Frame aufgerufen, hier wird alles gerendert.
     public unsafe void Render(double deltaTime)
     {
-        Fps = (float)(1.0 / deltaTime);
+        long renderStart = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (_benchmark != null) _playerRenderer.CoverageRegion = _benchmark.Region(PlayerCamera);
+        _fpsFrames++;
+        double fpsSeconds = System.Diagnostics.Stopwatch.GetElapsedTime(_fpsStart).TotalSeconds;
+        if (fpsSeconds >= 1)
+        {
+            Fps = (float)(_fpsFrames / fpsSeconds);
+            FrameMilliseconds = fpsSeconds * 1000 / _fpsFrames;
+            _fpsFrames = 0; _fpsStart = renderStart;
+        }
         //SpieleWelt rendern
         _playerRenderer.Clear();//Vorherigen Frame löschen
         _playerRenderer.Render();
@@ -122,12 +146,16 @@ public class Game : IStates
         _gl.Disable(EnableCap.DepthTest);// Die UI soll immer sichtbar sein. wird in shader.Use() wieder aktiviert
         
         _uiIntegration.Run(ctx => _uiManager.Draw(ctx));
+        _benchmark?.EndFrame(deltaTime, System.Diagnostics.Stopwatch.GetElapsedTime(renderStart).TotalMilliseconds,
+            _chunkProvider, _playerRenderer.TargetResident, _playerRenderer.TargetDrawn, _chunkRequestor.LastUpdateFailure != null, !_chunkRequestor.IsUpdating);
+        if (_benchmark?.Finished == true) WindowSetup.Window.Close();
     }
     
     //Wird jeden Frame aufgerufen, hier wird alles außer dem Rendering gemacht.
     public void Update(double deltaTime)
     {
-        _playerMovement.MovementUpdate(deltaTime);
+        if (_benchmark == null) _playerMovement.MovementUpdate(deltaTime);
+        else _benchmark.Update(_playerMovement, PlayerCamera);
         _chunkProvider.RequestMeshes();
     }
     
@@ -139,6 +167,9 @@ public class Game : IStates
 
     public void Exit()
     {
+        _benchmark?.Abort(_chunkProvider);
+        _uiIntegration?.Dispose();
+        _playerMovement?.Dispose();
         _player?.Dispose();
         if (_chunkRequestor != null && !_chunkRequestor.Stop()) return;
         if (_context?.Shutdown() == true) _terrainTexture?.Dispose();

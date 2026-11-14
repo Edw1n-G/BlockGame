@@ -40,6 +40,7 @@ public class ChunkRequestor
 
     private ChunkCoord _lastPlayerChunk;
     private bool _isUpdating = false;
+    public bool IsUpdating { get { lock (_chunkLock) return _isUpdating; } }
     private volatile bool _stopping;
     private Task? _updateTask;
     private int _resetVersion;
@@ -124,6 +125,7 @@ public class ChunkRequestor
                                     _chunkProvider.UnloadChunk(coord); _activeChunks.Remove(coord);
                                 }
                                 _selectedRegion = _selectionPlan.Target;
+                                _chunkProvider.Metrics.SelectionCommitted();
                                 completed = true; _isUpdating = false;
                             }
                         }
@@ -133,6 +135,7 @@ public class ChunkRequestor
                 {
                     if (!completed)
                     {
+                        _chunkProvider.Metrics.SelectionRolledBack();
                         // Keep the last committed region valid. Undo only this canceled plan's additions.
                         lock (_chunkLock)
                             for (int i = 0; i < applied; i++)

@@ -10,10 +10,19 @@ public class Programm
     /// <summary>
     /// Startet die Anwendung durch Initialisierung des <see cref="StateManager"/> und Aufruf von <see cref="StateManager.Run"/>.
     /// </summary>
-    /// <param name="args">Befehlszeilenargumente (nicht verwendet).</param>
+    /// <param name="args">Optional benchmark command and settings.</param>
     private static void Main(string[] args)
     {
-        StateManager stateManager = new StateManager();
-        stateManager.Run();
+        try
+        {
+            if (Basics.Diagnostics.FrameBenchmarkCommand.Handle(args)) return;
+            StateManager stateManager = new StateManager();
+            stateManager.Run();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+            Environment.ExitCode = 1;
+        }
     }
 }

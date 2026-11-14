@@ -109,3 +109,8 @@ Comparator controls can be checked with:
 ```powershell
 dotnet run --project BlockGame.Benchmarks -- validate-controls
 ```
+
+## Scripted in-game frame benchmark
+
+For `BlockGame --benchmark`, separate-process repeats, frame/update/streaming reports
+and the throughput overlay, see [frame-benchmarking.md](frame-benchmarking.md).

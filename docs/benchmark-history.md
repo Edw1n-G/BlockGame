@@ -1,3 +1,26 @@
+# World block access conversion — 2026-11-17
+
+Optimize the shared `ChunkData.WorldToLocal` helper, previously unoptimized in this history, by replacing double remainder with low-bit masks for 16-block chunks. Actual provider reads are measured; the prior mesher-private lookup is not changed.
+
+- Harness/baseline: `877135d575dffbdab3790c103337675324a9db37`; full suite 431 passed, zero failed/skipped.
+- Candidate: `8b8f60f992ea54701b6cd68ccbd0f38631da238c`; full suite 432 passed, zero failed/skipped.
+- Both measured trees clean; identical harness tree `eb6e53a1217d6e43a01b2143466c672150db3eff`. New family discovery and all four Smoke cases passed before baseline measurement. Comparator controls passed 4/4.
+- All four scenario IDs/versions/units/input fingerprints and output fingerprints match. Per-read correctness uses independent floor division; candidate tests also cover integer extremes and chunk boundaries.
+- AMD Ryzen 9 7900X, 12 physical / 24 logical cores; Windows 11 25H2 build 26200.9457; SDK 10.0.103; x64 .NET 10.0.3, RyuJIT, workstation GC; BenchmarkDotNet 0.15.8. Minimal background load reported by user; sequential runs, power plan preserved.
+
+All scenarios are version 1. Unit: `one-batch-of-256-world-block-reads`, including provider lookup and checksum. Times below are ns per **batch**, not per single read. Negative change means less elapsed time.
+
+| Scenario | Baseline ns/batch | Candidate ns/batch | Time change | Baseline / candidate B/batch | Advisory verdict |
+|---|---:|---:|---:|---:|---|
+| block-access/missing | 947.422 | 997.062 | +5.24% | 0 / 0 | inconclusive |
+| block-access/mixed | 1916.803 | 1501.584 | -21.66% | 0 / 0 | improved |
+| block-access/negative | 1956.799 | 1583.270 | -19.09% | 0 / 0 | improved |
+| block-access/positive | 1851.319 | 1430.448 | -22.73% | 0 / 0 | improved |
+
+Retained the optimization for the three loaded-chunk improvements. The missing-chunk control bypasses the conversion and rose 49.64 ns/batch, within the comparator's combined practical/uncertainty budget; its timing is not proven unchanged. Both runs have no normalized statistical diagnostics; raw reports retain outlier removals. One pair over warmed, fixed inputs is not replicated evidence, a raycast benchmark, or an FPS estimate. No claim is made about concurrent or cold access.
+
+Evidence: `artifacts/block-access-baseline-20261117/`, `artifacts/block-access-candidate-20261117/`, and `artifacts/block-access-comparison-20261117.{json,md,log}`. Commands, workload design, validation, inspection troubles and limitations: [benchmarking.md](benchmarking.md#world-block-access-conversion-experiment-2026-11-17).
+
 # LOD0 face vertex reservation — 2026-11-17
 
 Baseline: `3f42e9a9e2765132988b28c69faa062ca72d3d4f`.

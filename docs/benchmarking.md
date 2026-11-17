@@ -1,5 +1,44 @@
 # CPU benchmarking
 
+## World block access conversion experiment (2026-11-17)
+
+Select a component not previously optimized in the history: shared world-to-local coordinate conversion used by `ChunkBlockAccess.GetBlockAt` and block edits. This is separate from the prior LOD0 mesher's private neighbor lookup. `ChunkData.WorldToLocal` used two remainder operations per axis; for the fixed 16-block chunk size, the low four bits give exactly the same nonnegative remainder, including negative integers.
+
+Steps:
+
+1. Review history and callers. Existing families covered meshing, terrain/noise and selection but not world block reads. Add `block-access/*` with four fixed cases: positive, negative, mixed coordinates and missing chunks. Each operation performs 256 real provider lookups and returns a checksum. Inputs cycle across a 64-block span, include chunk boundaries and all local offsets, and are explicitly serialized in the scenario contract. Loaded blocks contain local linear index + 1, so distinct local positions have distinct IDs. No native noise or graphics setup is required.
+2. Validate every returned ID against an independent floor-division/subtraction oracle before timing and again during cleanup; fingerprint the complete returned sequence, not just the checksum. Run discovery, four-case Smoke, and the full suite (431 passed, zero failed/skipped). Rider reports no workload-file errors. Smoke is validation only.
+3. Commit the harness and its four tests as baseline `877135d575dffbdab3790c103337675324a9db37`, with engine code unchanged. Measure all four cases from the clean tree and preserve the complete directory before changing the engine.
+4. Replace only `ChunkData.WorldToLocal` with three masks. Keep world-to-chunk conversion, dictionary access and missing-chunk handling unchanged. Add an independent arithmetic test covering all local offsets around positive/negative boundaries and both integer extremes. Full candidate suite: 432 passed, zero failed/skipped; Rider reports no errors in `ChunkData.cs`.
+5. Commit candidate `8b8f60f992ea54701b6cd68ccbd0f38631da238c`, verify a clean tree, and measure the same four workloads. Compare saved runs and validate comparator controls (4/4). All scenario IDs, versions, units, input fingerprints and output fingerprints match. The benchmark tree is identical in both measured revisions.
+6. Retain the change: the three loaded-chunk cases improve by 19.09–22.73% in this pair, while missing-chunk reads are inconclusive. All rows remain at zero allocated bytes per batch. See [benchmark-history.md](benchmark-history.md) for SHAs and results.
+
+Commands (PowerShell, repository root; logs redirected into `artifacts/`):
+
+```powershell
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' test
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' run -c Release --project BlockGame.Benchmarks -- --list --case 'block-access/*'
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' run -c Release --project BlockGame.Benchmarks -- --mode Smoke --case 'block-access/*' --output artifacts/block-access-smoke-20261117
+# Commit the validated harness before baseline measurement.
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' run -c Release --project BlockGame.Benchmarks -- --mode Measure --case 'block-access/*' --output artifacts/block-access-baseline-20261117
+# Apply the engine/test change, run full tests, then commit the candidate.
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' test
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' run -c Release --project BlockGame.Benchmarks -- --mode Measure --case 'block-access/*' --output artifacts/block-access-candidate-20261117
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' run --project BlockGame.Benchmarks -- compare artifacts/block-access-baseline-20261117 artifacts/block-access-candidate-20261117 artifacts/block-access-comparison-20261117.json
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' run --project BlockGame.Benchmarks -- validate-controls
+```
+
+Troubles and limitations:
+
+- No test, build or benchmark execution failed. Reuse the established out-of-sandbox .NET and Git setup; use the explicit SDK path without changing PATH. Existing compiler/analyzer warnings and Git line-ending warnings remain.
+- Initial exploratory reads guessed `Physics/Physics.cs` and a separate `BlockResult.cs`; those paths do not exist. Reading the actual `PhysicsSystem` sources resolved the inspection. No measurement depended on those failed reads.
+- A new benchmark family was necessary. Commit it before baseline collection so both measured revisions use exactly the same workloads and correctness expectations; do not compare a new workload against old timing rows.
+- Missing-chunk reads bypass the optimized conversion, yet their mean rose 5.24% (49.64 ns per 256 reads). The advisory result is inconclusive after practical threshold and uncertainty allowance. Do not infer a direct optimization effect from this control or describe it as unchanged timing.
+- Background load was reported minimal earlier in this session. Runs were sequential, without concurrent builds/tests, and preserved the power plan. Baseline and candidate took about 73 and 80 seconds respectively including build. Raw reports retain outlier-removal hints.
+- This single pair measures warmed provider reads over a small fixed coordinate set, not cold dictionary access, concurrent writes, complete raycasts, block edits or frame timing. Broader callers benefit from the shared helper mechanically, but no end-to-end speedup is claimed for them. The helper still relies on the engine's fixed chunk size of 16.
+
+Retain ignored `artifacts/block-access-{baseline,candidate,smoke}-20261117/` directories with raw reports, manifests, child checks and normalized indexes. Test logs are `block-access-{baseline,candidate}-tests-20261117.log`; launcher logs match directory names, discovery is `block-access-discovery-20261117.log`, and comparison is `block-access-comparison-20261117.{json,md,log}`. No run output is committed.
+
 ## LOD0 face vertex reservation experiment (2026-11-17)
 
 Reserve the entire 64-byte quad once per visible face instead of reserving each of its four vertices separately. Write four fixed slices through a static helper and increment the vertex count once. Explicit little-endian writes, zero padding, face order, AO diagonals, pooled ownership and GPU behavior remain unchanged.

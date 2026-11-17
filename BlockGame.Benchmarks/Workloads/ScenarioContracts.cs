@@ -11,6 +11,11 @@ public static class ScenarioContracts
         object inputs; string unit; string timing="normal";
         switch (family)
         {
+            case "block-access":
+                inputs=new {positions=BlockAccessWorkload.Positions(scenario).Select(p=>new {p.X,p.Y,p.Z}).ToArray(),
+                    blocks="4096 ushort values: local linear index + 1",loaded=scenario!="missing",lod=0,
+                    includes="256 provider lookups and checksum",setup="preloaded chunks; no mutations"};
+                unit="one-batch-of-256-world-block-reads"; break;
             case "selection-full":
                 var (center,h,v)=WorkloadCatalog.Selection(scenario);
                 inputs=new {x=center.X,y=center.Y,z=center.Z,horizontal=h,vertical=v,lod=0,storage="fresh complete HashSet"};

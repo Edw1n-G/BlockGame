@@ -8,6 +8,21 @@ namespace BlockGame.Tests;
 
 public class WorkloadTests
 {
+    [Theory]
+    [InlineData("positive")]
+    [InlineData("negative")]
+    [InlineData("mixed")]
+    [InlineData("missing")]
+    public void WorldBlockReadWorkloadMatchesIndependentOracle(string scenario)
+    {
+        using var fixture = new BlockAccessWorkload(scenario);
+        var first = fixture.Validate();
+        Assert.Equal(BlockAccessWorkload.ReadCount, first.Length);
+        Assert.Equal(fixture.ExpectedSum, fixture.ReadBatch());
+        Assert.Equal(first, fixture.Validate());
+        Assert.Equal(scenario == "missing", first.All(value => value == 0));
+    }
+
     public static IEnumerable<object[]> MeshCases => WorkloadCatalog.MeshCases.Select(x => new object[] { x });
     public static IEnumerable<object[]> TerrainCases => WorkloadCatalog.TerrainCases.Select(x => new object[] { x });
     public static IEnumerable<object[]> SelectionCases => WorkloadCatalog.SelectionCases.Select(x => new object[] { x });

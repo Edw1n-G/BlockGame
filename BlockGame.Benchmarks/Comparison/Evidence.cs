@@ -59,6 +59,7 @@ public sealed record ComparisonReport(int SchemaVersion, string Purpose, Compari
     string BaselineRevision, string CandidateRevision, string BaselineHarnessTree, string CandidateHarnessTree,
     string EnvironmentFingerprint, string ComparatorFingerprint)
 {
+    public int GateExitCode => ComparisonGate.ExitCode(this);
     public string[] Warnings { get; init; } = [];
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public ControlValidationResult? Controls { get; init; }

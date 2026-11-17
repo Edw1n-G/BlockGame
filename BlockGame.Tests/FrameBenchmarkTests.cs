@@ -9,60 +9,27 @@ namespace BlockGame.Tests;
 public class FrameBenchmarkTests
 {
     [Fact]
-    public void CalibrationIncreasesLoadThenRefinesTheCrossing()
+    public void FixedSweepsReplaceCalibrationAndKeepExactCheckerboardGraph()
     {
-        var search = new FrameCalibrationSearch(30);
-        Assert.Equal(15, search.Record(12, 2));
-        Assert.Equal(18, search.Record(15, 8));
-        Assert.Equal(16, search.Record(18, 24));
-        Assert.Null(search.Record(16, 16.2));
-        Assert.Equal(16, search.ClosestDistance);
-        Assert.False(FrameCalibrationSearch.OnTarget(1));
-        Assert.True(FrameCalibrationSearch.OnTarget(16));
-    }
-
-    [Fact]
-    public void CalibrationDoesNotInventSuccessAtBoundsOrOvershoot()
-    {
-        Assert.Null(new FrameCalibrationSearch(12).Record(12, 3));
-        Assert.Null(new FrameCalibrationSearch(30).Record(12, 30));
-        Assert.False(FrameCalibrationSearch.OnTarget(double.NaN));
-    }
-
-    [Fact]
-    public void WorldsHaveSeparateCalibrationDefaultsAndExactCheckerboardGraph()
-    {
-        var terrain = FrameBenchmarkOptions.Parse(["--benchmark"]);
-        var checker = FrameBenchmarkOptions.Parse(["--benchmark", "--world", "checkerboard"]);
-        Assert.True(terrain.Calibrate);
-        Assert.True(checker.Calibrate);
-        Assert.Equal(12, terrain.RenderDistance);
-        Assert.Equal(5, checker.RenderDistance);
+        var terrain = FrameBenchmarkOptions.Parse(["--benchmark", "--sweep", "6,10,15"]);
+        var checker = FrameBenchmarkOptions.Parse(["--benchmark", "--world", "checkerboard", "--sweep", "6,10,15"]);
+        Assert.Equal(new[] { 6, 10, 15 }, terrain.Sweep);
+        Assert.Equal(terrain.Sweep, checker.Sweep);
         Assert.Equal("Ag@BBABA==", checker.Settings().Worldtype);
-        Assert.False(FrameBenchmarkOptions.Parse(["--benchmark", "--render-distance", "12"]).Calibrate);
-        Assert.True(FrameBenchmarkOptions.Parse(["--benchmark", "calibrate", "--render-distance", "12"]).Calibrate);
+        Assert.Null(FrameBenchmarkOptions.Parse(["--benchmark", "--render-distance", "12"]).Sweep);
+        Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "calibrate"]));
+        Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "--baseline", "old"]));
+        Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "--render-distance", "8", "--sweep", "5,8"]));
     }
 
     [Fact]
-    public void BaselineReplayFreezesWorldDurationAndDistance()
+    public void FrameBenchmarkRequiresExplicitDistances()
     {
-        string path = Path.GetTempFileName();
-        try
-        {
-            var baseline = new CalibrationResult(2, true, 8, 20, "checkerboard", "fly-sweep", 16, 16.1, "ok", [], "Ag@BBABA==");
-            File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(baseline));
-            var replay = FrameBenchmarkOptions.Parse(["--benchmark", "--baseline", path]);
-            Assert.False(replay.Calibrate);
-            Assert.Equal(8, replay.RenderDistance);
-            Assert.Equal(20, replay.Duration);
-            Assert.Equal("checkerboard", replay.World);
-            Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "--baseline", path, "--world", "terrain"]));
-            File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(baseline with { WorldCode = "old-graph" }));
-            Assert.Throws<ArgumentException>(() => FrameBenchmarkCalibration.Read(path));
-            File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(baseline with { TargetReached = false }));
-            Assert.Throws<ArgumentException>(() => FrameBenchmarkCalibration.Read(path));
-        }
-        finally { File.Delete(path); }
+        Assert.Contains("--sweep", Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark"])).Message);
+        Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "--world", "checkerboard"]));
+        var single = FrameBenchmarkOptions.Parse(["--benchmark", "--render-distance", "9"]);
+        Assert.Equal(9, single.RenderDistance);
+        Assert.Null(single.Sweep);
     }
 
     [Fact]
@@ -166,6 +133,29 @@ public class FrameBenchmarkTests
         Counts = new(100,100,100,100), InvalidReasons = []
     };
 
+    [Theory]
+    [InlineData("same", 0)]
+    [InlineData("regressed", 2)]
+    [InlineData("noise", 3)]
+    [InlineData("invalid", 3)]
+    [InlineData("work", 3)]
+    [InlineData("few", 3)]
+    public void FrameComparisonReturnsGateStatus(string mutation, int expected)
+    {
+        var a = Summary() with { Revision = new string('a', 40), FrameP95Ms = 12, FrameP99Ms = 14 };
+        var b = a with { Revision = new string('b', 40) };
+        b = mutation switch
+        {
+            "regressed" => b with { FrameP95Ms = 15 },
+            "invalid" => b with { InvalidReasons = ["failed"] },
+            "work" => b with { Counts = new(20,20,20,20) },
+            _ => b
+        };
+        FrameBenchmarkSummary[] candidate = mutation == "few" ? [b] : [b,b,b];
+        if (mutation == "noise") candidate[1] = b with { FrameP50Ms = 20 };
+        Assert.Equal(expected, FrameBenchmarkReport.ComparisonExitCode([a,a,a], candidate));
+    }
+
     [Fact]
     public void ComparisonFlagsDifferentWorkAndStarvedUpdates()
     {
@@ -193,14 +183,13 @@ public class FrameBenchmarkTests
     [InlineData("--repeats", "0")]
     [InlineData("--typo", "1")]
     public void LaunchOptionsRejectInvalidInputs(string key, string value) =>
-        Assert.ThrowsAny<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark",key,value]));
+        Assert.ThrowsAny<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "--render-distance", "8",key,value]));
 
     [Fact]
     public void SweepParsesDistinctFixedDistancesAndRejectsConflicts()
     {
         var sweep = FrameBenchmarkOptions.Parse(["--benchmark", "--sweep", "8, 12,16"]);
         Assert.Equal(new[] { 8, 12, 16 }, sweep.Sweep);
-        Assert.False(sweep.Calibrate);
         Assert.Equal(8, sweep.RenderDistance);
         Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "--sweep", "8,8"]));
         Assert.Throws<ArgumentException>(() => FrameBenchmarkOptions.Parse(["--benchmark", "--sweep", "0,12"]));

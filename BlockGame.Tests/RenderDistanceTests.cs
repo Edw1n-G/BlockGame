@@ -18,12 +18,10 @@ public class RenderDistanceTests
     [InlineData(4)]
     [InlineData(5)]
     [InlineData(8)]
-    public void SettingsEnforceMinimumForAssignmentsAndSetters(int requested)
+    public void GameplaySettersEnforceMinimum(int requested)
     {
         int expected = Math.Max(5, requested);
         var settings = new GameSettings { RenderDistance = requested, VerticalRenderDistance = requested };
-        Assert.Equal(expected, settings.RenderDistance);
-        Assert.Equal(expected, settings.VerticalRenderDistance);
         settings.SetRenderDistance(requested);
         settings.SetVerticalRenderDistance(requested);
         Assert.Equal(expected, settings.RenderDistance);
@@ -33,7 +31,9 @@ public class RenderDistanceTests
     [Fact]
     public void MinimumSelectionProvidesAllMeshingNeighborsAtCenter()
     {
-        var settings = new GameSettings { RenderDistance = 1, VerticalRenderDistance = 1 };
+        var settings = new GameSettings();
+        settings.SetRenderDistance(1);
+        settings.SetVerticalRenderDistance(1);
         var center = new ChunkCoord(0,0,0,0);
         var plan = new ChunkSelectionPlan();
         Assert.True(plan.TryBuild(null, center, settings.RenderDistance, settings.VerticalRenderDistance));

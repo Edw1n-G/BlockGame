@@ -1,5 +1,4 @@
 using Basics.Engine;
-using System;
 using Silk.NET.Maths;
 
 namespace Basics.PhysicsSystem;

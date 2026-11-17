@@ -11,6 +11,7 @@
     <EngineContentRoot>$([System.IO.Path]::GetDirectoryName('$(EngineProjectPath)'))/../BlockGame/Content</EngineContentRoot>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="BlockGame.Tests" />
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     <ProjectReference Include="$(EngineProjectPath)" />
     <EmbeddedResource Include="Workloads/FrozenTerrain.json" LogicalName="FrozenTerrain.json" />

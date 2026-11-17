@@ -1,6 +1,5 @@
 using BlockGame.Benchmarks.Workloads;
 using Basics.Common;
-using Basics.Settings;
 using Basics.Terrain.Selection;
 
 namespace BlockGame.Tests;
@@ -38,8 +37,7 @@ public class IncrementalSelectionTests
             var center = (step % 4) switch {
                 0 => new ChunkCoord(32767,-32768,32767,0), 1 => new ChunkCoord(-32768,32767,-32768,0),
                 _ => new ChunkCoord(random.Next(-20,20),random.Next(-10,10),random.Next(-20,20),0) };
-            var settings = new GameSettings { RenderDistance = random.Next(0,10), VerticalRenderDistance = random.Next(0,8) };
-            int h = settings.RenderDistance, v = settings.VerticalRenderDistance;
+            int h = random.Next(0,10), v = random.Next(0,8);
             var expected = SelectionReference.Calculate(center,h,v);
             Assert.True(plan.TryBuild(previous,center,h,v));
             Assert.Equal(plan.Added.Count,plan.Added.Distinct().Count());

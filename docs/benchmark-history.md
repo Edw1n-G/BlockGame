@@ -6,7 +6,7 @@ Optimize the shared `ChunkData.WorldToLocal` helper, previously unoptimized in t
 - Candidate: `8b8f60f992ea54701b6cd68ccbd0f38631da238c`; full suite 432 passed, zero failed/skipped.
 - Both measured trees clean; identical harness tree `eb6e53a1217d6e43a01b2143466c672150db3eff`. New family discovery and all four Smoke cases passed before baseline measurement. Comparator controls passed 4/4.
 - All four scenario IDs/versions/units/input fingerprints and output fingerprints match. Per-read correctness uses independent floor division; candidate tests also cover integer extremes and chunk boundaries.
-- AMD Ryzen 9 7900X, 12 physical / 24 logical cores; Windows 11 25H2 build 26200.9457; SDK 10.0.103; x64 .NET 10.0.3, RyuJIT, workstation GC; BenchmarkDotNet 0.15.8. Minimal background load reported by user; sequential runs, power plan preserved.
+- AMD Ryzen 9 7900X, 12 physical / 24 logical cores; Windows 11 25H2 build 26200.9457; SDK 10.0.103; x64 .NET 10.0.3, RyuJIT, workstation GC; BenchmarkDotNet 0.15.8. Sequential runs, power plan preserved.
 
 All scenarios are version 1. Unit: `one-batch-of-256-world-block-reads`, including provider lookup and checksum. Times below are ns per **batch**, not per single read. Negative change means less elapsed time.
 
@@ -19,7 +19,7 @@ All scenarios are version 1. Unit: `one-batch-of-256-world-block-reads`, includi
 
 Retained the optimization for the three loaded-chunk improvements. The missing-chunk control bypasses the conversion and rose 49.64 ns/batch, within the comparator's combined practical/uncertainty budget; its timing is not proven unchanged. Both runs have no normalized statistical diagnostics; raw reports retain outlier removals. One pair over warmed, fixed inputs is not replicated evidence, a raycast benchmark, or an FPS estimate. No claim is made about concurrent or cold access.
 
-Evidence: `artifacts/block-access-baseline-20261117/`, `artifacts/block-access-candidate-20261117/`, and `artifacts/block-access-comparison-20261117.{json,md,log}`. Commands, workload design, validation, inspection troubles and limitations: [benchmarking.md](benchmarking.md#world-block-access-conversion-experiment-2026-11-17).
+Evidence: `artifacts/block-access-baseline-20261117/`, `artifacts/block-access-candidate-20261117/`, and `artifacts/block-access-comparison-20261117.{json,md,log}`.
 
 # LOD0 face vertex reservation — 2026-11-17
 
@@ -29,7 +29,7 @@ Unchanged benchmark tree: `a2c571cefff70eb671cb784fee37cc3ccbcced29`.
 
 Reserve vertex storage once per quad instead of once per vertex. Full suites: baseline 425/425, candidate 427/427, none skipped; comparator controls 4/4. All seven scenario contracts and output fingerprints match. Both measured revisions were clean.
 
-Environment: AMD Ryzen 9 7900X (12 physical / 24 logical cores), Windows 11 25H2 build 26200.9457, x64 .NET 10.0.3, SDK 10.0.103, BenchmarkDotNet 0.15.8, RyuJIT, concurrent workstation GC. User reported minimal background load; measurements ran sequentially and left the power plan unchanged.
+Environment: AMD Ryzen 9 7900X (12 physical / 24 logical cores), Windows 11 25H2 build 26200.9457, x64 .NET 10.0.3, SDK 10.0.103, BenchmarkDotNet 0.15.8, RyuJIT, concurrent workstation GC. Measurements ran sequentially and left the power plan unchanged.
 
 All rows use scenario version 1 and unit `one-lod0-build-and-return-buffers`. Means are nanoseconds per operation; negative change means less time. Allocation is 408 B/op in both revisions for every row.
 
@@ -45,7 +45,7 @@ All rows use scenario version 1 and unit `one-lod0-build-and-return-buffers`. Me
 
 Retained the candidate for the three measured geometry improvements. One baseline/candidate pair is not replicated evidence or an FPS estimate; frozen terrain shows no demonstrated benefit. The null-air control cannot support percentage claims. BenchmarkDotNet reported outlier removals; the comparator classified no regressions.
 
-Reports: `artifacts/face-batch-baseline-20261117/`, `artifacts/face-batch-candidate-20261117/`, and `artifacts/face-batch-comparison-20261117.{json,md}`. Procedure, commands, test evidence, setup failures and limits are in [benchmarking.md](benchmarking.md#lod0-face-vertex-reservation-experiment-2026-11-17).
+Reports: `artifacts/face-batch-baseline-20261117/`, `artifacts/face-batch-candidate-20261117/`, and `artifacts/face-batch-comparison-20261117.{json,md}`.
 
 # First iteration
 
@@ -59,18 +59,9 @@ Reports: `artifacts/face-batch-baseline-20261117/`, `artifacts/face-batch-candid
 |---|---:|---:|---:|---:|---:|
 | typical | 520,211.06 | 426,438.91 | 18.03% | 1,400,491 | 576,128 |
 
-Lessons
+Result notes
 
 - **Superseded optimization claim.** The copied double-precision model did not reproduce the actual float arithmetic or set preallocation at Git revision `c2a6ab2`. Use the [current workflow for comparing Git revisions](benchmarking.md#manual-workflow).
-
-### Open follow-ups
-
-| Priority | Follow-up | Reason |
-|---|---|---|
-| P1 | Add separate benchmarks for cold requestor population and asynchronous request coalescing, each with its own unit. | The warm movement workload measures selection, set differences, and active-set updates. Provider calls, tasks, and locks are outside its scope. |
-| P2 | Measure retained capacity after a warm movement path. | Warmed lists and sets retain storage even when the operation reports zero allocated bytes. |
-| P3 | Print a copyable benchmark command with the resolved .NET executable. | The SDK is pinned in `global.json`, and the optional wrapper accepts `-Dotnet` when PATH resolves to a different installation. |
-| P3 | Normalize additional case-level statistical warnings from BenchmarkDotNet. | The manifest already records multimodality per case. Review the raw BenchmarkDotNet logs for other warnings. |
 
 ## Terrain density buffer pooling — 2026-11-11
 
@@ -100,7 +91,7 @@ The comparator passed **4/4 controls**, matched scenario IDs/versions/units/inpu
 
 The density buffer pooling change was retained as an **allocation optimization**, with no claimed runtime or FPS gain. In-map timing differences range from roughly -4.72% to +0.88%, within the declared practical/uncertainty budget. Noise-only control timings also drift in both directions. Outside-map timings are early-return diagnostics, so ratios are suppressed. A warmed pool reduces allocation churn but retains reusable arrays; cold misses may allocate, and this experiment does not measure retained memory or whole-game GC pauses.
 
-Steps, problems and mitigations are in [benchmarking.md](benchmarking.md#terrain-density-buffer-pooling-experiment-2026-11-11). This run encountered no test or benchmark execution failure. The meaningful limitation is the absence of a demonstrated timing gain. Existing compiler/analyzer warnings remain. Additional tests cover complete writes into NaN-prefilled destinations, guard preservation, too-short buffer rejection, retained outputs after reuse, step normalization and concurrent generation at different coordinates/LODs. The concurrency test is not proof of general FastNoise thread safety.
+Additional tests cover complete writes into NaN-prefilled destinations, guard preservation, too-short buffer rejection, retained outputs after reuse, step normalization and concurrent generation at different coordinates/LODs. The concurrency test is not proof of general FastNoise thread safety.
 
 Retained local evidence (ignored, not committed):
 
@@ -134,7 +125,7 @@ Both comparisons passed the four comparator controls, matched scenario ID/versio
 
 Candidate 2 was retained. Exposed-solid and floor were the only cases to clear the advisory 5% practical threshold plus sampling uncertainty. Checkerboard's 5.13% mean reduction does not clear that combined budget. Frozen terrain does not establish a practical improvement. Null-air increased by about 6.8 ns in the final run; its early return is below the 100 ns floor and bypasses the changed lookups, so no ratio or speedup claim is appropriate. These CPU workload results do not establish an FPS improvement or a general improvement across machines.
 
-Steps and encountered problems are recorded in [benchmarking.md](benchmarking.md#lod0-neighbor-lookup-experiment-2026-11-11), including the initial dirty tree, sandbox/MSBuild failure, unsuitable `-m:1` test argument, and the inconclusive first candidate. Existing compiler/analyzer warnings were not changed. The eight new AO cases verify known lighting values and diagonal choices across top chunk corners.
+The eight new AO cases verify known lighting values and diagonal choices across top chunk corners.
 
 Retained local evidence (ignored, not committed):
 
@@ -168,7 +159,7 @@ Retained local evidence (ignored, not committed):
 | `terrain/surface-s1/v1` | 54,941.62 | 54,906.00 | -0.06% | 25,688 |
 | `terrain/surface-s42/v1` | 54,408.05 | 55,597.32 | 2.19% | 25,688 |
 
-Lessons
+Result notes
 
 - The maximum absolute mean drift in the complete pair was **3.29%**, with no code change.
 - In this baseline pair, meshing allocated 432 managed bytes/op with vertex and index buffer reuse.
@@ -180,10 +171,10 @@ Lessons
 |---|---|---|---:|---:|---|
 | selection-full/typical | one-fresh-complete-set | inconclusive | 457941.023 | 455707.331 | Within practical drift/uncertainty budget |
 
-Lessons
+Result notes
 
 - The clean null baseline and candidate comparison passed.
 - Baseline: 907f124c13f46a50d0db4028066b9faf76938cd6; candidate: 907f124c13f46a50d0db4028066b9faf76938cd6.
-- Policy: provisional 5% practical budget, 100 ns timing floor; no automatic performance gate.
+- Historical comparison policy: 5% practical budget, 100 ns timing floor; advisory at the time.
 - Inconclusive: -0.49%; equal output and allocation fingerprints
 - At horizontal radius 2 and vertical radius 0, the original `c2a6ab2` float scan selected 25 chunks because `0f / 0f` is `NaN` and `NaN > 1f` is false. The new planner fixed this and selects 13. That legacy comparison used the original scan and waived the resize regression test and the incremental planner reference test.

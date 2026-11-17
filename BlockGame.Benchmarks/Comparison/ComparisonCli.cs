@@ -22,17 +22,19 @@ public static class ComparisonCli
                     string reportPath=Path.GetFullPath(args.Length==4 ? args[3] : Path.Combine("artifacts","comparisons",$"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}","comparison.json"));
                     Directory.CreateDirectory(Path.GetDirectoryName(reportPath)!);
                     EvidenceJson.Write(reportPath,report);
-                    File.WriteAllLines(Path.ChangeExtension(reportPath,".md"), new[] {"# Advisory benchmark comparison","", $"Baseline: {report.BaselineRevision}; candidate: {report.CandidateRevision}.",
+                    File.WriteAllLines(Path.ChangeExtension(reportPath,".md"), new[] {"# Benchmark comparison","", $"Gate exit code: {report.GateExitCode} (0 pass, 2 regression, 3 indeterminate).", $"Baseline: {report.BaselineRevision}; candidate: {report.CandidateRevision}.",
                         $"Harness tree: baseline {report.BaselineHarnessTree}; candidate {report.CandidateHarnessTree}.", ""}
                         .Concat(report.Warnings.Select(warning => $"> **Warning:** {warning}"))
-                        .Concat(new[] {"", "Policy: provisional 5% practical budget, 100 ns timing floor; no automatic performance gate.",
+                        .Concat(new[] {"", "Gate: 0 = no detected regression; 2 = regression; 3 = insufficient or incompatible evidence. Policy: 5% practical budget, 100 ns timing floor.",
                         "Full dotnet test runs are a manual prerequisite. Background load and power plan are uncontrolled noise; inspect the BenchmarkDotNet reports and repeat uncertain measurements.",
                         "",$"Baseline environment: {report.BaselineEnvironment}",$"Candidate environment: {report.CandidateEnvironment}","", "| Scenario | Unit | Result | Baseline ns | Candidate ns | Reason |","|---|---|---|---:|---:|---|"})
                         .Concat(report.Rows.Select(r => $"| {r.ScenarioId} | {r.Contract?.Unit} | {r.Status} | {r.BaselineNs?.ToString("F3",System.Globalization.CultureInfo.InvariantCulture)} | {r.CandidateNs?.ToString("F3",System.Globalization.CultureInfo.InvariantCulture)} | {r.Reason} |")));
                     foreach (string warning in report.Warnings) Console.WriteLine($"Warning: {warning}");
                     Console.WriteLine(string.Join(Environment.NewLine,report.Rows.Select(r => $"{r.ScenarioId}: {r.Status} — {r.Reason}")));
                     Console.WriteLine($"Comparison report: {Path.ChangeExtension(reportPath,".md")}");
-                    break;
+                    int code = ComparisonGate.ExitCode(report);
+                    Console.WriteLine($"Gate: {(code == 0 ? "PASS" : code == 2 ? "FAIL" : "INDETERMINATE")} (exit {code})");
+                    return code;
                 default: throw new ArgumentException("Use compare <baseline-directory> <candidate-directory> [report.json] or validate-controls");
             }
             return 0;

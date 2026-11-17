@@ -1,6 +1,5 @@
 using Basics.Common;
 using Basics.Graphics;
-using System;
 using System.Numerics;
 using Plane = Basics.Graphics.Plane;
 

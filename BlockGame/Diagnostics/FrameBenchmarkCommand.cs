@@ -13,15 +13,14 @@ public static class FrameBenchmarkCommand
         if (args.Length >= 2 && args[1] == "compare")
         {
             if (args.Length != 4) throw new ArgumentException("Usage: --benchmark compare <base folder or summary.json> <candidate folder or summary.json>");
-            Console.WriteLine(FrameBenchmarkReport.Compare(FrameBenchmarkReport.ReadRuns(args[2]), FrameBenchmarkReport.ReadRuns(args[3])));
+            var baseline = FrameBenchmarkReport.ReadRuns(args[2]);
+            var candidate = FrameBenchmarkReport.ReadRuns(args[3]);
+            Console.WriteLine(FrameBenchmarkReport.Compare(baseline, candidate));
+            System.Environment.ExitCode = FrameBenchmarkReport.ComparisonExitCode(baseline, candidate);
+            Console.WriteLine($"Gate exit: {System.Environment.ExitCode} (0 pass, 2 regression, 3 insufficient evidence)");
             return true;
         }
         var options = FrameBenchmarkOptions.Parse(args);
-        if (options.Calibrate)
-        {
-            FrameBenchmarkCalibration.Run(options);
-            return true;
-        }
         if (options.Sweep != null)
         {
             RunSweep(options);
@@ -47,7 +46,7 @@ public static class FrameBenchmarkCommand
             Console.WriteLine($"Sweep: render distance {distance}...");
             var runs = RunRepeats(options with
             {
-                RenderDistance = distance, Sweep = null, Calibrate = false,
+                RenderDistance = distance, Sweep = null,
                 Output = Path.Combine(options.Output, $"rd-{distance:00}")
             });
             results.Add((distance, runs));

@@ -4,7 +4,6 @@ using Basics.Textures;
 using Basics.Window;
 using System.Numerics;
 using Silk.NET.OpenGL;
-using Shader = Basics.Graphics.Shader;
 
 namespace Basics.Graphics;
 

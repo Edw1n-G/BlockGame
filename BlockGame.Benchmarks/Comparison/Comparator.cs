@@ -26,7 +26,7 @@ public static class Comparator
             rows.Add(CompareCase(a[0],b[0],policy) with {Contract=contract});
         }
         if (rows.Count == 0) rows.Add(new("<none>","not comparable","No scenarios discovered"));
-        return new(2,calibration ? "calibration fixture validation only" : "advisory revision comparison; policy is provisional",policy,rows.ToArray(),
+        return new(2,calibration ? "calibration fixture validation only" : "revision comparison with regression gate",policy,rows.ToArray(),
             baseline.EngineRevision,candidate.EngineRevision,baseline.HarnessTree,candidate.HarnessTree,baseline.EnvironmentFingerprint,
             typeof(Comparator).Assembly.GetName().Version?.ToString() ?? "unknown")
         {

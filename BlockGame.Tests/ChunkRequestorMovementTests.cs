@@ -56,7 +56,7 @@ public class ChunkRequestorMovementTests
             Assert.True(await TestHelpers.WaitUntil(() => requestor.LastUpdateFailure is not null));
             Assert.Empty(provider.Chunkdata);
             player.ForceChunkUpdate();
-            var expected=SelectionReference.Calculate(new(0,0,0,0),5,5);
+            var expected=SelectionReference.Calculate(new(0,0,0,0),1,1);
             Assert.True(await TestHelpers.WaitUntil(() => provider.Chunkdata.Keys.ToHashSet().SetEquals(expected)));
             Assert.True(requestor.Stop(TimeSpan.FromSeconds(5)));
             Assert.True(provider.Chunkdata.Keys.ToHashSet().SetEquals(expected));
@@ -77,7 +77,7 @@ public class ChunkRequestorMovementTests
         {
             player.ForceChunkUpdate(); Assert.True(provider.Entered.Wait(TimeSpan.FromSeconds(5)));
             for (int i = 1; i <= 200; i++) { player.Camera.Position = new Vector3(i*16,0,i*16); player.ForceChunkUpdate(); }
-            var expected = SelectionReference.Calculate(new ChunkCoord(200,0,200,0),5,5);
+            var expected = SelectionReference.Calculate(new ChunkCoord(200,0,200,0),1,1);
             provider.Release.Set();
             Assert.True(await TestHelpers.WaitUntil(() => provider.Chunkdata.Keys.ToHashSet().SetEquals(expected)));
             Assert.True(requestor.Stop(TimeSpan.FromSeconds(5)));
@@ -105,7 +105,7 @@ public class ChunkRequestorMovementTests
             provider.Release.Set();
             if (notifyAgain)
             {
-                var expected = SelectionReference.Calculate(new(0,0,0,0),5,5);
+                var expected = SelectionReference.Calculate(new(0,0,0,0),1,1);
                 Assert.True(await TestHelpers.WaitUntil(() => provider.Chunkdata.Keys.ToHashSet().SetEquals(expected)));
                 Assert.True(requestor.Stop(TimeSpan.FromSeconds(5)));
                 Assert.True(provider.Chunkdata.Keys.ToHashSet().SetEquals(expected));
@@ -127,15 +127,15 @@ public class ChunkRequestorMovementTests
         try
         {
             player.ForceChunkUpdate();
-            Assert.True(await TestHelpers.WaitUntil(() => provider.Chunkdata.Count == SelectionReference.Calculate(new(0,0,0,0),5,5).Count));
-            foreach (var (h,v) in new[] {(7,6),(0,6),(6,0),(1,1)})
+            Assert.True(await TestHelpers.WaitUntil(() => provider.Chunkdata.Count == 7));
+            foreach (var (h,v) in new[] {(3,2),(0,2),(2,0),(1,1)})
             {
                 settings.RenderDistance=h; settings.VerticalRenderDistance=v; player.ForceChunkUpdate();
-                var expected=SelectionReference.Calculate(new(0,0,0,0),settings.RenderDistance,settings.VerticalRenderDistance);
+                var expected=SelectionReference.Calculate(new(0,0,0,0),h,v);
                 Assert.True(await TestHelpers.WaitUntil(() => provider.Chunkdata.Keys.ToHashSet().SetEquals(expected)));
             }
             Assert.True(requestor.Stop(TimeSpan.FromSeconds(5)));
-            Assert.True(provider.Chunkdata.Keys.ToHashSet().SetEquals(SelectionReference.Calculate(new(0,0,0,0),5,5)));
+            Assert.True(provider.Chunkdata.Keys.ToHashSet().SetEquals(SelectionReference.Calculate(new(0,0,0,0),1,1)));
         }
         finally { provider.Release.Set(); Assert.True(requestor.Stop(TimeSpan.FromSeconds(5))); provider.Entered.Dispose(); provider.Release.Dispose(); }
     }
@@ -156,7 +156,7 @@ public class ChunkRequestorMovementTests
             player.ForceChunkUpdate();
             provider.Release.Set();
             var target = player.Camera.GetChunkCoord(player.Camera.Position);
-            var expected = ChunkSelection.Calculate(target, 5, 5);
+            var expected = ChunkSelection.Calculate(target, 1, 1);
             Assert.True(await TestHelpers.WaitUntil(() => provider.Chunkdata.Keys.ToHashSet().SetEquals(expected)));
         }
         finally

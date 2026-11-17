@@ -35,11 +35,11 @@ This document provides essential context and guidelines for AI coding agents wor
 - Engine logic goes into `BlockGame.Core` and must not use OpenGL, windowing, input or image libraries.
 - Namespace equals folder path.
 - Run output is never committed (`artifacts/` is ignored).
-- Benchmarking is documented only in `docs/benchmarking.md`.
+- Benchmark workflow is documented only in `docs/benchmarking.md`; results, measured SHAs and result-specific limitations belong in `docs/benchmark-history.md`.
 - Use full correctness before acceptance. Focused family smoke is iteration-only; all GPU rules above still apply.
 - Use the manual workflow in `docs/benchmarking.md`: `dotnet test`, `dotnet run -c Release --project BlockGame.Benchmarks`, and `dotnet run --project BlockGame.Benchmarks -- compare <baseline-directory> <candidate-directory>`. Scripts are optional shortcuts.
 - Before baseline and candidate measurements, pass the full test suite and commit all changes so the working tree is clean. Preserve baseline results before editing code. Compare actual Git engine revisions with the same workloads; never substitute a hand-copied reference.
 - Retain BenchmarkDotNet reports with revision, OS and hardware information. Minimize background load and prefer a consistent power plan as guidelines; account for their effects as noise. Do not require scripted result hashes, portable ZIPs or session drift checks.
-- Pair scenario ID/version/unit/input fingerprint and correctness outputs. Early-return/near-zero/noisy rows cannot establish speedup headlines. Policy remains advisory.
+- Pair scenario ID/version/unit/input fingerprint and correctness outputs. Early-return/near-zero/noisy rows cannot establish speedup headlines. Use comparison exit codes as the regression gate; inconclusive evidence must not be presented as a speedup.
 - Keep the requestor's committed region consistent with its active set; canceled/failed plans roll back additions and explicit unload invalidates the region. Retain movement/reset/resize/failure/wraparound tests.
 - Write the result tables and SHAs into `benchmark-history.md`

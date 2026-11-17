@@ -6,9 +6,6 @@ using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Egui;
 using Egui.Containers;
-using Egui.Silk.NET;
-using StbImageSharp;
-
 namespace Basics.States;
 
 /// <summary>

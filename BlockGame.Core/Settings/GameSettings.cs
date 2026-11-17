@@ -1,5 +1,4 @@
 using Basics.Engine;
-using System;
 
 namespace Basics.Settings;
 
@@ -12,22 +11,14 @@ public class GameSettings
 {
     private readonly Lock _lock = new();
 
-    // Render Distance Einstellungen
+    // Gameplay minimum; raw properties remain available for low-level geometry tests.
     public const int MinimumRenderDistance = 5;
-    private int _renderDistance = 20;
-    private int _verticalRenderDistance = 15;
-    public int RenderDistance
-    {
-        get => _renderDistance;
-        set => _renderDistance = Math.Max(MinimumRenderDistance, value);
-    }
+
+    // Render Distance Einstellungen
+    public int RenderDistance { get; set; } = 20;
     public int Lod1Distance { get; set; } = 15;
     public int Lod2Distance { get; set; } = 20;
-    public int VerticalRenderDistance
-    {
-        get => _verticalRenderDistance;
-        set => _verticalRenderDistance = Math.Max(MinimumRenderDistance, value);
-    }
+    public int VerticalRenderDistance { get; set; } = 15;
     
     // Chunk Gen Einstellungen
     public int MaxChunkMeshesInRam { get; set; } = 200;
@@ -85,7 +76,7 @@ public class GameSettings
     {
         lock (_lock)
         {
-            RenderDistance = distance;
+            RenderDistance = Math.Max(MinimumRenderDistance, distance);
         }
     }
 
@@ -117,7 +108,7 @@ public class GameSettings
     {
         lock (_lock)
         {
-            VerticalRenderDistance = distance;
+            VerticalRenderDistance = Math.Max(MinimumRenderDistance, distance);
         }
     }
 

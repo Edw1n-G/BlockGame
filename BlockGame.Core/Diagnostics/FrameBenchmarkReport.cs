@@ -136,4 +136,22 @@ public static class FrameBenchmarkReport
         }
         return text.ToString();
     }
+
+    public static int ComparisonExitCode(FrameBenchmarkSummary[] baseline, FrameBenchmarkSummary[] candidate)
+    {
+        if (baseline.Length < 3 || candidate.Length < 3) return 3;
+        var all = baseline.Concat(candidate).ToArray();
+        if (all.Any(r => r.SchemaVersion != 2 || r.Revision.Length != 40 || !r.Revision.All(Uri.IsHexDigit) ||
+            r.MeasuredSeconds <= 0 || Metrics.Any(m => !double.IsFinite(m.Get(r)) || m.Get(r) < 0))) return 3;
+        if (baseline.Select(r => r.Revision).Distinct().Count() != 1 || candidate.Select(r => r.Revision).Distinct().Count() != 1) return 3;
+        if (all.Any(r => CompareWarnings(baseline[0], r).Length > 0)) return 3;
+        foreach (var (_, selector) in Metrics.Take(3))
+        {
+            if (baseline.Any(r => selector(r) <= 0) || candidate.Any(r => selector(r) <= 0) ||
+                FrameMetrics.RelativeSpread(baseline.Select(selector)) > .05 ||
+                FrameMetrics.RelativeSpread(candidate.Select(selector)) > .05) return 3;
+        }
+        return Metrics.Take(3).Any(m => FrameMetrics.Percentile(candidate.Select(m.Get), .5) >
+            FrameMetrics.Percentile(baseline.Select(m.Get), .5) * 1.05) ? 2 : 0;
+    }
 }

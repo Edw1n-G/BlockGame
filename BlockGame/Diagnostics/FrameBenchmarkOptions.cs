@@ -45,18 +45,18 @@ public sealed record FrameBenchmarkOptions(int RenderDistance, double Duration, 
             distance = saved.RenderDistance; duration = saved.Duration; world = saved.World; script = saved.Script;
             explicitDistance = true;
         }
-        else if (!explicitDistance && world == "checkerboard") distance = 2;
+        else if (!explicitDistance && world == "checkerboard") distance = GameSettings.MinimumRenderDistance;
         if (sweep != null)
         {
             if (calibrate) throw new ArgumentException("--sweep cannot be combined with calibration.");
-            if (sweep.Length == 0 || sweep.Distinct().Count() != sweep.Length || sweep.Any(d => d is < 1 or > 60))
-                throw new ArgumentException("--sweep needs distinct render distances between 1 and 60, e.g. 8,12,16.");
+            if (sweep.Length == 0 || sweep.Distinct().Count() != sweep.Length || sweep.Any(d => d is < GameSettings.MinimumRenderDistance or > 60))
+                throw new ArgumentException("--sweep needs distinct render distances between 5 and 60, e.g. 8,12,16.");
             distance = sweep[0]; explicitDistance = true;
         }
         if (world is not ("terrain" or "checkerboard")) throw new ArgumentException("World must be terrain or checkerboard.");
-        if (maximum is < 1 or > 60 || maximum < distance) throw new ArgumentException("Maximum render distance must be between the starting distance and 60.");
-        if (distance is < 1 or > 60 || !double.IsFinite(duration) || duration is < 1 or > 600 || repeats is < 1 or > 20)
-            throw new ArgumentException("Render distance: 1..60, duration: 1..600 seconds, repeats: 1..20.");
+        if (maximum is < GameSettings.MinimumRenderDistance or > 60 || maximum < distance) throw new ArgumentException("Maximum render distance must be between the starting distance and 60.");
+        if (distance is < GameSettings.MinimumRenderDistance or > 60 || !double.IsFinite(duration) || duration is < 1 or > 600 || repeats is < 1 or > 20)
+            throw new ArgumentException("Render distance: 5..60, duration: 1..600 seconds, repeats: 1..20.");
         if (script != ScriptedMovementInput.ScriptName) throw new ArgumentException($"Unknown script '{script}'. Available: fly-sweep");
         if (Directory.Exists(output) && Directory.EnumerateFileSystemEntries(output).Any())
             throw new ArgumentException("Output directory must be new or empty.");

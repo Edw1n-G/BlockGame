@@ -174,7 +174,7 @@ public class Menu : IStates
                 .Show(ctx, ui =>
                 {
                     int dist = GameSettings.Current.RenderDistance;
-                    if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, 1, 40).Text("Render Distance")).Changed)
+                    if (ui.Add(new Egui.Widgets.Slider<int>(ref dist, GameSettings.MinimumRenderDistance, 40).Text("Render Distance")).Changed)
                     {
                         GameSettings.Current.SetRenderDistance(dist);
                     }

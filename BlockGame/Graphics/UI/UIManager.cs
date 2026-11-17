@@ -80,12 +80,12 @@ namespace Basics.Graphics.UI
                     {
                         int hdist = _settings.RenderDistance;
                         int vdist = _settings.VerticalRenderDistance;
-                        if (ui.Add(new Egui.Widgets.Slider<int>(ref hdist, 1, 60).Text("Horizontal Render Distance")).Changed)
+                        if (ui.Add(new Egui.Widgets.Slider<int>(ref hdist, GameSettings.MinimumRenderDistance, 60).Text("Horizontal Render Distance")).Changed)
                         {
                             _settings.SetRenderDistance(hdist);
                             NotifyRenderDistanceChanged();
                         }
-                        if (ui.Add(new Egui.Widgets.Slider<int>(ref vdist, 1, 30).Text("Vertical Render Distance")).Changed)
+                        if (ui.Add(new Egui.Widgets.Slider<int>(ref vdist, GameSettings.MinimumRenderDistance, 30).Text("Vertical Render Distance")).Changed)
                         {
                             _settings.SetVerticalRenderDistance(vdist);
                             NotifyRenderDistanceChanged();

@@ -37,7 +37,7 @@ public class FrameBenchmarkTests
         Assert.True(terrain.Calibrate);
         Assert.True(checker.Calibrate);
         Assert.Equal(12, terrain.RenderDistance);
-        Assert.Equal(2, checker.RenderDistance);
+        Assert.Equal(5, checker.RenderDistance);
         Assert.Equal("Ag@BBABA==", checker.Settings().Worldtype);
         Assert.False(FrameBenchmarkOptions.Parse(["--benchmark", "--render-distance", "12"]).Calibrate);
         Assert.True(FrameBenchmarkOptions.Parse(["--benchmark", "calibrate", "--render-distance", "12"]).Calibrate);

@@ -13,10 +13,21 @@ public class GameSettings
     private readonly Lock _lock = new();
 
     // Render Distance Einstellungen
-    public int RenderDistance { get; set; } = 20;
+    public const int MinimumRenderDistance = 5;
+    private int _renderDistance = 20;
+    private int _verticalRenderDistance = 15;
+    public int RenderDistance
+    {
+        get => _renderDistance;
+        set => _renderDistance = Math.Max(MinimumRenderDistance, value);
+    }
     public int Lod1Distance { get; set; } = 15;
     public int Lod2Distance { get; set; } = 20;
-    public int VerticalRenderDistance { get; set; } = 15;
+    public int VerticalRenderDistance
+    {
+        get => _verticalRenderDistance;
+        set => _verticalRenderDistance = Math.Max(MinimumRenderDistance, value);
+    }
     
     // Chunk Gen Einstellungen
     public int MaxChunkMeshesInRam { get; set; } = 200;
@@ -74,7 +85,7 @@ public class GameSettings
     {
         lock (_lock)
         {
-            RenderDistance = Math.Max(1, distance);
+            RenderDistance = distance;
         }
     }
 
@@ -106,7 +117,7 @@ public class GameSettings
     {
         lock (_lock)
         {
-            VerticalRenderDistance = Math.Max(1, distance);
+            VerticalRenderDistance = distance;
         }
     }
 

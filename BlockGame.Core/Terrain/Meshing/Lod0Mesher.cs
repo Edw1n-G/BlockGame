@@ -116,20 +116,16 @@ public class Lod0Mesher : BaseMesher
         _neighborCache = null;
     }
     
-    // Reserve one complete vertex in the pooled list before taking a borrowed span.
+    // Write into an already reserved face; this helper must not resize the pooled list.
     // Explicit little-endian writes preserve the existing GPU byte layout and zero padding.
-    private new void AddVertex(float x, float y, float z, ushort layer, byte aoLevel)
+    private static void WriteVertex(Span<byte> vertex, float x, float y, float z, ushort layer, byte aoLevel)
     {
-        int offset = _vertices.Count;
-        CollectionsMarshal.SetCount(_vertices, checked(offset + 16));
-        Span<byte> vertex = CollectionsMarshal.AsSpan(_vertices).Slice(offset, 16);
         BinaryPrimitives.WriteSingleLittleEndian(vertex, x);
         BinaryPrimitives.WriteSingleLittleEndian(vertex.Slice(4), y);
         BinaryPrimitives.WriteSingleLittleEndian(vertex.Slice(8), z);
         BinaryPrimitives.WriteUInt16LittleEndian(vertex.Slice(12), layer);
         vertex[14] = aoLevel;
         vertex[15] = 0;
-        _vertexCount++;
     }
 
     private void CreateCubeFace(int x, int y, int z, int face)
@@ -143,48 +139,54 @@ public class Lod0Mesher : BaseMesher
         byte ao2 = CalcAoLevel(x, y, z, face, 2);
         byte ao3 = CalcAoLevel(x, y, z, face, 3);
         
+        // Reserve the entire quad before borrowing its span. No list growth while it is live.
+        int offset = _vertices.Count;
+        CollectionsMarshal.SetCount(_vertices, checked(offset + 64));
+        Span<byte> faceVertices = CollectionsMarshal.AsSpan(_vertices).Slice(offset, 64);
+
         switch (face)
         {
             case BlockDefinitionLoader.Top:
-                AddVertex(x,     y + 1, z + 1, textureLayer, ao0);
-                AddVertex(x + 1, y + 1, z + 1, textureLayer, ao1);
-                AddVertex(x + 1, y + 1, z,     textureLayer, ao2);
-                AddVertex(x,     y + 1, z,     textureLayer, ao3);
+                WriteVertex(faceVertices.Slice(0, 16), x,     y + 1, z + 1, textureLayer, ao0);
+                WriteVertex(faceVertices.Slice(16, 16), x + 1, y + 1, z + 1, textureLayer, ao1);
+                WriteVertex(faceVertices.Slice(32, 16), x + 1, y + 1, z,     textureLayer, ao2);
+                WriteVertex(faceVertices.Slice(48, 16), x,     y + 1, z,     textureLayer, ao3);
                 break;
             case BlockDefinitionLoader.Bottom:
-                AddVertex(x,     y, z,     textureLayer, ao0);
-                AddVertex(x + 1, y, z,     textureLayer, ao1);
-                AddVertex(x + 1, y, z + 1, textureLayer, ao2);
-                AddVertex(x,     y, z + 1, textureLayer, ao3);
+                WriteVertex(faceVertices.Slice(0, 16), x,     y, z,     textureLayer, ao0);
+                WriteVertex(faceVertices.Slice(16, 16), x + 1, y, z,     textureLayer, ao1);
+                WriteVertex(faceVertices.Slice(32, 16), x + 1, y, z + 1, textureLayer, ao2);
+                WriteVertex(faceVertices.Slice(48, 16), x,     y, z + 1, textureLayer, ao3);
                 break;
             case BlockDefinitionLoader.Front:
-                AddVertex(x,     y,     z + 1, textureLayer, ao0);
-                AddVertex(x + 1, y,     z + 1, textureLayer, ao1);
-                AddVertex(x + 1, y + 1, z + 1, textureLayer, ao2);
-                AddVertex(x,     y + 1, z + 1, textureLayer, ao3);
+                WriteVertex(faceVertices.Slice(0, 16), x,     y,     z + 1, textureLayer, ao0);
+                WriteVertex(faceVertices.Slice(16, 16), x + 1, y,     z + 1, textureLayer, ao1);
+                WriteVertex(faceVertices.Slice(32, 16), x + 1, y + 1, z + 1, textureLayer, ao2);
+                WriteVertex(faceVertices.Slice(48, 16), x,     y + 1, z + 1, textureLayer, ao3);
                 break;
             case BlockDefinitionLoader.Back:
-                AddVertex(x + 1, y,     z, textureLayer, ao0);
-                AddVertex(x,     y,     z, textureLayer, ao1);
-                AddVertex(x,     y + 1, z, textureLayer, ao2);
-                AddVertex(x + 1, y + 1, z, textureLayer, ao3);
+                WriteVertex(faceVertices.Slice(0, 16), x + 1, y,     z, textureLayer, ao0);
+                WriteVertex(faceVertices.Slice(16, 16), x,     y,     z, textureLayer, ao1);
+                WriteVertex(faceVertices.Slice(32, 16), x,     y + 1, z, textureLayer, ao2);
+                WriteVertex(faceVertices.Slice(48, 16), x + 1, y + 1, z, textureLayer, ao3);
                 break;
             case BlockDefinitionLoader.Left:
-                AddVertex(x, y,     z,     textureLayer, ao0);
-                AddVertex(x, y,     z + 1, textureLayer, ao1);
-                AddVertex(x, y + 1, z + 1, textureLayer, ao2);
-                AddVertex(x, y + 1, z,     textureLayer, ao3);
+                WriteVertex(faceVertices.Slice(0, 16), x, y,     z,     textureLayer, ao0);
+                WriteVertex(faceVertices.Slice(16, 16), x, y,     z + 1, textureLayer, ao1);
+                WriteVertex(faceVertices.Slice(32, 16), x, y + 1, z + 1, textureLayer, ao2);
+                WriteVertex(faceVertices.Slice(48, 16), x, y + 1, z,     textureLayer, ao3);
                 break;
             case BlockDefinitionLoader.Right:
-                AddVertex(x + 1, y,     z + 1, textureLayer, ao0);
-                AddVertex(x + 1, y,     z,     textureLayer, ao1);
-                AddVertex(x + 1, y + 1, z,     textureLayer, ao2);
-                AddVertex(x + 1, y + 1, z + 1, textureLayer, ao3);
+                WriteVertex(faceVertices.Slice(0, 16), x + 1, y,     z + 1, textureLayer, ao0);
+                WriteVertex(faceVertices.Slice(16, 16), x + 1, y,     z,     textureLayer, ao1);
+                WriteVertex(faceVertices.Slice(32, 16), x + 1, y + 1, z,     textureLayer, ao2);
+                WriteVertex(faceVertices.Slice(48, 16), x + 1, y + 1, z + 1, textureLayer, ao3);
                 break;
         }
         
         // Indices direkt hinzufügen, keine Array-Allokation
-        uint baseIdx = (uint)(_vertexCount - 4);
+        uint baseIdx = (uint)_vertexCount;
+        _vertexCount += 4;
         if (ao0 + ao2 > ao1 + ao3)
         {
             _indices.Add(baseIdx + 1); _indices.Add(baseIdx + 2); _indices.Add(baseIdx + 3);

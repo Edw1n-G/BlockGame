@@ -111,6 +111,40 @@ public class WorkloadTests
         for (int i = 0; i < 6; i++) Assert.Equal((uint)quad + expected[i], indices[quad / 4 * 6 + i]);
     }
 
+    [Theory]
+    [InlineData("floor")]
+    [InlineData("checkerboard")]
+    public void MeshOutputSurvivesDirtyUndersizedPooledBuffers(string scenario)
+    {
+        using var env = new WorkloadEnvironment();
+        using var fixture = new MeshWorkload(scenario, env.Registry);
+        byte[] expectedVertices;
+        uint[] expectedIndices;
+        using (var mesh = fixture.Build())
+        {
+            expectedVertices = MeshWorkload.Vertices(mesh).ToArray();
+            expectedIndices = MeshWorkload.Indices(mesh).ToArray();
+        }
+
+        Assert.True(fixture.Provider.VertexListPool.TryDequeue(out var vertices));
+        Assert.True(fixture.Provider.IndexListPool.TryDequeue(out var indices));
+        vertices.Clear();
+        vertices.Capacity = 17; // Force growth, including a partial vertex's worth of stale data.
+        vertices.AddRange(Enumerable.Repeat((byte)255, 17));
+        indices.Clear();
+        indices.Capacity = 1;
+        indices.Add(uint.MaxValue);
+        fixture.Provider.VertexListPool.Enqueue(vertices);
+        fixture.Provider.IndexListPool.Enqueue(indices);
+
+        using (var mesh = fixture.Build())
+        {
+            Assert.Equal(expectedVertices, MeshWorkload.Vertices(mesh).ToArray());
+            Assert.Equal(expectedIndices, MeshWorkload.Indices(mesh).ToArray());
+        }
+        fixture.ValidateRetainedState();
+    }
+
     [Fact]
     public void BorrowedViewsCannotReadReturnedPoolBuffers()
     {

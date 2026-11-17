@@ -136,6 +136,22 @@ public class ChunkDataTests
         Assert.Equal((expectedLocal, expectedLocal, expectedLocal), (x, y, z));
     }
 
+    [Fact]
+    public void WorldToLocal_MatchesFloorDivisionAcrossBoundariesAndIntegerExtremes()
+    {
+        int[] anchors = [int.MinValue, int.MinValue + 32, -1024, -32, -16, 0, 16, 32, 1024, int.MaxValue - 32];
+        static int Expected(int value) => (int)(value - (long)Math.Floor(value / 16.0) * 16);
+        foreach (int anchor in anchors)
+        for (int offset = 0; offset < 32; offset++)
+        {
+            int x = anchor + offset;
+            int y = ~x;
+            int z = offset - 16;
+            Assert.Equal((Expected(x), Expected(y), Expected(z)), ChunkData.WorldToLocal(x, y, z));
+        }
+        Assert.Equal((0, 15, 15), ChunkData.WorldToLocal(int.MinValue, int.MaxValue, -1));
+    }
+
     [Theory]
     [InlineData(0, 0)]
     [InlineData(15, 0)]

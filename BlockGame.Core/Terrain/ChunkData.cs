@@ -163,11 +163,9 @@ public class ChunkData
     /// <returns>Ein Tupel mit den lokalen Koordinaten (localX, localY, localZ) im Bereich 0-15.</returns>
     public static (int localX, int localY, int localZ) WorldToLocal(int worldX, int worldY, int worldZ)
     {
-        // Modulo das auch für negative Werte funktioniert
-        int localX = ((worldX % 16) + 16) % 16;
-        int localY = ((worldY % 16) + 16) % 16;
-        int localZ = ((worldZ % 16) + 16) % 16;
-        return (localX, localY, localZ);
+        // For 16-block chunks, the low four bits are the nonnegative remainder,
+        // including negative world coordinates in two's-complement representation.
+        return (worldX & 15, worldY & 15, worldZ & 15);
     }
 
     /// <summary>

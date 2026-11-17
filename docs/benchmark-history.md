@@ -1,3 +1,29 @@
+# LOD0 face vertex reservation — 2026-11-17
+
+Baseline: `3f42e9a9e2765132988b28c69faa062ca72d3d4f`.
+Candidate: `0e1df0079a4f8bc01d7561ab3f79c5d16d6f7752`.
+Unchanged benchmark tree: `a2c571cefff70eb671cb784fee37cc3ccbcced29`.
+
+Reserve vertex storage once per quad instead of once per vertex. Full suites: baseline 425/425, candidate 427/427, none skipped; comparator controls 4/4. All seven scenario contracts and output fingerprints match. Both measured revisions were clean.
+
+Environment: AMD Ryzen 9 7900X (12 physical / 24 logical cores), Windows 11 25H2 build 26200.9457, x64 .NET 10.0.3, SDK 10.0.103, BenchmarkDotNet 0.15.8, RyuJIT, concurrent workstation GC. User reported minimal background load; measurements ran sequentially and left the power plan unchanged.
+
+All rows use scenario version 1 and unit `one-lod0-build-and-return-buffers`. Means are nanoseconds per operation; negative change means less time. Allocation is 408 B/op in both revisions for every row.
+
+| Scenario | Baseline ns | Candidate ns | Time change | Advisory verdict |
+|---|---:|---:|---:|---|
+| mesh/allocated-air | 1334.095 | 1335.226 | +0.08% | inconclusive |
+| mesh/checkerboard | 445363.062 | 385629.736 | -13.41% | improved |
+| mesh/exposed-solid | 88007.264 | 78886.721 | -10.36% | improved |
+| mesh/floor | 53436.054 | 48330.193 | -9.56% | improved |
+| mesh/frozen-terrain | 17864.839 | 18061.420 | +1.10% | inconclusive |
+| mesh/null-air | 25.303 | 26.075 | suppressed: below timing floor | inconclusive |
+| mesh/occluded-solid | 12507.148 | 12607.185 | +0.80% | inconclusive |
+
+Retained the candidate for the three measured geometry improvements. One baseline/candidate pair is not replicated evidence or an FPS estimate; frozen terrain shows no demonstrated benefit. The null-air control cannot support percentage claims. BenchmarkDotNet reported outlier removals; the comparator classified no regressions.
+
+Reports: `artifacts/face-batch-baseline-20261117/`, `artifacts/face-batch-candidate-20261117/`, and `artifacts/face-batch-comparison-20261117.{json,md}`. Procedure, commands, test evidence, setup failures and limits are in [benchmarking.md](benchmarking.md#lod0-face-vertex-reservation-experiment-2026-11-17).
+
 # First iteration
 
 | Scenario | Original µs/path | Incremental µs/path | Time reduction | Original bytes/path | Incremental bytes/path |

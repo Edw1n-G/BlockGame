@@ -1,5 +1,43 @@
 # CPU benchmarking
 
+## LOD0 face vertex reservation experiment (2026-11-17)
+
+Reserve the entire 64-byte quad once per visible face instead of reserving each of its four vertices separately. Write four fixed slices through a static helper and increment the vertex count once. Explicit little-endian writes, zero padding, face order, AO diagonals, pooled ownership and GPU behavior remain unchanged.
+
+Steps:
+
+1. Inspect the workflow, mesher and existing tests. Start from clean baseline `3f42e9a9e2765132988b28c69faa062ca72d3d4f`. Run the full suite: 425 passed, zero failed/skipped.
+2. Measure all seven existing `mesh/*` cases with the normal Measure job. Preserve the complete baseline directory before editing source.
+3. Implement face reservation in `BlockGame.Core/Terrain/Meshing/Lod0Mesher.cs`. Add two cases in the existing `WorkloadTests`: dirty vertex/index lists with deliberately tiny capacities must produce exactly the same bytes and indices after reuse and growth. Existing tests independently cover winding, materials, AO, padding and geometry counts.
+4. Rider file analysis returned no errors. Run the full suite: 427 passed, zero failed/skipped. Commit candidate `0e1df0079a4f8bc01d7561ab3f79c5d16d6f7752`; confirm a clean working tree.
+5. Measure the identical seven cases, compare saved directories and run comparator controls (4/4 passed). Explicitly verify matching scenario IDs, versions, units, input fingerprints, successful correctness checks and output fingerprints for all seven cases. The benchmark harness tree is unchanged.
+6. Retain the candidate: three geometry cases improve beyond the practical/uncertainty threshold; four rows are inconclusive and none are classified as regressed. Allocations remain 408 B/op. Full tables and SHAs are in [benchmark-history.md](benchmark-history.md).
+
+Commands (PowerShell, repository root; log redirection omitted):
+
+```powershell
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' test
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' run -c Release --project BlockGame.Benchmarks -- --mode Measure --case 'mesh/*' --output artifacts/face-batch-baseline-20261117
+# Apply engine/test changes, run the entire suite, then commit:
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' test
+git add BlockGame.Core/Terrain/Meshing/Lod0Mesher.cs BlockGame.Tests/WorkloadTests.cs
+git commit -m "Reserve LOD0 vertex storage once per face"
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' run -c Release --project BlockGame.Benchmarks -- --mode Measure --case 'mesh/*' --output artifacts/face-batch-candidate-20261117
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' run --project BlockGame.Benchmarks -- compare artifacts/face-batch-baseline-20261117 artifacts/face-batch-candidate-20261117 artifacts/face-batch-comparison-20261117.json
+& 'C:/Users/Edwin/.dotnet/dotnet.exe' run --project BlockGame.Benchmarks -- validate-controls
+```
+
+Troubles and limits:
+
+- Sandboxed `dotnet test` failed at MSBuild project-property discovery with exit code 1. The same command succeeded outside the sandbox. Subsequent CLI checks and measurements used that working environment, the explicit SDK executable and no PATH edits.
+- Sandboxed Git staging/commit could not create `.git/index.lock` (permission denied). Staging the two explicit files and committing succeeded with elevated sandbox access. No push was performed.
+- Read-only inspection initially looked for history at the repository root instead of `docs/`, then queried a nonexistent `scenarios` property instead of the run index's `cases`. Both were corrected without affecting measurements. A documentation-writing tool call also failed to parse because of nested backticks; the edit was reapplied with a patch.
+- Existing compiler nullable and xUnit analyzer warnings remain; Rider reporting no errors does not imply a warning-free build.
+- The user reported minimal background load. Runs were sequential with no concurrent tests/builds and no power-plan change requested. Each seven-case run took about 2m32s including build. Reports contain outlier-removal hints.
+- This is one baseline/candidate pair on one machine with warmed pools. Frozen terrain increased 1.10% but remains inconclusive. Results do not establish a general terrain or FPS improvement, cold-pool allocation behavior, or cross-machine performance. The near-zero null-air control cannot support a percentage claim.
+
+Evidence stays uncommitted under ignored `artifacts/`: complete `face-batch-baseline-20261117/` and `face-batch-candidate-20261117/` directories (BenchmarkDotNet reports/raw measurements, manifests, child correctness evidence and run indexes); matching launcher `.log` files; `face-batch-baseline-tests-20261117.log`, `face-batch-candidate-tests-20261117.log`; and `face-batch-comparison-20261117.json` / `.md`. The successful baseline retry replaced the short failed-test log; its error is recorded above.
+
 ## Terrain density buffer pooling experiment (2026-11-11)
 
 - Inspect `TerrainGenerator.GenerateChunk`: each in-map chunk creates a temporary 16 x 17 x 16 float density array, used only until block classification completes. Reuse this scratch buffer with the built-in `ArrayPool<float>.Shared`; add an internal span-filling method to the existing `NoiseCalculator`, preserving its array-returning API. No new classes or scripts.

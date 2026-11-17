@@ -22,6 +22,11 @@ public static class FrameBenchmarkCommand
             FrameBenchmarkCalibration.Run(options);
             return true;
         }
+        if (options.Sweep != null)
+        {
+            RunSweep(options);
+            return true;
+        }
         if (options.Repeats == 1)
         {
             FrameBenchmarkRun.Options = options;
@@ -30,6 +35,29 @@ public static class FrameBenchmarkCommand
         }
         RunRepeats(options);
         return true;
+    }
+
+    /// <summary>Fixed render distances, each with its own repeats folder (<c>rd-NN</c>); no calibration.</summary>
+    internal static void RunSweep(FrameBenchmarkOptions options)
+    {
+        Directory.CreateDirectory(options.Output);
+        var results = new List<(int Distance, FrameBenchmarkSummary[] Runs)>();
+        foreach (int distance in options.Sweep!)
+        {
+            Console.WriteLine($"Sweep: render distance {distance}...");
+            var runs = RunRepeats(options with
+            {
+                RenderDistance = distance, Sweep = null, Calibrate = false,
+                Output = Path.Combine(options.Output, $"rd-{distance:00}")
+            });
+            results.Add((distance, runs));
+        }
+        string report = "# Frame benchmark sweep\n\n" + FrameBenchmarkReport.DescribeSweep(results) +
+            "\nEach `rd-NN` folder is a normal repeats folder; compare candidates per distance, e.g. `--benchmark compare base/rd-12 candidate/rd-12`.\n";
+        File.WriteAllText(Path.Combine(options.Output, "sweep.md"), report);
+        File.WriteAllText(Path.Combine(options.Output, "sweep.json"),
+            JsonSerializer.Serialize(results.Select(r => new { r.Distance, r.Runs }), FrameBenchmarkReport.JsonOptions));
+        Console.WriteLine(report);
     }
 
     internal static FrameBenchmarkSummary[] RunRepeats(FrameBenchmarkOptions options)

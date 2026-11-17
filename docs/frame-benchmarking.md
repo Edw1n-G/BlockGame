@@ -37,6 +37,7 @@ Options after `--benchmark`:
 | `--repeats` | `3` | Separate processes; calibration verification always uses at least 3 |
 | `--world` | `terrain` | `terrain` or `checkerboard` (`Ag@BBABA==`) |
 | `--max-render-distance` | `60` | Calibration radius ceiling |
+| `--sweep` | none | Comma-separated fixed render distances, e.g. `8,12,16`; no calibration. Each distance gets its own `rd-NN` repeats folder, and `sweep.md`/`sweep.json` summarise them |
 | `--baseline` | none | Successful calibration folder/file; freezes world, duration, script and radius |
 
 The frame cap remains 1000 Hz (1 ms), far above the 16 ms target, VSync is off, MSAA is 2, the initial window is 800×600,
@@ -109,6 +110,19 @@ Exit codes: 0 for a completed valid run, 2 for a written invalid run or unsucces
 launch/runtime/report errors. Repeat orchestration retains nonzero child status and
 continues when a child wrote an invalid summary; a child without a summary stops it.
 Comparison warnings are advisory and comparison does not change process exit status.
+
+## Render-distance sweep
+
+```powershell
+dotnet run -c Release --project BlockGame -- --benchmark --sweep 8,12,16,20 --duration 30 --output artifacts/frame-bench/sweep-base
+```
+
+Runs the same workload at each fixed distance (default 3 repeats each, separate processes)
+and writes `sweep.md` with one row per distance (median frame p50/p95/p99, updates, max update
+gap, generated/s, drawn fraction, and INVALID/DEGRADED/NOISY flags). To compare a candidate,
+run the same sweep and compare per distance, e.g. `--benchmark compare
+artifacts/frame-bench/sweep-base/rd-12 artifacts/frame-bench/sweep-cand/rd-12`. Passing the
+sweep root to `compare` is rejected because it mixes distances.
 
 ## Calibration and workload version 2
 

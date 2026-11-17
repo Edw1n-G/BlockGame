@@ -27,7 +27,7 @@ public class WindowSetup
         options.Title = "Game";
         
         options.FramesPerSecond = GameSettings.Current.FrameRate;
-        options.UpdatesPerSecond = 60.0;
+        options.UpdatesPerSecond = Basics.Player.ScriptedMovementInput.NominalUpdatesPerSecond;
         options.VSync = GameSettings.Current.VSync;
         
         Window = Silk.NET.Windowing.Window.Create(options);

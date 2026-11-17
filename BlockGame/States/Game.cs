@@ -86,9 +86,9 @@ public class Game : IStates
         _terrainGenerator = _context.TerrainGenerator;
         
         // Spieler mit eigener Kamera erstellen (injizierte Subsysteme)
-        _player = new PlayerCharacter(Basics.Diagnostics.FrameBenchmarkRun.Options != null ? new Vector3(0, 150, 0) : PlayerStartPosition, _inputManager, _context.World, _context.Physics);
+        _player = new PlayerCharacter(Basics.Diagnostics.FrameBenchmarkRun.Options != null ? Basics.Player.ScriptedMovementInput.StartPosition : PlayerStartPosition, _inputManager, _context.World, _context.Physics);
         PlayerCamera = _player.Camera;
-        if (Basics.Diagnostics.FrameBenchmarkRun.Options != null) PlayerCamera.Rotate(0, 45);
+        if (Basics.Diagnostics.FrameBenchmarkRun.Options != null) PlayerCamera.Rotate(0, -Basics.Player.ScriptedMovementInput.StartPitchDegrees);
 
         //Main Camera und Renderer erstellen
         _playerRenderer = new Renderer(_chunkProvider);
@@ -165,8 +165,12 @@ public class Game : IStates
         _playerRenderer.FramebufferResize(newSize);
     }
 
+    private bool _exited;
+
     public void Exit()
     {
+        if (_exited) return; // Window.Closing and a state change can both request Exit.
+        _exited = true;
         _benchmark?.Abort(_chunkProvider);
         _uiIntegration?.Dispose();
         _playerMovement?.Dispose();

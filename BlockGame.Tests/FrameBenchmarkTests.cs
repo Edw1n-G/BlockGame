@@ -168,6 +168,31 @@ public class FrameBenchmarkTests
     }
 
     [Fact]
+    public void FrameGateAllowsZeroCountersAndDoesNotApplyTimingSpreadToCounters()
+    {
+        var a = Summary() with { Revision = new string('a', 40), FrameP95Ms = 12, FrameP99Ms = 14, Counts = new(0,0,0,0) };
+        // 0 to 1 has large relative spread but is within the absolute work-count tolerance.
+        var b = a with { Counts = new(1,1,1,1) };
+        Assert.Equal(0, FrameBenchmarkReport.ComparisonExitCode([a,b,a], [b,a,b]));
+        Assert.Equal(3, FrameBenchmarkReport.ComparisonExitCode([a,a,a], [a with { MeanDrawnFraction = double.NaN },a,a]));
+        Assert.Equal(3, FrameBenchmarkReport.ComparisonExitCode([a,a,a], [a with { Counts = new(-1,0,0,0) },a,a]));
+    }
+
+    [Fact]
+    public void ReadRunsDoesNotDiscoverNestedProbeOrCalibrationResults()
+    {
+        string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(path, "runs", "run-01"));
+        try
+        {
+            File.WriteAllText(Path.Combine(path, "runs", "run-01", "summary.json"), System.Text.Json.JsonSerializer.Serialize(Summary()));
+            Assert.Throws<InvalidDataException>(() => FrameBenchmarkReport.ReadRuns(path));
+            Assert.Single(FrameBenchmarkReport.ReadRuns(Path.Combine(path, "runs")));
+        }
+        finally { Directory.Delete(path, true); }
+    }
+
+    [Fact]
     public void RepeatsFlagNoiseAndComparisonHandlesZeroBase()
     {
         var a = Summary();

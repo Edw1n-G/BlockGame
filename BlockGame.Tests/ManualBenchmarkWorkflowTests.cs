@@ -122,7 +122,7 @@ public class ManualBenchmarkWorkflowTests : IDisposable
     {
         string output = Path.Combine(_directory.FullName, "revision-run");
         var commands = new List<string>();
-        string Fake(string executable, string directory, string? log, params string[] args)
+        string Fake(string executable, string directory, string? log, int timeoutSeconds, params string[] args)
         {
             commands.Add(string.Join(" ", args));
             if (args[0] == "rev-parse") return args.Contains("--show-toplevel") ? _directory.FullName : new string(args[^1].StartsWith("base") ? 'a' : 'b', 40);
@@ -138,16 +138,31 @@ public class ManualBenchmarkWorkflowTests : IDisposable
         }
         int result = RevisionComparison.Run(["revisions", "--baseline", "base", "--candidate", "cand", "--case", "mesh/*", "--output", output], Fake);
         Assert.Equal(failTests ? 1 : 0, result);
+        Assert.Equal(failTests ? 1 : 2, commands.Count(c => c.StartsWith("worktree remove ")));
         var stages = commands.Where(c => c.StartsWith("test ") || c.StartsWith("run ")).ToArray();
-        Assert.Equal(failTests ? 1 : 4, stages.Length);
+        Assert.Equal(failTests ? 1 : 6, stages.Length);
         Assert.StartsWith("test ", stages[0]);
         if (!failTests)
         {
-            Assert.StartsWith("run ", stages[1]); Assert.StartsWith("test ", stages[2]); Assert.StartsWith("run ", stages[3]);
+            Assert.StartsWith("test ", stages[1]);
+            var measurements = stages.Skip(2).ToArray();
+            Assert.Contains("baseline", measurements[0]); Assert.Contains("candidate", measurements[1]);
+            Assert.Contains("candidate", measurements[2]); Assert.Contains("baseline", measurements[3]);
             Assert.All(stages.Where(c => c.StartsWith("run ")), c => Assert.Contains("--case mesh/*", c));
             Assert.True(File.Exists(Path.Combine(output, "comparison.json")));
         }
     }
 
     public void Dispose() => _directory.Delete(recursive: true);
+
+    [Fact]
+    public void HungChildIsTerminatedAndItsLogRetained()
+    {
+        string log = Path.Combine(_directory.FullName, "timeout.log");
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+        Assert.Throws<TimeoutException>(() => RevisionComparison.Execute("powershell.exe", _directory.FullName, log, 1,
+            "-NoProfile", "-NonInteractive", "-Command", "Write-Output started; Start-Sleep -Seconds 30"));
+        Assert.True(timer.Elapsed < TimeSpan.FromSeconds(15));
+        Assert.True(File.Exists(log));
+    }
 }

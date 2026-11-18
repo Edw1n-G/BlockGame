@@ -71,8 +71,12 @@ public static class FrameBenchmarkReport
         if (File.Exists(path)) return [Read(path)];
         if (File.Exists(Path.Combine(path, "sweep.json")))
             throw new ArgumentException("This is a sweep folder with several render distances; pass one of its rd-NN folders.");
-        if (File.Exists(Path.Combine(path, "calibration.json"))) path = Path.Combine(path, "runs");
-        return Directory.GetFiles(path, "summary.json", SearchOption.AllDirectories).Order().Select(Read).ToArray();
+        string summary = Path.Combine(path, "summary.json");
+        if (File.Exists(summary)) return [Read(summary)];
+        var runs = Directory.GetDirectories(path, "run-*").Order()
+            .Select(directory => Read(Path.Combine(directory, "summary.json"))).ToArray();
+        if (runs.Length == 0) throw new InvalidDataException("No direct run summaries found; pass a fixed-distance run or repeats folder.");
+        return runs;
     }
 
     public static string DescribeRepeats(FrameBenchmarkSummary[] runs)

@@ -11,17 +11,23 @@ dotnet run -c Release --project BlockGame.Benchmarks -- revisions --baseline <re
 ```
 
 The command resolves both refs to commit SHAs, creates separate detached worktrees,
-runs the full Release test suite on each, and measures the baseline before the candidate.
+runs the full Release test suite on each, and measures two pairs in opposite order:
+baseline/candidate, then candidate/baseline. This balances first/second position but
+does not eliminate machine drift. Each pair is compared independently without pooling
+samples; both must pass. Any regression fails; otherwise insufficient evidence returns 3.
 It stops on test or measurement failure. Both revisions must contain a compatible
 benchmark harness and support `dotnet test --solution Rendering.sln -c Release`.
 No reference implementation is substituted for either engine revision.
 
 Repeat `--case` to select multiple patterns; omit it for all workloads. `--dotnet <executable>`
 selects the SDK host for child commands. The output path must not already exist.
-The output retains source worktrees, test/measurement logs, resolved SHAs, complete
-results and `comparison.json`/`comparison.md`. Worktrees are retained on failure too,
-so evidence can be inspected. Remove them later with `git worktree remove <path>`
-after preserving the results. The current checkout is not switched or edited.
+The output retains test/measurement logs, resolved SHAs, execution order, complete
+results under `pair-1`/`pair-2`, and aggregate `comparison.json`/`comparison.md`.
+Temporary worktrees are removed on success and failure; logs/results remain outside
+them. Cleanup does not force removal of unexpected changes: it reports an error and
+preserves that worktree for inspection. The current checkout is not switched or edited.
+`--timeout-seconds` bounds each child command (default 1800, range 1–86400). On timeout
+the process tree is terminated, output is retained, and the run returns 1.
 
 ## Manual workflow
 
@@ -143,3 +149,12 @@ Define stable IDs, versions, units, timing class, serialized inputs and independ
 correctness expectations/output fingerprints. Register discovery and Smoke checks.
 Bump versions when inputs or semantics change. Keep fresh-set and movement workloads
 separate. Commit harness changes before collecting both baseline and candidate runs.
+
+## Open follow-ups
+
+| Priority | Follow-up | Reason |
+|---|---|---|
+| P1 | Add cold requestor population and asynchronous request-coalescing benchmarks with separate units. | Warm movement cases exclude provider calls, tasks and locks. |
+| P2 | Measure retained capacity after a warm movement path. | Zero allocated bytes does not measure storage retained by lists and sets. |
+| P3 | Print a copyable benchmark command with the resolved .NET executable. | The pinned SDK and optional executable override do not expose the resolved command in reports. |
+| P3 | Normalize additional case-level BenchmarkDotNet statistical warnings. | Raw reports contain warnings beyond the currently normalized diagnostics. |

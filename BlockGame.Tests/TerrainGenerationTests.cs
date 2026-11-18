@@ -88,8 +88,10 @@ public class TerrainGenerationTests
         {
             ChunkData chunk = session.TerrainGenerator.GenerateChunk(coord);
 
-            Assert.NotNull(chunk.Blocks);
-            Assert.All(chunk.Blocks!, id => Assert.Contains(id, allowed));
+            for (int x = 0; x < 16; x++)
+            for (int y = 0; y < 16; y++)
+            for (int z = 0; z < 16; z++)
+                Assert.Contains(chunk.GetBlock(x, y, z), allowed);
         }
     }
 

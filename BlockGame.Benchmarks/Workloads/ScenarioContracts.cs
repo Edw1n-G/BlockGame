@@ -45,6 +45,6 @@ public static class ScenarioContracts
             default: throw new ArgumentException("Unknown scenario family: "+family);
         }
         if(NeedsNative(family) && dependencies is null) throw new InvalidOperationException("Native/content identity required for "+family);
-        return ScenarioContract.Create(family+"/"+scenario,1,unit,new {definition=inputs,parameters=extraParameters},timing);
+        return ScenarioContract.Create(family+"/"+scenario,family == "terrain" ? 2 : 1,unit,new {definition=inputs,parameters=extraParameters},timing);
     }
 }

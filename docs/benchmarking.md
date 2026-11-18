@@ -145,6 +145,16 @@ Counters include completed work later discarded as stale and are approximate acr
 
 ## Adding workloads
 
+### Retained chunk storage census
+
+`dotnet run -c Release --project BlockGame.Benchmarks -- chunk-memory --output artifacts/chunk-memory-base`
+retains generated chunks in radius-12 selections around spawn, surface and deep terrain
+(seed 1, frozen world graph). Repeat on the candidate with a fresh output directory.
+Compare logical fingerprints and exact block payload bytes; the forced-GC managed heap
+delta is approximate. This headless census excludes meshes, provider storage, GPU memory
+and process RSS, and does not establish timing performance. Use the terrain Measure
+workloads and frame comparison separately. Pass the full tests and commit before both runs.
+
 Define stable IDs, versions, units, timing class, serialized inputs and independent
 correctness expectations/output fingerprints. Register discovery and Smoke checks.
 Bump versions when inputs or semantics change. Keep fresh-set and movement workloads

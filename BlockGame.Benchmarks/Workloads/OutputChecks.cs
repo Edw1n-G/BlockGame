@@ -18,8 +18,13 @@ public static class OutputChecks
     public static string Mesh(BaseMesher mesh)=>EvidenceJson.Fingerprint(new {vertices=EvidenceJson.Hash(MeshWorkload.Vertices(mesh)),indices=EvidenceJson.Hash(MemoryMarshal.AsBytes(MeshWorkload.Indices(mesh)))});
     public static string Terrain(ChunkData chunk)
     {
-        using var bytes=new MemoryStream();bytes.WriteByte(chunk.Blocks is null?(byte)0:(byte)1);
-        if(chunk.Blocks is {} blocks)bytes.Write(MemoryMarshal.AsBytes(blocks.AsSpan()));
+        // Compare logical terrain, independent of the storage representation of air.
+        using var bytes=new MemoryStream();
+        for (int x=0;x<16;x++) for(int y=0;y<16;y++) for(int z=0;z<16;z++)
+        {
+            ushort block=chunk.GetBlock(x,y,z);
+            bytes.WriteByte((byte)block); bytes.WriteByte((byte)(block >> 8));
+        }
         return EvidenceJson.Hash(bytes.ToArray());
     }
     public static string Noise(float[] values)=>EvidenceJson.Hash(MemoryMarshal.AsBytes(values.AsSpan()));

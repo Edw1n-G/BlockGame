@@ -179,7 +179,7 @@ public class WorkloadTests
         switch (t.Kind)
         {
             case "outside": Assert.Null(a.Blocks); break;
-            case "air": Assert.NotNull(a.Blocks); Assert.Equal(0, count); break;
+            case "air": Assert.True(a.IsEmpty()); Assert.Equal(0, count); break;
             case "solid": Assert.Equal(4096, count); break;
             case "surface": Assert.InRange(count, 1, 4095); Assert.Contains(env.Registry.GetBlockId("core:grass"), a.Blocks!); break;
         }

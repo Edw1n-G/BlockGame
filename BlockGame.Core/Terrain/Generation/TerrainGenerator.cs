@@ -65,9 +65,7 @@ public class TerrainGenerator
         int chunkStartZ = coord.Z * stepSize * 16;
         int chunkTopY = chunkStartY + stepSize - 1; // Oberster Block im Chunk (skaliert nach LOD)
 
-        // Air chunks use ChunkData's existing null representation. Allocate only
-        // on the first solid voxel; nonempty chunks retain direct ushort access.
-        ushort[]? chunkBlocks = null;
+        ushort[] chunkBlocks;
         
         // +1 in Y für robuste Surface-Erkennung (Block über current)
         const int noiseSizeX = 16;
@@ -87,6 +85,12 @@ public class TerrainGenerator
                 noiseSizeZ,
                 stepSize);
 
+            // Ignore the extra Y plane: it is sampled only for surface detection.
+            // Exit as soon as a solid voxel is found, keeping the usual nonempty
+            // generation loop free of a per-voxel allocation check.
+            if (!HasSolidVoxel(densityField.AsSpan(0, densityCount))) return new ChunkData(coord);
+            chunkBlocks = new ushort[ChunkData.BlockCount];
+
             for (byte x = 0; x < 16; x++)
             {
                 for (byte z = 0; z < 16; z++)
@@ -105,7 +109,6 @@ public class TerrainGenerator
 
                         if (density > 0)
                         {
-                            chunkBlocks ??= new ushort[ChunkData.BlockCount];
                             bool isTopSolidBlock = densityAbove <= 0;
                             bool isNearSurface = isTopSolidBlock || density <= 4 * stepSize;
 
@@ -137,8 +140,19 @@ public class TerrainGenerator
         }
         
         
-        // Keep air chunks present so neighbors can still become meshable.
-        return chunkBlocks is null ? new ChunkData(coord) : new ChunkData(coord, chunkBlocks);
+        return new ChunkData(coord, chunkBlocks);
+    }
+
+    // Density layout is x + y * 16 + z * 16 * 17, including one halo Y plane.
+    internal static bool HasSolidVoxel(ReadOnlySpan<float> densityField)
+    {
+        for (int z = 0; z < 16; z++)
+        {
+            int start = z * 16 * 17;
+            for (int i = start; i < start + ChunkData.ChunkArea; i++)
+                if (densityField[i] > 0) return true;
+        }
+        return false;
     }
     
 }

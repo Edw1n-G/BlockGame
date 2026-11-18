@@ -1,11 +1,32 @@
 using Basics.Common;
 using Basics.Terrain;
+using Basics.Terrain.Generation;
 using BlockGame.Benchmarks.Workloads;
 
 namespace BlockGame.Tests;
 
 public class ChunkStorageGenerationTests
 {
+    [Fact]
+    public void SolidDetectionIgnoresHaloButFindsEveryInteriorVoxel()
+    {
+        var density = new float[16*17*16];
+        for(int z=0;z<16;z++) for(int x=0;x<16;x++)
+            density[x+16*16+z*16*17]=1;
+        Assert.False(TerrainGenerator.HasSolidVoxel(density));
+        for(int z=0;z<16;z++) for(int y=0;y<16;y++) for(int x=0;x<16;x++)
+        {
+            int index=x+y*16+z*16*17;
+            density[index]=float.Epsilon;
+            Assert.True(TerrainGenerator.HasSolidVoxel(density));
+            density[index]=0;
+        }
+        Array.Fill(density,float.NaN);
+        Assert.False(TerrainGenerator.HasSolidVoxel(density));
+        Array.Fill(density,-1f);
+        Assert.False(TerrainGenerator.HasSolidVoxel(density));
+    }
+
     [Fact]
     public void GeneratedAirRetainsNoArrayAndAllocatesOnlyWhenEdited()
     {

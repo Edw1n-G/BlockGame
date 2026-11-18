@@ -7,10 +7,12 @@ extra Y plane used for surface detection and returns a normal, present air chunk
 Nonempty chunks retain the existing array layout, full ushort IDs and direct block
 reads. No mesher, renderer, GPU, scheduler or provider code changes.
 
-**Decision pending:** both final CPU comparisons and the RTX frame gate pass, but
-the solid-s42 generation case measured 1.36–2.50% slower in two comparisons. The user
-reserved acceptance of memory/speed tradeoffs. The candidate remains a local,
-unpushed experiment; a passing 5% gate is not a claim of zero speed loss.
+**Accepted on 2026-11-18.** The project retained the memory savings with the measured
+1.36–2.50% slowdown in solid-s42 generation. Both final CPU comparisons and the RTX
+frame comparison passed. Per 16,384 generated air chunks, Gen 0 collections fell
+from eight to zero. Solid and surface cases stayed at eight. All measured cases
+recorded zero Gen 1 and Gen 2 collections. All 469 tests passed again before acceptance,
+including allocation of editable storage on the first non-air write.
 
 ## Revisions and correctness
 

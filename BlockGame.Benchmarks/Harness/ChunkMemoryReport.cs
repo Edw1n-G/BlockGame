@@ -3,6 +3,7 @@ using Basics.Terrain;
 using BlockGame.Benchmarks.Workloads;
 using System.Security.Cryptography;
 using System.Text;
+using System.Runtime.CompilerServices;
 
 namespace BlockGame.Benchmarks.Harness;
 
@@ -21,7 +22,20 @@ internal static class ChunkMemoryReport
         var rows = new List<object>();
         foreach (var (name, center) in new (string, ChunkCoord)[] {
             ("spawn", new(0,9,0,0)), ("surface", new(0,-58,0,0)), ("deep", new(0,-72,0,0)) })
-        {
+            rows.Add(MeasureRegion(environment, name, center));
+        RunEvidence.WriteJson(Path.Combine(output,"chunk-memory.json"),new {
+            version=2, source=RunEvidence.SourceIdentity(), host=RunEvidence.RuntimeIdentity(),
+            dependencies=environment.Identity(), rows,
+            limitation="Headless retained generated chunks only: excludes provider, mesh buffers, GPU and process RSS. GC delta is approximate; block payload is exact."
+        });
+        Console.WriteLine(File.ReadAllText(Path.Combine(output,"chunk-memory.json")));
+        return 0;
+    }
+
+    // Separate frames keep a preceding region's chunks out of the next GC baseline.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static object MeasureRegion(WorkloadEnvironment environment, string name, ChunkCoord center)
+    {
             ChunkCoord[] coords = WorkloadCatalog.Select(center, 12, 12)
                 .OrderBy(c=>c.X).ThenBy(c=>c.Y).ThenBy(c=>c.Z).ToArray();
             // Warm native generation and pooled scratch before counting retained storage.
@@ -40,17 +54,10 @@ internal static class ChunkMemoryReport
                 if (chunk.Blocks is null || chunk.Blocks.All(b=>b==first)) uniform++;
                 hash.AppendData(Encoding.ASCII.GetBytes(OutputChecks.Terrain(chunk)));
             }
-            rows.Add(new { name, center, radius=12, count=chunks.Length, arrays, air, uniform,
+            var result = new { name, center=new { center.X, center.Y, center.Z, center.LodLevel }, radius=12, count=chunks.Length, arrays, air, uniform,
                 blockPayloadBytes=payload, retainedManagedBytes=retained,
-                logicalFingerprint=Convert.ToHexString(hash.GetHashAndReset()) });
+                logicalFingerprint=Convert.ToHexString(hash.GetHashAndReset()) };
             GC.KeepAlive(chunks);
-        }
-        RunEvidence.WriteJson(Path.Combine(output,"chunk-memory.json"),new {
-            version=1, source=RunEvidence.SourceIdentity(), host=RunEvidence.RuntimeIdentity(),
-            dependencies=environment.Identity(), rows,
-            limitation="Headless retained generated chunks only: excludes provider, mesh buffers, GPU and process RSS. GC delta is approximate; block payload is exact."
-        });
-        Console.WriteLine(File.ReadAllText(Path.Combine(output,"chunk-memory.json")));
-        return 0;
+            return result;
     }
 }

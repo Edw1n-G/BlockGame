@@ -6,6 +6,24 @@ namespace BlockGame.Tests;
 
 public class ChunkStorageGenerationTests
 {
+    [Fact]
+    public void GeneratedAirRetainsNoArrayAndAllocatesOnlyWhenEdited()
+    {
+        using var env = new WorkloadEnvironment();
+        var coord = new ChunkCoord(0,64,0,0);
+        var air = env.Generator.GenerateChunk(coord);
+        Assert.Equal(coord,air.Coord);
+        Assert.Null(air.Blocks);
+        Assert.False(air.IsDirty);
+        air.SetBlock(15,15,15,0);
+        Assert.Null(air.Blocks);
+        air.SetBlock(15,15,15,ushort.MaxValue);
+        Assert.Equal(4096,air.Blocks!.Length);
+        Assert.Equal(ushort.MaxValue,air.GetBlock(15,15,15));
+        Assert.Equal((ushort)0,air.GetBlock(0,0,0));
+        Assert.Null(env.Generator.GenerateChunk(coord).Blocks);
+    }
+
     [Theory]
     [InlineData(1, 0)]
     [InlineData(42, 0)]

@@ -65,7 +65,9 @@ public class TerrainGenerator
         int chunkStartZ = coord.Z * stepSize * 16;
         int chunkTopY = chunkStartY + stepSize - 1; // Oberster Block im Chunk (skaliert nach LOD)
 
-        ushort[] chunkBlocks = new ushort[4096];
+        // Air chunks use ChunkData's existing null representation. Allocate only
+        // on the first solid voxel; nonempty chunks retain direct ushort access.
+        ushort[]? chunkBlocks = null;
         
         // +1 in Y für robuste Surface-Erkennung (Block über current)
         const int noiseSizeX = 16;
@@ -103,6 +105,7 @@ public class TerrainGenerator
 
                         if (density > 0)
                         {
+                            chunkBlocks ??= new ushort[ChunkData.BlockCount];
                             bool isTopSolidBlock = densityAbove <= 0;
                             bool isNearSurface = isTopSolidBlock || density <= 4 * stepSize;
 
@@ -123,10 +126,6 @@ public class TerrainGenerator
                                 chunkBlocks[blockIndex] = _stoneId;
                             }
                         }
-                        else
-                        {
-                            chunkBlocks[blockIndex] = 0;
-                        }
                     }
                 }
             }
@@ -138,19 +137,8 @@ public class TerrainGenerator
         }
         
         
-        // Wenn der Chunkgenerator null zurückgibt ist der Chunk nur Luft oder
-        // nicht in der Welt. Trotzdem speichern, damit Nachbar-Chunks gemesht werden können
-        ChunkData chunkData;
-        if (chunkBlocks == null)
-        {
-            chunkData = new ChunkData(coord); // Alles Luft
-        }
-        else
-        {
-            chunkData = new ChunkData(coord, chunkBlocks);
-        }
-        
-        return chunkData;
+        // Keep air chunks present so neighbors can still become meshable.
+        return chunkBlocks is null ? new ChunkData(coord) : new ChunkData(coord, chunkBlocks);
     }
     
 }
